@@ -148,12 +148,14 @@ const App: React.FC = () => {
 
   // Broadcast Automático
   useEffect(() => {
+    const payload = { 
+      brokers, properties, clients, activities, reminders, 
+      commissions, commissionForecasts, documents, 
+      constructionCompanies, launches, campaigns, rentals 
+    };
+    stateRef.current = payload;
+
     if (activeConnections.current.size > 0) {
-      const payload = { 
-        brokers, properties, clients, activities, reminders, 
-        commissions, commissionForecasts, documents, 
-        constructionCompanies, launches, campaigns, rentals 
-      };
       activeConnections.current.forEach(conn => {
         if (conn.open) {
           try { conn.send({ type: 'DATA_UPDATE', payload }); } catch { activeConnections.current.delete(conn.peer); }
@@ -223,9 +225,13 @@ const App: React.FC = () => {
 
     peer.on('connection', (conn) => {
       activeConnections.current.set(conn.peer, conn);
+      console.log('Nova conexão P2P estabelecida:', conn.peer);
       
       conn.on('data', (d: any) => {
-        if (d.type === 'DATA_UPDATE') mergeData(d.payload);
+        if (d.type === 'DATA_UPDATE') {
+           console.log('Dados recebidos via P2P, mesclando...');
+           mergeData(d.payload);
+        }
         if (d.type === 'PING') conn.send({ type: 'PONG' });
         
         if (d.type === 'REMOTE_AUTH_REQUEST' && currentUser.role === 'Admin') {
@@ -583,8 +589,8 @@ const App: React.FC = () => {
       <NewClientModal 
         isOpen={isClientModalOpen} 
         onClose={() => setIsClientModalOpen(false)} 
-        onAddClient={c => setClients(v => [c, ...v])} 
-        onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? c : x))}
+        onAddClient={c => setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v])} 
+        onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))}
         clientToEdit={clientToEdit}
         currentUser={currentUser}
         brokers={brokers}

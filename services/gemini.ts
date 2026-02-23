@@ -12,8 +12,16 @@ const callWithRetry = async (fn: () => Promise<any>, retries = 3, delay = 2000):
   try {
     return await fn();
   } catch (error: any) {
-    if (retries > 0 && (error?.message?.includes('429') || error?.status === 429 || error?.message?.includes('RESOURCE_EXHAUSTED'))) {
-      console.warn(`Vettus AI: Cota atingida. Tentando novamente em ${delay}ms... (${retries} restantes)`);
+    const isRetryable = 
+      error?.message?.includes('429') || 
+      error?.status === 429 || 
+      error?.message?.includes('RESOURCE_EXHAUSTED') ||
+      error?.message?.includes('500') ||
+      error?.status === 500 ||
+      error?.message?.includes('INTERNAL');
+
+    if (retries > 0 && isRetryable) {
+      console.warn(`Vettus AI: Erro temporário (${error?.status || 'INTERNAL'}). Tentando novamente em ${delay}ms... (${retries} restantes)`);
       await wait(delay);
       return callWithRetry(fn, retries - 1, delay * 2);
     }
@@ -24,7 +32,7 @@ const callWithRetry = async (fn: () => Promise<any>, retries = 3, delay = 2000):
 export const getAISuggestions = async (prompt: string) => {
   try {
     return await callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
@@ -43,7 +51,7 @@ export const getAISuggestions = async (prompt: string) => {
 export const extractPropertyFromUrl = async (url: string) => {
   try {
     return await callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Extraia detalhadamente as informações do imóvel deste link: ${url}. Retorne APENAS um objeto JSON válido contendo: title, type (Apartamento|Casa|Cobertura|Terreno), price (número), address, area (número), bedrooms (número), bathrooms (número), description, status (Disponível|Lançamento).`,
@@ -72,7 +80,7 @@ export const extractPropertyFromUrl = async (url: string) => {
 export const editImageWithAI = async (base64Image: string, prompt: string) => {
   try {
     return await callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const matches = base64Image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
       if (!matches || matches.length !== 3) {

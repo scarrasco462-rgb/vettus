@@ -535,6 +535,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
                            )}
                         </div>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{client.phone}</p>
+                        {client.spouseName && (
+                          <p className="text-[9px] text-[#d4a853] font-black uppercase tracking-tighter mt-0.5">
+                            Esposa: {client.spouseName} {client.spousePhone && `(${client.spousePhone})`}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>

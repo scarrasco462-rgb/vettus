@@ -32,7 +32,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
     status: ClientStatus.LEAD,
     budget: 0,
     desiredPropertyType: 'Apartamento',
-    brokerId: currentUser.id
+    brokerId: currentUser.id,
+    spouseName: '',
+    spousePhone: ''
   });
 
   const [ddi, setDdi] = useState('+55');
@@ -64,7 +66,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
           status: ClientStatus.LEAD,
           budget: 0,
           desiredPropertyType: 'Apartamento',
-          brokerId: currentUser.id
+          brokerId: currentUser.id,
+          spouseName: '',
+          spousePhone: ''
         });
         setDdi('+55');
         setPhoneNumber('');
@@ -99,6 +103,8 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
         budget: formData.budget || 0,
         assignedAgent: selectedBroker.name,
         desiredPropertyType: formData.desiredPropertyType || 'Apartamento',
+        spouseName: formData.spouseName || '',
+        spousePhone: formData.spousePhone || '',
         updatedAt: new Date().toISOString()
       };
       
@@ -166,6 +172,17 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">E-mail</label>
                 <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-sm font-bold text-slate-900 outline-none" placeholder="cliente@email.com" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nome da Esposa (Opcional)</label>
+                  <input type="text" value={formData.spouseName} onChange={e => setFormData({...formData, spouseName: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-sm font-bold text-slate-900 outline-none" placeholder="Nome da esposa" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Telefone da Esposa (Opcional)</label>
+                  <input type="tel" value={formData.spousePhone} onChange={e => setFormData({...formData, spousePhone: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-sm font-bold text-slate-900 outline-none" placeholder="(00) 00000-0000" />
+                </div>
               </div>
             </div>
           </section>

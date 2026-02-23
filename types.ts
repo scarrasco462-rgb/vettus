@@ -156,6 +156,8 @@ export interface Client {
   nextActivityDate?: string;
   nextActivityTime?: string;
   nextActivityType?: 'Call' | 'Meeting' | 'Viewing' | 'Email' | 'WhatsApp' | 'Call_Back';
+  spouseName?: string;
+  spousePhone?: string;
   blocked?: boolean;
   blockReason?: string;
   updatedAt: string;
