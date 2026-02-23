@@ -12,39 +12,6 @@ export const MOCK_BROKERS: Broker[] = [
     performance: 100,
     permissions: ALL_PERMISSIONS,
     networkId: 'VETTUS-PRO'
-  },
-  {
-    id: 'broker-amanda',
-    name: 'Amanda Oliveira',
-    email: 'amanda@vettus.com',
-    password: '123',
-    role: 'Broker',
-    joinDate: '2024-02-15',
-    performance: 88,
-    permissions: ['dashboard', 'properties', 'clients', 'tasks', 'activities', 'reminders', 'marketing'],
-    networkId: 'VETTUS-PRO'
-  },
-  {
-    id: 'broker-roberto',
-    name: 'Roberto Silva',
-    email: 'roberto@vettus.com',
-    password: '123',
-    role: 'Broker',
-    joinDate: '2024-03-01',
-    performance: 92,
-    permissions: ['dashboard', 'properties', 'clients', 'tasks', 'activities', 'reminders'],
-    networkId: 'VETTUS-PRO'
-  },
-  {
-    id: 'admin-luciana',
-    name: 'Luciana Mello',
-    email: 'luciana@vettus.com',
-    password: '123',
-    role: 'Admin',
-    joinDate: '2024-01-10',
-    performance: 95,
-    permissions: ALL_PERMISSIONS,
-    networkId: 'VETTUS-PRO'
   }
 ];
 

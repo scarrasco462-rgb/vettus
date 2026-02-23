@@ -49,7 +49,14 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected'>('disconnected');
 
   // Estados Gerenciados (Rede Vettus)
-  const [brokers, setBrokers] = useState<Broker[]>(() => loadLocal('brokers', MOCK_BROKERS));
+  const [brokers, setBrokers] = useState<Broker[]>(() => {
+    const local = loadLocal('brokers', MOCK_BROKERS);
+    // Reset automático se detectar dados mock antigos para "zerar" a equipe conforme solicitado
+    if (local.some(b => b.id === 'broker-amanda' || b.id === 'broker-roberto' || b.id === 'admin-luciana')) {
+      return MOCK_BROKERS;
+    }
+    return local;
+  });
   const [properties, setProperties] = useState<Property[]>(() => loadLocal('properties', []));
   const [clients, setClients] = useState<Client[]>(() => loadLocal('clients', []));
   const [activities, setActivities] = useState<Activity[]>(() => loadLocal('activities', []));
@@ -247,11 +254,11 @@ const App: React.FC = () => {
       console.error('Peer Protocol Alert:', err.type);
       setSyncStatus('disconnected');
       
-      if (err.type === 'unavailable-id') {
+      if (err.type === 'unavailable-id' as any) {
          // Se o ID Master estiver preso, esperar 10s para expirar a sessão anterior
          peer.destroy();
          setTimeout(initPeer, 10000); 
-      } else if (err.type === 'network-error' || err.type === 'socket-error') {
+      } else if (err.type === 'network' || err.type === 'socket-error') {
          peer.destroy();
          setTimeout(initPeer, 5000);
       }
