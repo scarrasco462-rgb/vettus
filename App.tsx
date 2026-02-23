@@ -149,7 +149,11 @@ const App: React.FC = () => {
   // Broadcast Automático
   useEffect(() => {
     if (activeConnections.current.size > 0) {
-      const payload = stateRef.current;
+      const payload = { 
+        brokers, properties, clients, activities, reminders, 
+        commissions, commissionForecasts, documents, 
+        constructionCompanies, launches, campaigns, rentals 
+      };
       activeConnections.current.forEach(conn => {
         if (conn.open) {
           try { conn.send({ type: 'DATA_UPDATE', payload }); } catch { activeConnections.current.delete(conn.peer); }
@@ -362,7 +366,7 @@ const App: React.FC = () => {
 
       {currentView === 'clients' && (
         <ClientView 
-          clients={isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id)} 
+          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id)} 
           activities={isAdmin ? activities : activities.filter(a => clients.some(c => c.name === a.clientName && c.brokerId === currentUser.id))} 
           properties={properties} 
           commissions={commissions} 

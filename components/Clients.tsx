@@ -108,6 +108,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   // Estado para Bloqueio
   const [blockReason, setBlockReason] = useState('');
+  const [selectedBrokerFilter, setSelectedBrokerFilter] = useState<string>('all');
 
   const isAdmin = currentUser.role === 'Admin';
 
@@ -457,7 +458,15 @@ export const ClientView: React.FC<ClientViewProps> = ({
     }
   };
 
-  const sortedClients = useMemo(() => [...clients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [clients]);
+  const filteredClients = useMemo(() => {
+    let filtered = clients;
+    if (isAdmin && selectedBrokerFilter !== 'all') {
+      filtered = filtered.filter(c => c.brokerId === selectedBrokerFilter);
+    }
+    return filtered;
+  }, [clients, isAdmin, selectedBrokerFilter]);
+
+  const sortedClients = useMemo(() => [...filteredClients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [filteredClients]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -467,6 +476,21 @@ export const ClientView: React.FC<ClientViewProps> = ({
           <p className="text-slate-500 font-medium">Controle de leads, histórico de atendimento e follow-up.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {isAdmin && (
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+              <Filter className="w-4 h-4 text-slate-400 mr-2" />
+              <select 
+                value={selectedBrokerFilter} 
+                onChange={e => setSelectedBrokerFilter(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer pr-4"
+              >
+                <option value="all">Todos os Corretores</option>
+                {brokers.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <button onClick={onOpenImport} className="bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors">
             <FileUp className="w-4 h-4 text-emerald-600" />
             <span>Importar</span>
