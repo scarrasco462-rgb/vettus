@@ -105,6 +105,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   // Estado para Transferência
   const [targetBrokerId, setTargetBrokerId] = useState('');
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
 
   // Estado para Bloqueio
   const [blockReason, setBlockReason] = useState('');
@@ -136,8 +138,31 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const handleOpenTransfer = (client: Client) => {
     if (!isAdmin) return;
     setSelectedClient(client);
+    setSelectedClientIds([client.id]);
     setTargetBrokerId('');
     setShowTransferModal(true);
+  };
+
+  const handleOpenBulkTransfer = () => {
+    if (!isAdmin || selectedClientIds.length === 0) return;
+    setTargetBrokerId('');
+    setShowTransferModal(true);
+  };
+
+  const toggleSelectClient = (clientId: string) => {
+    setSelectedClientIds(prev => 
+      prev.includes(clientId) 
+        ? prev.filter(id => id !== clientId) 
+        : [...prev, clientId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedClientIds.length === sortedClients.length) {
+      setSelectedClientIds([]);
+    } else {
+      setSelectedClientIds(sortedClients.map(c => c.id));
+    }
   };
 
   const handleOpenBlock = (client: Client) => {
@@ -209,51 +234,60 @@ export const ClientView: React.FC<ClientViewProps> = ({
   };
 
   const handleConfirmTransfer = () => {
-    if (!selectedClient || !targetBrokerId) return;
+    if (selectedClientIds.length === 0 || !targetBrokerId) return;
     
     const newBroker = brokers.find(b => b.id === targetBrokerId);
     if (!newBroker) return;
 
-    const oldBrokerName = selectedClient.assignedAgent || 'Gestão';
     const now = new Date().toISOString();
+    const dateStr = now.split('T')[0];
+    const timeStr = new Date().toLocaleTimeString('pt-BR');
 
-    // 1. Atualizar o Cliente
-    const updatedClient: Client = {
-      ...selectedClient,
-      brokerId: newBroker.id,
-      assignedAgent: newBroker.name,
-      updatedAt: now
-    };
-    onUpdateClient(updatedClient);
+    selectedClientIds.forEach(clientId => {
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
 
-    // 2. Registrar Log de Auditoria
-    onAddActivity({
-      id: Math.random().toString(36).substr(2, 9),
-      brokerId: currentUser.id,
-      brokerName: currentUser.name,
-      type: 'Meeting',
-      clientName: selectedClient.name,
-      description: `[GESTÃO] TRANSFERÊNCIA DE CARTEIRA: Lead remanejado de ${oldBrokerName.toUpperCase()} para ${newBroker.name.toUpperCase()} por ${currentUser.name}.`,
-      date: now.split('T')[0],
-      time: new Date().toLocaleTimeString('pt-BR'),
-      updatedAt: now
+      const oldBrokerName = client.assignedAgent || 'Gestão';
+
+      // 1. Atualizar o Cliente
+      const updatedClient: Client = {
+        ...client,
+        brokerId: newBroker.id,
+        assignedAgent: newBroker.name,
+        updatedAt: now
+      };
+      onUpdateClient(updatedClient);
+
+      // 2. Registrar Log de Auditoria
+      onAddActivity({
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: currentUser.id,
+        brokerName: currentUser.name,
+        type: 'Meeting',
+        clientName: client.name,
+        description: `[GESTÃO] TRANSFERÊNCIA DE CARTEIRA: Lead remanejado de ${oldBrokerName.toUpperCase()} para ${newBroker.name.toUpperCase()} por ${currentUser.name}.`,
+        date: dateStr,
+        time: timeStr,
+        updatedAt: now
+      });
+
+      // 3. Notificar o Corretor Destino via Reminder
+      onAddReminder({
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: newBroker.id,
+        title: `NOVO LEAD RECEBIDO: ${client.name} transferido pela Administração.`,
+        dueDate: dateStr,
+        priority: 'High',
+        completed: false,
+        type: 'new_lead',
+        updatedAt: now
+      });
     });
 
-    // 3. Notificar o Corretor Destino via Reminder
-    onAddReminder({
-      id: Math.random().toString(36).substr(2, 9),
-      brokerId: newBroker.id,
-      title: `NOVO LEAD RECEBIDO: ${selectedClient.name} transferido pela Administração.`,
-      dueDate: now.split('T')[0],
-      priority: 'High',
-      completed: false,
-      type: 'new_lead',
-      updatedAt: now
-    });
-
-    alert(`Transferência concluída. ${newBroker.name} foi notificado sobre o novo lead.`);
+    alert(`Transferência de ${selectedClientIds.length} lead(s) concluída. ${newBroker.name} foi notificado.`);
     setShowTransferModal(false);
     setSelectedClient(null);
+    setSelectedClientIds([]);
   };
 
   const handleConfirmBlock = () => {
@@ -507,6 +541,16 @@ export const ClientView: React.FC<ClientViewProps> = ({
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
+                {isAdmin && (
+                  <th className="px-8 py-6 w-10">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedClientIds.length === sortedClients.length && sortedClients.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-[#d4a853] focus:ring-[#d4a853]"
+                    />
+                  </th>
+                )}
                 <th className="px-8 py-6">Perfil do Lead</th>
                 <th className="px-8 py-6">Responsável</th>
                 <th className="px-8 py-6">Status</th>
@@ -516,7 +560,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {sortedClients.map((client) => (
-                <tr key={client.id} className={`hover:bg-[#d4a853]/5 transition-colors group ${client.blocked ? 'grayscale bg-slate-50 opacity-70' : ''}`}>
+                <tr key={client.id} className={`hover:bg-[#d4a853]/5 transition-colors group ${client.blocked ? 'grayscale bg-slate-50 opacity-70' : ''} ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/10' : ''}`}>
+                  {isAdmin && (
+                    <td className="px-8 py-7">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedClientIds.includes(client.id)}
+                        onChange={() => toggleSelectClient(client.id)}
+                        className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                      />
+                    </td>
+                  )}
                   <td className="px-8 py-7">
                     <div className="flex items-center space-x-4">
                       <div className="relative">
