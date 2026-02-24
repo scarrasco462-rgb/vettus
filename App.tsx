@@ -381,8 +381,8 @@ const App: React.FC = () => {
 
       {currentView === 'clients' && (
         <ClientView 
-          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent === currentUser.name && c.brokerId !== 'unassigned'))} 
-          activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id || clients.some(c => c.name === a.clientName && c.brokerId === currentUser.id))} 
+          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))} 
+          activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id)} 
           properties={properties} 
           commissions={commissions} 
           constructionCompanies={constructionCompanies} 
@@ -406,7 +406,7 @@ const App: React.FC = () => {
 
       {currentView === 'tasks' && (
         <TasksView 
-          clients={isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent === currentUser.name && c.brokerId !== 'unassigned'))} 
+          clients={isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))} 
           currentUser={currentUser} 
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? c : x))} 
           onAddActivity={a => setActivities(v => [a, ...v])} 
@@ -564,6 +564,7 @@ const App: React.FC = () => {
           clients={clients} 
           commissions={commissions} 
           properties={properties} 
+          currentUser={currentUser}
         />
       )}
 

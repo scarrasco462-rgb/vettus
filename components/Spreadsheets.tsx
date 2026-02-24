@@ -27,6 +27,7 @@ interface SpreadsheetsViewProps {
   clients: Client[];
   commissions: Commission[];
   properties: Property[];
+  currentUser: Broker;
 }
 
 type SpreadsheetTab = 'clients' | 'sales' | 'performance' | 'leads';
@@ -39,11 +40,12 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({ brokers, clients, commissions, properties }) => {
+export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({ brokers, clients, commissions, properties, currentUser }) => {
+  const isAdmin = currentUser.role === 'Admin';
   const [activeTab, setActiveTab] = useState<SpreadsheetTab>('clients');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Todos');
-  const [brokerFilter, setBrokerFilter] = useState<string>('Todos');
+  const [brokerFilter, setBrokerFilter] = useState<string>(isAdmin ? 'Todos' : currentUser.id);
 
   const getBrokerName = (id: string) => brokers.find(b => b.id === id)?.name || 'Desconhecido';
   
@@ -55,26 +57,31 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({ brokers, cli
   const getFilteredData = () => {
     const search = searchTerm.toLowerCase();
     
+    // Filtro de segurança por role
+    const baseClients = isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));
+    const baseCommissions = isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id);
+    const baseBrokers = isAdmin ? brokers : brokers.filter(b => b.id === currentUser.id);
+
     if (activeTab === 'clients') {
-      return clients.filter(c => {
+      return baseClients.filter(c => {
         const matchesSearch = c.name.toLowerCase().includes(search);
         const matchesStatus = statusFilter === 'Todos' || c.status === statusFilter;
         const matchesBroker = brokerFilter === 'Todos' || c.brokerId === brokerFilter;
         return matchesSearch && matchesStatus && matchesBroker;
       });
     } else if (activeTab === 'sales') {
-      return commissions.filter(s => {
+      return baseCommissions.filter(s => {
         const matchesSearch = s.propertyTitle.toLowerCase().includes(search) || s.clientName.toLowerCase().includes(search);
         const matchesBroker = brokerFilter === 'Todos' || s.brokerId === brokerFilter;
         return matchesSearch && matchesBroker;
       });
     } else if (activeTab === 'performance') {
-      return brokers
+      return baseBrokers
         .filter(b => brokerFilter === 'Todos' || b.id === brokerFilter)
         .map(broker => {
-          const bSales = commissions.filter(c => c.brokerId === broker.id);
+          const bSales = baseCommissions.filter(c => c.brokerId === broker.id);
           const total = bSales.reduce((acc, c) => acc + c.amount, 0);
-          const bClients = clients.filter(c => c.brokerId === broker.id).length;
+          const bClients = baseClients.filter(c => c.brokerId === broker.id).length;
           const conv = bClients > 0 ? (bSales.length / bClients * 100).toFixed(1) : '0.0';
           return {
             name: broker.name,
@@ -86,10 +93,10 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({ brokers, cli
           };
         }).filter(b => b.name.toLowerCase().includes(search));
     } else {
-      return brokers
+      return baseBrokers
         .filter(b => brokerFilter === 'Todos' || b.id === brokerFilter)
         .map(broker => {
-          const bClients = clients.filter(c => c.brokerId === broker.id);
+          const bClients = baseClients.filter(c => c.brokerId === broker.id);
           return {
             name: broker.name,
             firstContact: bClients.filter(c => c.status === ClientStatus.LEAD).length,
@@ -356,17 +363,19 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({ brokers, cli
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
-             <UserCheck className="w-3.5 h-3.5 text-[#d4a853] ml-2" />
-             <select 
-               value={brokerFilter}
-               onChange={(e) => setBrokerFilter(e.target.value)}
-               className="text-[10px] font-black uppercase bg-transparent outline-none text-slate-700 cursor-pointer pr-4"
-             >
-                <option value="Todos">Toda a Equipe</option>
-                {brokers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-             </select>
-          </div>
+          {isAdmin && (
+            <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
+               <UserCheck className="w-3.5 h-3.5 text-[#d4a853] ml-2" />
+               <select 
+                 value={brokerFilter}
+                 onChange={(e) => setBrokerFilter(e.target.value)}
+                 className="text-[10px] font-black uppercase bg-transparent outline-none text-slate-700 cursor-pointer pr-4"
+               >
+                  <option value="Todos">Toda a Equipe</option>
+                  {brokers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+               </select>
+            </div>
+          )}
 
           {activeTab === 'clients' && (
             <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
