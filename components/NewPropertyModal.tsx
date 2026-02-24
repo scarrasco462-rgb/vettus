@@ -169,7 +169,34 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+        if (!ctx) return resolve('');
+        
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Aplicação de Marca d'Água (Regra 3.11.2)
+        if (formData.applyWatermark) {
+          ctx.save();
+          const fontSize = Math.max(20, width / 20);
+          ctx.font = `black ${fontSize}px "Inter", sans-serif`;
+          ctx.fillStyle = `rgba(212, 168, 83, ${formData.watermarkOpacity || 0.5})`;
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'bottom';
+          
+          // Texto da Marca d'Água
+          const text = formData.watermarkText || 'VETTUS IMÓVEIS';
+          ctx.fillText(text, width - 20, height - 20);
+          
+          // Linha decorativa
+          ctx.strokeStyle = `rgba(212, 168, 83, ${(formData.watermarkOpacity || 0.5) / 2})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(width - 20, height - 15);
+          ctx.lineTo(width - 20 - ctx.measureText(text).width, height - 15);
+          ctx.stroke();
+          
+          ctx.restore();
+        }
+
         resolve(canvas.toDataURL('image/jpeg', 0.6));
       };
       img.onerror = () => resolve('');

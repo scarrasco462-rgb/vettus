@@ -26,6 +26,7 @@ import { AdsView } from './components/Ads.tsx';
 import { SpreadsheetsView } from './components/Spreadsheets.tsx';
 import { ClientPaymentFlowView } from './components/ClientPaymentFlow.tsx';
 import { PasswordUpdateView } from './components/PasswordUpdateView.tsx';
+import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 import { 
   Broker, Property, Client, Task, Activity, Reminder, AppView, 
@@ -107,7 +108,24 @@ const App: React.FC = () => {
     }
   }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, currentUser]);
 
+  const logSystemAction = useCallback((description: string, type: string = 'System') => {
+    if (!currentUser) return;
+    const newActivity: Activity = {
+      id: Math.random().toString(36).substr(2, 9),
+      brokerId: currentUser.id,
+      brokerName: currentUser.name,
+      type: type as any,
+      clientName: 'SISTEMA',
+      description: `[LOG] ${description}`,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString('pt-BR'),
+      updatedAt: new Date().toISOString()
+    };
+    setActivities(prev => [newActivity, ...prev]);
+  }, [currentUser]);
+
   const handleLogout = () => {
+    logSystemAction('Logout efetuado do sistema');
     if (peerRef.current) peerRef.current.destroy();
     localStorage.removeItem(STORAGE_KEY_PREFIX + 'session_user');
     setCurrentUser(null);
@@ -347,7 +365,7 @@ const App: React.FC = () => {
           currentUser={currentUser} 
           statsData={{ 
             properties: isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id), 
-            clients: isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id), 
+            clients: isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim())), 
             tasks: [], 
             activities: isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id), 
             reminders: reminders.filter(r => r.brokerId === currentUser.id), 
@@ -357,7 +375,7 @@ const App: React.FC = () => {
             onlineBrokers: Array.from(activeConnections.current.keys()), 
             commissionForecasts: isAdmin ? commissionForecasts : commissionForecasts.filter(f => {
               const client = clients.find(cl => cl.id === f.clientId);
-              return client?.brokerId === currentUser.id;
+              return client && (client.brokerId === currentUser.id || (client.assignedAgent && client.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));
             })
           }} 
         />
@@ -381,7 +399,12 @@ const App: React.FC = () => {
 
       {currentView === 'clients' && (
         <ClientView 
-          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))} 
+          clients={isAdmin ? clients : clients.filter(c => {
+            const isAssignedById = c.brokerId === currentUser.id;
+            const isAssignedByName = c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim();
+            const isUnassigned = c.brokerId === 'unassigned';
+            return isAssignedById || (isAssignedByName && !isUnassigned);
+          })} 
           activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id)} 
           properties={properties} 
           commissions={commissions} 
@@ -455,8 +478,8 @@ const App: React.FC = () => {
 
       {currentView === 'marketing' && (
         <MarketingView 
-          campaigns={campaigns} 
-          clients={clients} 
+          campaigns={isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id)} 
+          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))} 
           currentUser={currentUser} 
           brokers={brokers}
         />
@@ -555,7 +578,7 @@ const App: React.FC = () => {
       )}
 
       {currentView === 'ads' && (
-        <AdsView properties={properties} currentUser={currentUser} />
+        <AdsView properties={isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)} currentUser={currentUser} />
       )}
 
       {currentView === 'spreadsheets' && (
@@ -599,12 +622,46 @@ const App: React.FC = () => {
       <NewClientModal 
         isOpen={isClientModalOpen} 
         onClose={() => setIsClientModalOpen(false)} 
-        onAddClient={c => setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v])} 
-        onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))}
+        onAddClient={c => {
+          setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v]);
+          logSystemAction(`Novo cliente cadastrado: ${c.name}`);
+        }} 
+        onUpdateClient={c => {
+          setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x));
+          logSystemAction(`Cliente atualizado: ${c.name}`);
+        }}
         clientToEdit={clientToEdit}
         currentUser={currentUser}
         brokers={brokers}
       />
+
+      {/* SYNC STATUS FLOATING INDICATOR (3.11.2) */}
+      <div className="fixed bottom-8 right-8 z-[999] pointer-events-none">
+        <div className={`gold-gradient p-0.5 rounded-2xl shadow-2xl transition-all duration-500 pointer-events-auto hover:scale-110 ${syncStatus === 'disconnected' ? 'grayscale opacity-50' : 'opacity-100'}`}>
+          <div className="bg-[#020617] rounded-[1.1rem] px-6 py-3 flex items-center space-x-4 border border-white/5">
+            <div className="relative">
+              {syncStatus === 'synced' ? (
+                <Wifi className="w-5 h-5 text-emerald-500" />
+              ) : syncStatus === 'syncing' ? (
+                <RefreshCw className="w-5 h-5 text-[#d4a853] animate-spin" />
+              ) : (
+                <WifiOff className="w-5 h-5 text-red-500" />
+              )}
+              {syncStatus === 'synced' && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">
+                {syncStatus === 'synced' ? 'Rede Ativa' : syncStatus === 'syncing' ? 'Sincronizando' : 'Offline'}
+              </span>
+              <span className="text-[8px] font-bold text-[#d4a853] uppercase tracking-tighter opacity-70">
+                {currentUser.networkId} • {currentUser.name.split(' ')[0]}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 };

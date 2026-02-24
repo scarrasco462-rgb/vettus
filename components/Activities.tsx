@@ -23,7 +23,8 @@ import {
   PhoneForwarded,
   Trash2,
   Filter,
-  Check
+  Check,
+  ShieldAlert
 } from 'lucide-react';
 import { Activity, Broker, Reminder, Client } from '../types';
 
@@ -107,6 +108,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
       case 'Viewing': return <MapPin className="w-4 h-4" />;
       case 'Meeting': return <Users className="w-4 h-4" />;
       case 'Call_Back': return <PhoneForwarded className="w-4 h-4" />;
+      case 'System': return <ShieldAlert className="w-4 h-4 text-[#d4a853]" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };

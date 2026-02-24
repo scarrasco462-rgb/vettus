@@ -167,7 +167,7 @@ export interface Activity {
   id: string;
   brokerId: string;
   brokerName?: string;
-  type: 'Call' | 'Meeting' | 'Viewing' | 'Email' | 'WhatsApp';
+  type: 'Call' | 'Meeting' | 'Viewing' | 'Email' | 'WhatsApp' | 'System';
   clientName: string;
   description: string;
   date: string;

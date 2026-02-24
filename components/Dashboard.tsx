@@ -33,26 +33,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
   }, []);
 
   // Lógica de Filtragem Seletiva v6.2
+  // Nota: statsData já vem filtrado do App.tsx para não-admins
   const filteredData = useMemo(() => {
-    if (isAdmin) {
-      return {
-        clients: statsData.clients,
-        properties: statsData.properties,
-        commissions: statsData.commissions,
-        forecasts: statsData.commissionForecasts
-      };
-    }
-    // Para corretores, filtramos apenas o que pertence ao ID dele
     return {
-      clients: statsData.clients.filter(c => c.brokerId === currentUser.id),
-      properties: statsData.properties.filter(p => p.brokerId === currentUser.id),
-      commissions: statsData.commissions.filter(c => c.brokerId === currentUser.id),
-      forecasts: statsData.commissionForecasts.filter(f => {
-        const client = statsData.clients.find(cl => cl.id === f.clientId);
-        return client?.brokerId === currentUser.id;
-      })
+      clients: statsData.clients,
+      properties: statsData.properties,
+      commissions: statsData.commissions,
+      forecasts: statsData.commissionForecasts
     };
-  }, [statsData, currentUser, isAdmin]);
+  }, [statsData]);
 
   const totalSales = filteredData.commissions.reduce((acc, c) => acc + (c.salePrice || 0), 0);
   const totalFee = filteredData.forecasts.reduce((a, f) => a + (f.commissionAmount || 0), 0);
