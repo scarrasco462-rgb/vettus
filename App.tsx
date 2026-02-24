@@ -346,17 +346,26 @@ const App: React.FC = () => {
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
           statsData={{ 
-            properties, clients, tasks: [], activities, reminders, 
-            commissions, campaigns, systemLogs: [], 
+            properties: isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id), 
+            clients: isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id), 
+            tasks: [], 
+            activities: isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id), 
+            reminders: reminders.filter(r => r.brokerId === currentUser.id), 
+            commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
+            campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
+            systemLogs: [], 
             onlineBrokers: Array.from(activeConnections.current.keys()), 
-            commissionForecasts 
+            commissionForecasts: isAdmin ? commissionForecasts : commissionForecasts.filter(f => {
+              const client = clients.find(cl => cl.id === f.clientId);
+              return client?.brokerId === currentUser.id;
+            })
           }} 
         />
       )}
 
       {currentView === 'properties' && (
         <PropertyView 
-          properties={properties} 
+          properties={isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)} 
           currentUser={currentUser} 
           brokers={brokers} 
           onAddProperty={p => setProperties(v => [p, ...v])} 
@@ -372,8 +381,8 @@ const App: React.FC = () => {
 
       {currentView === 'clients' && (
         <ClientView 
-          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id)} 
-          activities={isAdmin ? activities : activities.filter(a => clients.some(c => c.name === a.clientName && c.brokerId === currentUser.id))} 
+          clients={isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent === currentUser.name && c.brokerId !== 'unassigned'))} 
+          activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id || clients.some(c => c.name === a.clientName && c.brokerId === currentUser.id))} 
           properties={properties} 
           commissions={commissions} 
           constructionCompanies={constructionCompanies} 
@@ -397,7 +406,7 @@ const App: React.FC = () => {
 
       {currentView === 'tasks' && (
         <TasksView 
-          clients={isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id)} 
+          clients={isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent === currentUser.name && c.brokerId !== 'unassigned'))} 
           currentUser={currentUser} 
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? c : x))} 
           onAddActivity={a => setActivities(v => [a, ...v])} 
@@ -437,7 +446,7 @@ const App: React.FC = () => {
 
       {currentView === 'sales' && (
         <SalesView 
-          sales={commissions} 
+          sales={isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id)} 
           brokers={brokers} 
           currentUser={currentUser}
           onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? s : x))}

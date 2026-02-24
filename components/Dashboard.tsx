@@ -36,48 +36,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
   const filteredData = useMemo(() => {
     if (isAdmin) {
       return {
-        tasks: statsData.tasks,
         clients: statsData.clients,
         properties: statsData.properties,
-        commissions: statsData.commissions
+        commissions: statsData.commissions,
+        forecasts: statsData.commissionForecasts
       };
     }
     // Para corretores, filtramos apenas o que pertence ao ID dele
     return {
-      tasks: statsData.tasks.filter(t => t.brokerId === currentUser.id),
       clients: statsData.clients.filter(c => c.brokerId === currentUser.id),
       properties: statsData.properties.filter(p => p.brokerId === currentUser.id),
-      commissions: statsData.commissions.filter(c => c.brokerId === currentUser.id)
+      commissions: statsData.commissions.filter(c => c.brokerId === currentUser.id),
+      forecasts: statsData.commissionForecasts.filter(f => {
+        const client = statsData.clients.find(cl => cl.id === f.clientId);
+        return client?.brokerId === currentUser.id;
+      })
     };
   }, [statsData, currentUser, isAdmin]);
 
-  const totalSales = filteredData.tasks.filter(t => t.stage === 'Ganho').reduce((acc, t) => acc + (t.value || 0), 0);
-  const totalFee = filteredData.commissions.reduce((a, c) => a + (c.amount || 0), 0);
+  const totalSales = filteredData.commissions.reduce((acc, c) => acc + (c.salePrice || 0), 0);
+  const totalFee = filteredData.forecasts.reduce((a, f) => a + (f.commissionAmount || 0), 0);
 
   const stats = [
     { 
-      label: 'VGV Negociado', 
+      label: isAdmin ? 'VGV Global' : 'Meu VGV', 
       value: `R$ ${(totalSales / 1000000).toFixed(1)}M`, 
       icon: Wallet, 
       color: 'text-emerald-600', 
       bg: 'bg-emerald-50' 
     },
     { 
-      label: 'Meus Leads Ativos', 
+      label: isAdmin ? 'Total Leads Ativos' : 'Meus Leads Ativos', 
       value: filteredData.clients.length.toString(), 
       icon: Users, 
       color: 'text-blue-600', 
       bg: 'bg-blue-50' 
     },
     { 
-      label: 'Portfólio Próprio', 
+      label: isAdmin ? 'Portfólio Global' : 'Portfólio Próprio', 
       value: filteredData.properties.length.toString(), 
       icon: Home, 
       color: 'text-purple-600', 
       bg: 'bg-purple-50' 
     },
     { 
-      label: 'Previsão FEE', 
+      label: isAdmin ? 'Previsão FEE Global' : 'Minha Previsão FEE', 
       value: `R$ ${(totalFee / 1000).toFixed(0)}K`, 
       icon: TrendingUp, 
       color: 'text-[#d4a853]', 
