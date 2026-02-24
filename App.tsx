@@ -635,33 +635,6 @@ const App: React.FC = () => {
         brokers={brokers}
       />
 
-      {/* SYNC STATUS FLOATING INDICATOR (3.11.2) */}
-      <div className="fixed bottom-8 right-8 z-[999] pointer-events-none">
-        <div className={`gold-gradient p-0.5 rounded-2xl shadow-2xl transition-all duration-500 pointer-events-auto hover:scale-110 ${syncStatus === 'disconnected' ? 'grayscale opacity-50' : 'opacity-100'}`}>
-          <div className="bg-[#020617] rounded-[1.1rem] px-6 py-3 flex items-center space-x-4 border border-white/5">
-            <div className="relative">
-              {syncStatus === 'synced' ? (
-                <Wifi className="w-5 h-5 text-emerald-500" />
-              ) : syncStatus === 'syncing' ? (
-                <RefreshCw className="w-5 h-5 text-[#d4a853] animate-spin" />
-              ) : (
-                <WifiOff className="w-5 h-5 text-red-500" />
-              )}
-              {syncStatus === 'synced' && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">
-                {syncStatus === 'synced' ? 'Rede Ativa' : syncStatus === 'syncing' ? 'Sincronizando' : 'Offline'}
-              </span>
-              <span className="text-[8px] font-bold text-[#d4a853] uppercase tracking-tighter opacity-70">
-                {currentUser.networkId} • {currentUser.name.split(' ')[0]}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
     </Layout>
   );
 };
