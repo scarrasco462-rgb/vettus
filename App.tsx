@@ -383,7 +383,7 @@ const App: React.FC = () => {
 
       {currentView === 'properties' && (
         <PropertyView 
-          properties={isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)} 
+          properties={properties} 
           currentUser={currentUser} 
           brokers={brokers} 
           onAddProperty={p => setProperties(v => [p, ...v])} 
