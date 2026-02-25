@@ -201,10 +201,11 @@ const App: React.FC = () => {
     const masterId = `vettus-master-${netId}`;
     const sessionSuffix = Math.random().toString(36).substring(7);
     
-    // Se for Admin, tenta ser o Master. Se falhar (unavailable-id), vira um Node temporário.
-    const myId = currentUser.role === 'Admin' && reconnectAttemptsRef.current === 0 
+    // Fallback logic: Se já tentamos ser Master e falhou, ou se já existe um Master na sessão, viramos Node.
+    // Usamos um timestamp para garantir que o ID do Node seja único mesmo em recarregamentos rápidos.
+    const myId = (currentUser.role === 'Admin' && reconnectAttemptsRef.current === 0)
       ? masterId 
-      : `vettus-node-${netId}-${currentUser.id}-${sessionSuffix}`;
+      : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${sessionSuffix}`;
     
     // Destruir anterior se existir
     if (peerRef.current && !peerRef.current.destroyed) {
@@ -300,20 +301,20 @@ const App: React.FC = () => {
     });
 
     peer.on('error', (err) => {
-      console.error('Peer Protocol Alert:', err.type);
+      const errorType = err.type || (err as any).message;
+      console.error('Peer Protocol Alert:', errorType);
       setSyncStatus('disconnected');
       
-      if (err.type === 'unavailable-id' as any) {
+      if (errorType === 'unavailable-id' || errorType?.includes('taken')) {
          // Se o ID Master estiver preso, incrementamos as tentativas para que o próximo initPeer use um ID de Node
-         reconnectAttemptsRef.current++;
+         reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1) + 1;
          peer.destroy();
-         setTimeout(initPeer, 2000); // Tenta novamente rápido com ID de Node
-      } else if (err.type === 'network' || err.type === 'socket-error') {
+         setTimeout(initPeer, 1500); // Tenta novamente rápido com ID de Node
+      } else if (errorType === 'network' || errorType === 'socket-error' || errorType === 'server-error') {
          peer.destroy();
          setTimeout(initPeer, 5000);
       } else {
-         console.warn('PeerJS Non-Fatal Error:', err.type);
-         // Para outros erros, tentamos reiniciar o peer após um delay maior
+         console.warn('PeerJS Non-Fatal Error:', errorType);
          if (!peer.destroyed) {
            peer.destroy();
            setTimeout(initPeer, 10000);

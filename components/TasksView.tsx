@@ -125,7 +125,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ clients, currentUser, onUp
         </div>
       </div>
 
-      <div className="flex space-x-6 overflow-x-auto pb-6 no-scrollbar h-[calc(100vh-250px)]">
+      <div className="flex space-x-6 overflow-x-auto pb-6 h-[calc(100vh-160px)] scrollbar-custom">
         {STAGES_CONFIG.map(item => {
           const clientsInStage = clients.filter(c => c.status === item.status);
           const totalBudget = clientsInStage.reduce((acc, c) => acc + (c.budget || 0), 0);
@@ -146,7 +146,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ clients, currentUser, onUp
                 </span>
               </div>
               
-              <div className="flex-1 bg-slate-100/40 rounded-[2.5rem] p-3 space-y-4 overflow-y-auto no-scrollbar border border-slate-200/30 shadow-inner">
+              <div className="flex-1 bg-slate-100/40 rounded-[2.5rem] p-3 space-y-4 overflow-y-auto border border-slate-200/30 shadow-inner scrollbar-custom">
                 {clientsInStage.map(client => (
                   <div 
                     key={client.id} 
