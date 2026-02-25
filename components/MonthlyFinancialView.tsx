@@ -12,7 +12,9 @@ import {
   ChevronRight,
   Download,
   FileText,
-  PieChart
+  PieChart,
+  Printer,
+  User
 } from 'lucide-react';
 import { Expense, Broker } from '../types.ts';
 
@@ -49,7 +51,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
     value: 0,
     category: 'Outros',
     dueDate: new Date().toISOString().split('T')[0],
-    status: 'Pendente'
+    status: 'Pendente',
+    payer: 'Fluxo de Caixa'
   });
 
   const filteredExpenses = useMemo(() => {
@@ -73,6 +76,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
       category: newExpense.category || 'Outros',
       dueDate: newExpense.dueDate || new Date().toISOString().split('T')[0],
       status: newExpense.status as 'Pendente' | 'Pago',
+      payer: newExpense.payer as any,
       month: selectedMonth,
       year: selectedYear,
       updatedAt: new Date().toISOString(),
@@ -86,7 +90,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
       value: 0,
       category: 'Outros',
       dueDate: new Date().toISOString().split('T')[0],
-      status: 'Pendente'
+      status: 'Pendente',
+      payer: 'Fluxo de Caixa'
     });
   };
 
@@ -104,14 +109,25 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-8 animate-in fade-in duration-500 print:p-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Controle Financeiro</h1>
           <p className="text-slate-500 font-medium">Gestão de despesas mensais e fluxo de caixa.</p>
         </div>
         <div className="flex items-center space-x-3">
+          <button 
+            onClick={handlePrint}
+            className="bg-white border border-slate-200 text-slate-600 p-3.5 rounded-2xl hover:bg-slate-50 transition-all shadow-sm flex items-center space-x-2"
+            title="Imprimir Relatório"
+          >
+            <Printer className="w-5 h-5" />
+          </button>
           <div className="flex items-center bg-white rounded-2xl border border-slate-200 p-1 shadow-sm">
             <button 
               onClick={() => setSelectedMonth(m => m === 1 ? 12 : m - 1)}
@@ -141,7 +157,12 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+        <h1 className="text-2xl font-black uppercase">Relatório Financeiro Mensal - Vettus</h1>
+        <p className="text-sm font-bold uppercase tracking-widest">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-3">
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
           <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <CheckCircle2 className="w-7 h-7" />
@@ -178,10 +199,11 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
               <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
                 <th className="px-8 py-6">Descrição</th>
                 <th className="px-8 py-6">Categoria</th>
+                <th className="px-8 py-6">Pagador</th>
                 <th className="px-8 py-6">Vencimento</th>
                 <th className="px-8 py-6">Valor</th>
                 <th className="px-8 py-6">Status</th>
-                <th className="px-8 py-6 text-right">Ações</th>
+                <th className="px-8 py-6 text-right print:hidden">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -194,6 +216,12 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200">
                       {expense.category}
                     </span>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex items-center text-slate-900 text-[10px] font-black uppercase tracking-widest">
+                      <User className="w-3 h-3 mr-2 text-[#d4a853]" />
+                      {expense.payer || 'Fluxo de Caixa'}
+                    </div>
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center text-slate-500 text-xs font-bold">
@@ -216,7 +244,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                       {expense.status}
                     </button>
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-8 py-6 text-right print:hidden">
                     <button 
                       onClick={() => onDeleteExpense(expense.id)}
                       className="p-2 text-slate-300 hover:text-red-500 transition-colors"
@@ -306,21 +334,34 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Status Inicial</label>
-                    <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200">
-                      <button 
-                        onClick={() => setNewExpense({...newExpense, status: 'Pendente'})}
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${newExpense.status === 'Pendente' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400'}`}
-                      >
-                        Pendente
-                      </button>
-                      <button 
-                        onClick={() => setNewExpense({...newExpense, status: 'Pago'})}
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${newExpense.status === 'Pago' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
-                      >
-                        Pago
-                      </button>
-                    </div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Pagador (Origem)</label>
+                    <select 
+                      value={newExpense.payer}
+                      onChange={e => setNewExpense({...newExpense, payer: e.target.value as any})}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
+                    >
+                      <option value="Fluxo de Caixa">Fluxo de Caixa</option>
+                      <option value="Sócio: Sergio">Sócio: Sergio</option>
+                      <option value="Sócio: Leonardo">Sócio: Leonardo</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Status Inicial</label>
+                  <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200">
+                    <button 
+                      onClick={() => setNewExpense({...newExpense, status: 'Pendente'})}
+                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${newExpense.status === 'Pendente' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400'}`}
+                    >
+                      Pendente
+                    </button>
+                    <button 
+                      onClick={() => setNewExpense({...newExpense, status: 'Pago'})}
+                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${newExpense.status === 'Pago' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                    >
+                      Pago
+                    </button>
                   </div>
                 </div>
 

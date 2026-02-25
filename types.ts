@@ -295,6 +295,7 @@ export interface Expense {
   dueDate: string;
   paymentDate?: string;
   status: 'Pendente' | 'Pago';
+  payer?: 'Fluxo de Caixa' | 'Sócio: Sergio' | 'Sócio: Leonardo';
   month: number; // 1-12
   year: number;
   updatedAt: string;
