@@ -80,16 +80,16 @@ const App: React.FC = () => {
   const [propertyToEdit, setPropertyToEdit] = useState<Property | null>(null);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
+  const activeConnections = useRef<Map<string, DataConnection>>(new Map());
+  const peerRef = useRef<Peer | null>(null);
+  const isInitializingRef = useRef(false);
+  const statusDebounceRef = useRef<any>(null);
+  const reconnectAttemptsRef = useRef(0);
   const stateRef = useRef({ 
     brokers, properties, clients, activities, reminders, 
     commissions, commissionForecasts, documents, 
     constructionCompanies, launches, campaigns, rentals, expenses 
   });
-  
-  const activeConnections = useRef<Map<string, DataConnection>>(new Map());
-  const peerRef = useRef<Peer | null>(null);
-  const statusDebounceRef = useRef<any>(null);
-  const reconnectAttemptsRef = useRef(0);
 
   // Sincronização e Auditoria de Sessão
   useEffect(() => {
@@ -192,38 +192,61 @@ const App: React.FC = () => {
 
   // PeerJS Kernel v6.0 - Protocolo Ultra-Resiliente
   const initPeer = useCallback(() => {
-    if (!currentUser) return;
+    if (!currentUser || isInitializingRef.current) return;
     
+    isInitializingRef.current = true;
     if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
     setSyncStatus('syncing');
 
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
-    const sessionSuffix = Math.random().toString(36).substring(7);
     
     // Fallback logic: Se já tentamos ser Master e falhou, ou se já existe um Master na sessão, viramos Node.
-    // Usamos um timestamp para garantir que o ID do Node seja único mesmo em recarregamentos rápidos.
+    // Usamos um timestamp e um random para garantir que o ID do Node seja absolutamente único.
     const myId = (currentUser.role === 'Admin' && reconnectAttemptsRef.current === 0)
       ? masterId 
-      : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${sessionSuffix}`;
+      : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
-    // Destruir anterior se existir
-    if (peerRef.current && !peerRef.current.destroyed) {
-      peerRef.current.destroy();
+    // Destruir anterior se existir e limpar referência
+    if (peerRef.current) {
+      try {
+        const oldPeer = peerRef.current;
+        peerRef.current = null;
+        if (!oldPeer.destroyed) {
+          oldPeer.disconnect();
+          oldPeer.destroy();
+        }
+      } catch (e) {
+        console.warn('Erro ao limpar Peer anterior:', e);
+      }
     }
 
-    const peer = new Peer(myId, { 
-      secure: true, 
-      debug: 1,
-      config: {
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-        sdpSemantics: 'unified-plan'
+    const peer = (() => {
+      try {
+        return new Peer(myId, { 
+          secure: true, 
+          debug: 1,
+          config: {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+            sdpSemantics: 'unified-plan'
+          }
+        });
+      } catch (e) {
+        console.error('Falha crítica ao instanciar PeerJS:', e);
+        return null;
       }
-    });
+    })();
+
+    if (!peer) {
+      isInitializingRef.current = false;
+      setTimeout(initPeer, 5000);
+      return;
+    }
 
     peerRef.current = peer;
 
     peer.on('open', (id) => {
+      isInitializingRef.current = false;
       console.log('Kernel P2P On:', id);
       setSyncStatus('synced');
       
@@ -235,6 +258,12 @@ const App: React.FC = () => {
       if (id !== masterId) {
         connectToMaster();
       }
+    });
+
+    peer.on('close', () => {
+      isInitializingRef.current = false;
+      peerRef.current = null;
+      setSyncStatus('disconnected');
     });
 
     const connectToMaster = () => {
@@ -301,23 +330,50 @@ const App: React.FC = () => {
     });
 
     peer.on('error', (err) => {
-      const errorType = err.type || (err as any).message;
+      isInitializingRef.current = false;
+      const errorType = err.type || (err as any).message || 'unknown';
       console.error('Peer Protocol Alert:', errorType);
+      
+      // Prevenir loops de erro infinitos
+      if (reconnectAttemptsRef.current > 15) {
+        console.error('Muitas tentativas de conexão. Parando Kernel P2P.');
+        setSyncStatus('disconnected');
+        return;
+      }
+
       setSyncStatus('disconnected');
       
-      if (errorType === 'unavailable-id' || errorType?.includes('taken')) {
-         // Se o ID Master estiver preso, incrementamos as tentativas para que o próximo initPeer use um ID de Node
+      if (errorType === 'unavailable-id' || errorType.includes('taken') || errorType.includes('Aborting')) {
+         console.warn('ID Master ocupado ou erro de aborto. Migrando para modo Node...');
          reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1) + 1;
-         peer.destroy();
-         setTimeout(initPeer, 1500); // Tenta novamente rápido com ID de Node
+         if (!peer.destroyed) {
+           peer.disconnect();
+           peer.destroy();
+         }
+         peerRef.current = null;
+         setTimeout(() => {
+           if (currentUser) initPeer();
+         }, 2000 + Math.random() * 1000); 
       } else if (errorType === 'network' || errorType === 'socket-error' || errorType === 'server-error') {
-         peer.destroy();
-         setTimeout(initPeer, 5000);
+         reconnectAttemptsRef.current++;
+         if (!peer.destroyed) {
+           peer.disconnect();
+           peer.destroy();
+         }
+         peerRef.current = null;
+         setTimeout(() => {
+           if (currentUser) initPeer();
+         }, 5000 + Math.random() * 2000);
       } else {
          console.warn('PeerJS Non-Fatal Error:', errorType);
+         reconnectAttemptsRef.current++;
          if (!peer.destroyed) {
+           peer.disconnect();
            peer.destroy();
-           setTimeout(initPeer, 10000);
+           peerRef.current = null;
+           setTimeout(() => {
+             if (currentUser) initPeer();
+           }, 10000 + Math.random() * 5000);
          }
       }
     });
@@ -326,10 +382,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser) {
-      reconnectAttemptsRef.current = 0;
-      initPeer();
+      const timer = setTimeout(() => {
+        initPeer();
+      }, 500);
       
-      // Heartbeat a cada 25s para manter túnel NAT aberto
       const heartbeat = setInterval(() => {
         activeConnections.current.forEach(conn => {
           if (conn.open) conn.send({ type: 'PING' });
@@ -344,11 +400,14 @@ const App: React.FC = () => {
       };
 
       document.addEventListener('visibilitychange', handleVisibility);
+      window.addEventListener('online', handleVisibility);
       window.addEventListener('beforeunload', () => peerRef.current?.destroy());
 
       return () => {
+        clearTimeout(timer);
         clearInterval(heartbeat);
         document.removeEventListener('visibilitychange', handleVisibility);
+        window.removeEventListener('online', handleVisibility);
         if (peerRef.current) peerRef.current.destroy();
       };
     }
@@ -463,6 +522,7 @@ const App: React.FC = () => {
         <TasksView 
           clients={isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))} 
           currentUser={currentUser} 
+          brokers={brokers}
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? c : x))} 
           onAddActivity={a => setActivities(v => [a, ...v])} 
         />

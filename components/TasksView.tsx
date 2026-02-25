@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Client, ClientStatus, Activity, Broker } from '../types.ts';
-import { MoreHorizontal, Clock, User, DollarSign, Plus, X, Phone, Mail, MapPin, Users, CheckCircle, MessageSquare, ChevronLeft, ChevronRight, LayoutGrid, Hash, Star, Save } from 'lucide-react';
+import { MoreHorizontal, Clock, User, DollarSign, Plus, X, Phone, Mail, MapPin, Users, CheckCircle, MessageSquare, ChevronLeft, ChevronRight, LayoutGrid, Hash, Star, Save, Filter } from 'lucide-react';
 
 const STAGES_CONFIG: { stage: string; status: ClientStatus }[] = [
   { stage: 'Lead', status: ClientStatus.LEAD },
@@ -14,12 +14,14 @@ const STAGES_CONFIG: { stage: string; status: ClientStatus }[] = [
 interface TasksViewProps {
   clients: Client[];
   currentUser: Broker;
+  brokers: Broker[];
   onUpdateClient: (client: Client) => void;
   onAddActivity: (activity: Activity) => void;
 }
 
-export const TasksView: React.FC<TasksViewProps> = ({ clients, currentUser, onUpdateClient, onAddActivity }) => {
+export const TasksView: React.FC<TasksViewProps> = ({ clients, currentUser, brokers, onUpdateClient, onAddActivity }) => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string>('all');
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [activityForm, setActivityForm] = useState<Partial<Activity>>({
     type: 'Call',
@@ -112,6 +114,10 @@ export const TasksView: React.FC<TasksViewProps> = ({ clients, currentUser, onUp
     }).format(value);
   };
 
+  const filteredClients = selectedBrokerId === 'all' 
+    ? clients 
+    : clients.filter(c => c.brokerId === selectedBrokerId);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -119,15 +125,32 @@ export const TasksView: React.FC<TasksViewProps> = ({ clients, currentUser, onUp
           <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Funil de Vendas Vettus</h1>
           <p className="text-slate-500">Fluxo unificado entre cadastro e jornada de compra.</p>
         </div>
-        <div className="flex items-center space-x-2 bg-white border border-slate-200 px-5 py-2.5 rounded-2xl shadow-sm">
-           <Users className="w-4 h-4 text-[#d4a853]" />
-           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{clients.length} Leads Ativos</span>
+        <div className="flex items-center space-x-4">
+          {currentUser.role === 'Admin' && (
+            <div className="flex items-center space-x-2 bg-white border border-slate-200 px-4 py-2 rounded-2xl shadow-sm">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select 
+                value={selectedBrokerId}
+                onChange={(e) => setSelectedBrokerId(e.target.value)}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-900 bg-transparent outline-none cursor-pointer"
+              >
+                <option value="all">Todos os Corretores</option>
+                {brokers.filter(b => !b.deleted).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex items-center space-x-2 bg-white border border-slate-200 px-5 py-2.5 rounded-2xl shadow-sm">
+             <Users className="w-4 h-4 text-[#d4a853]" />
+             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{filteredClients.length} Leads Ativos</span>
+          </div>
         </div>
       </div>
 
       <div className="flex space-x-6 overflow-x-auto pb-6 h-[calc(100vh-160px)] scrollbar-custom">
         {STAGES_CONFIG.map(item => {
-          const clientsInStage = clients.filter(c => c.status === item.status);
+          const clientsInStage = filteredClients.filter(c => c.status === item.status);
           const totalBudget = clientsInStage.reduce((acc, c) => acc + (c.budget || 0), 0);
 
           return (
