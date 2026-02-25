@@ -6,15 +6,16 @@ import {
   ChevronRight, Download
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Commission, CommissionForecast, ConstructionCompany } from '../types';
+import { Commission, CommissionForecast, ConstructionCompany, Broker } from '../types';
 
 interface CashFlowViewProps {
   commissions: Commission[];
   forecasts: CommissionForecast[];
   companies: ConstructionCompany[];
+  currentUser: Broker;
 }
 
-export const CashFlowView: React.FC<CashFlowViewProps> = ({ commissions, forecasts, companies }) => {
+export const CashFlowView: React.FC<CashFlowViewProps> = ({ commissions, forecasts, companies, currentUser }) => {
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const chartData = useMemo(() => {
@@ -120,36 +121,38 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({ commissions, forecas
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-[#0a1120] p-8 rounded-[2.5rem] border border-white/5 text-white shadow-2xl">
-           <div className="flex items-center space-x-4 mb-8">
-              <div className="w-12 h-12 gold-gradient rounded-2xl flex items-center justify-center">
-                 <Building2 className="w-6 h-6 text-slate-900" />
-              </div>
-              <h3 className="text-xl font-bold tracking-tight uppercase">Alertas Construtoras</h3>
-           </div>
-           <div className="space-y-4">
-              {companies.slice(0, 3).map(comp => (
-                <div key={comp.id} className="bg-white/5 p-5 rounded-2xl border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-all">
-                   <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-900 border border-[#d4a853]/30 flex items-center justify-center font-black text-[10px] text-[#d4a853]">
-                         {comp.name[0]}
-                      </div>
-                      <div>
-                         <p className="text-sm font-bold">{comp.name}</p>
-                         <p className="text-[9px] text-slate-500 uppercase tracking-widest">Base Pagamento: Dia {comp.basePaymentDay}</p>
-                      </div>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-xs font-black text-[#d4a853]">{(comp.commissionRate * 100).toFixed(1)}% FEE</p>
-                      <button className="text-[8px] font-black uppercase text-slate-400 group-hover:text-white transition-colors">Detalhes</button>
-                   </div>
+        {currentUser.role === 'Admin' && (
+          <div className="bg-[#0a1120] p-8 rounded-[2.5rem] border border-white/5 text-white shadow-2xl">
+             <div className="flex items-center space-x-4 mb-8">
+                <div className="w-12 h-12 gold-gradient rounded-2xl flex items-center justify-center">
+                   <Building2 className="w-6 h-6 text-slate-900" />
                 </div>
-              ))}
-              {companies.length === 0 && <p className="text-center py-10 text-slate-500 text-xs italic">Nenhum parceiro configurado no módulo comercial.</p>}
-           </div>
-        </div>
+                <h3 className="text-xl font-bold tracking-tight uppercase">Alertas Construtoras</h3>
+             </div>
+             <div className="space-y-4">
+                {companies.slice(0, 3).map(comp => (
+                  <div key={comp.id} className="bg-white/5 p-5 rounded-2xl border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-all">
+                     <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-900 border border-[#d4a853]/30 flex items-center justify-center font-black text-[10px] text-[#d4a853]">
+                           {comp.name[0]}
+                        </div>
+                        <div>
+                           <p className="text-sm font-bold">{comp.name}</p>
+                           <p className="text-[9px] text-slate-500 uppercase tracking-widest">Base Pagamento: Dia {comp.basePaymentDay}</p>
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-xs font-black text-[#d4a853]">{(comp.commissionRate * 100).toFixed(1)}% FEE</p>
+                        <button className="text-[8px] font-black uppercase text-slate-400 group-hover:text-white transition-colors">Detalhes</button>
+                     </div>
+                  </div>
+                ))}
+                {companies.length === 0 && <p className="text-center py-10 text-slate-500 text-xs italic">Nenhum parceiro configurado no módulo comercial.</p>}
+             </div>
+          </div>
+        )}
 
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+        <div className={`bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm ${currentUser.role !== 'Admin' ? 'lg:col-span-2' : ''}`}>
            <div className="flex items-center space-x-4 mb-8">
               <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center">
                  <AlertCircle className="w-6 h-6 text-[#d4a853]" />

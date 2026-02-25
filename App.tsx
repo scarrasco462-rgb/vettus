@@ -26,12 +26,13 @@ import { AdsView } from './components/Ads.tsx';
 import { SpreadsheetsView } from './components/Spreadsheets.tsx';
 import { ClientPaymentFlowView } from './components/ClientPaymentFlow.tsx';
 import { PasswordUpdateView } from './components/PasswordUpdateView.tsx';
+import { MonthlyFinancialView } from './components/MonthlyFinancialView.tsx';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 import { 
   Broker, Property, Client, Task, Activity, Reminder, AppView, 
   VettusDocument, Commission, ConstructionCompany, 
-  CommissionForecast, LaunchProject, Campaign, RentalContract 
+  CommissionForecast, LaunchProject, Campaign, RentalContract, Expense 
 } from './types.ts';
 import { MOCK_BROKERS } from './constants.tsx';
 
@@ -69,6 +70,7 @@ const App: React.FC = () => {
   const [launches, setLaunches] = useState<LaunchProject[]>(() => loadLocal('launches', []));
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => loadLocal('campaigns', []));
   const [rentals, setRentals] = useState<RentalContract[]>(() => loadLocal('rentals', []));
+  const [expenses, setExpenses] = useState<Expense[]>(() => loadLocal('expenses', []));
 
   const [preselectedClientForFlow, setPreselectedClientForFlow] = useState<string | null>(null);
 
@@ -81,7 +83,7 @@ const App: React.FC = () => {
   const stateRef = useRef({ 
     brokers, properties, clients, activities, reminders, 
     commissions, commissionForecasts, documents, 
-    constructionCompanies, launches, campaigns, rentals 
+    constructionCompanies, launches, campaigns, rentals, expenses 
   });
   
   const activeConnections = useRef<Map<string, DataConnection>>(new Map());
@@ -94,7 +96,7 @@ const App: React.FC = () => {
     stateRef.current = { 
       brokers, properties, clients, activities, reminders, 
       commissions, commissionForecasts, documents, 
-      constructionCompanies, launches, campaigns, rentals 
+      constructionCompanies, launches, campaigns, rentals, expenses 
     };
     Object.entries(stateRef.current).forEach(([k, v]) => localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(v)));
     
@@ -134,16 +136,21 @@ const App: React.FC = () => {
   const mergeData = useCallback((payload: any) => {
     if (!payload) return;
     
+    let changed = false;
     const updateCollection = (prev: any[], next: any[]) => {
       if (!next) return prev;
       const map = new Map(prev.map(item => [item.id, item]));
+      let collectionChanged = false;
+      
       next.forEach(item => {
         const existing = map.get(item.id);
         if (!existing || new Date(item.updatedAt || 0) > new Date(existing.updatedAt || 0)) {
            map.set(item.id, item);
+           collectionChanged = true;
+           changed = true;
         }
       });
-      return Array.from(map.values());
+      return collectionChanged ? Array.from(map.values()) : prev;
     };
 
     if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
@@ -158,8 +165,9 @@ const App: React.FC = () => {
     if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
     if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
     if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
+    if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
 
-    if (currentUser?.role === 'Admin') {
+    if (changed && currentUser?.role === 'Admin') {
        localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
     }
   }, [currentUser]);
@@ -169,7 +177,7 @@ const App: React.FC = () => {
     const payload = { 
       brokers, properties, clients, activities, reminders, 
       commissions, commissionForecasts, documents, 
-      constructionCompanies, launches, campaigns, rentals 
+      constructionCompanies, launches, campaigns, rentals, expenses 
     };
     stateRef.current = payload;
 
@@ -192,7 +200,11 @@ const App: React.FC = () => {
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
     const sessionSuffix = Math.random().toString(36).substring(7);
-    const myId = currentUser.role === 'Admin' ? masterId : `vettus-node-${netId}-${currentUser.id}-${sessionSuffix}`;
+    
+    // Se for Admin, tenta ser o Master. Se falhar (unavailable-id), vira um Node temporário.
+    const myId = currentUser.role === 'Admin' && reconnectAttemptsRef.current === 0 
+      ? masterId 
+      : `vettus-node-${netId}-${currentUser.id}-${sessionSuffix}`;
     
     // Destruir anterior se existir
     if (peerRef.current && !peerRef.current.destroyed) {
@@ -212,10 +224,14 @@ const App: React.FC = () => {
 
     peer.on('open', (id) => {
       console.log('Kernel P2P On:', id);
-      reconnectAttemptsRef.current = 0;
       setSyncStatus('synced');
       
-      if (currentUser.role !== 'Admin') {
+      if (id === masterId) {
+        reconnectAttemptsRef.current = 0;
+      }
+      
+      // Se eu não consegui ser o Master (meu ID é diferente do masterId), tento me conectar ao Master
+      if (id !== masterId) {
         connectToMaster();
       }
     });
@@ -231,10 +247,13 @@ const App: React.FC = () => {
            if (d.type === 'DATA_UPDATE') mergeData(d.payload);
            if (d.type === 'PING') conn.send({ type: 'PONG' });
         });
+        conn.on('close', () => activeConnections.current.delete(conn.peer));
+        conn.on('error', () => activeConnections.current.delete(conn.peer));
         conn.send({ type: 'DATA_UPDATE', payload: stateRef.current });
       });
 
-      conn.on('error', () => {
+      conn.on('error', (err) => {
+        console.warn('Erro na conexão com Master:', err);
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
         setTimeout(connectToMaster, delay);
         reconnectAttemptsRef.current++;
@@ -268,6 +287,8 @@ const App: React.FC = () => {
       });
       
       conn.on('open', () => conn.send({ type: 'DATA_UPDATE', payload: stateRef.current }));
+      conn.on('close', () => activeConnections.current.delete(conn.peer));
+      conn.on('error', () => activeConnections.current.delete(conn.peer));
     });
 
     peer.on('disconnected', () => {
@@ -283,12 +304,20 @@ const App: React.FC = () => {
       setSyncStatus('disconnected');
       
       if (err.type === 'unavailable-id' as any) {
-         // Se o ID Master estiver preso, esperar 10s para expirar a sessão anterior
+         // Se o ID Master estiver preso, incrementamos as tentativas para que o próximo initPeer use um ID de Node
+         reconnectAttemptsRef.current++;
          peer.destroy();
-         setTimeout(initPeer, 10000); 
+         setTimeout(initPeer, 2000); // Tenta novamente rápido com ID de Node
       } else if (err.type === 'network' || err.type === 'socket-error') {
          peer.destroy();
          setTimeout(initPeer, 5000);
+      } else {
+         console.warn('PeerJS Non-Fatal Error:', err.type);
+         // Para outros erros, tentamos reiniciar o peer após um delay maior
+         if (!peer.destroyed) {
+           peer.destroy();
+           setTimeout(initPeer, 10000);
+         }
       }
     });
 
@@ -296,6 +325,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser) {
+      reconnectAttemptsRef.current = 0;
       initPeer();
       
       // Heartbeat a cada 25s para manter túnel NAT aberto
@@ -305,11 +335,9 @@ const App: React.FC = () => {
         });
       }, 25000);
 
-      // Visibility Handler: Destruir ao sair, recriar ao voltar (Economia de Recursos/IDs)
+      // Visibility Handler: Apenas recriar se estiver desconectado e voltar a ficar visível
       const handleVisibility = () => {
-        if (document.visibilityState === 'hidden') {
-          if (peerRef.current) peerRef.current.destroy();
-        } else {
+        if (document.visibilityState === 'visible' && (!peerRef.current || peerRef.current.disconnected)) {
           initPeer();
         }
       };
@@ -357,7 +385,10 @@ const App: React.FC = () => {
       onLogout={handleLogout} 
       pendingRemindersCount={pendingRemindersCount}
       syncStatus={syncStatus}
-      onForceReconnect={initPeer}
+      onForceReconnect={() => {
+        reconnectAttemptsRef.current = 0;
+        initPeer();
+      }}
     >
       {currentView === 'dashboard' && (
         <Dashboard 
@@ -436,6 +467,16 @@ const App: React.FC = () => {
         />
       )}
 
+      {currentView === 'monthly_financial' && (
+        <MonthlyFinancialView 
+          expenses={expenses}
+          onAddExpense={e => setExpenses(v => [e, ...v])}
+          onUpdateExpense={e => setExpenses(v => v.map(x => x.id === e.id ? e : x))}
+          onDeleteExpense={id => setExpenses(v => v.filter(x => x.id !== id))}
+          currentUser={currentUser}
+        />
+      )}
+
       {currentView === 'reminders' && (
         <ReminderView 
           reminders={reminders.filter(r => r.brokerId === currentUser.id)} 
@@ -448,6 +489,7 @@ const App: React.FC = () => {
           commissions={commissions} 
           forecasts={commissionForecasts} 
           companies={constructionCompanies} 
+          currentUser={currentUser}
         />
       )}
 

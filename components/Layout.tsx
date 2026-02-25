@@ -109,6 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const navItems = [
     { id: 'dashboard' as AppView, icon: LayoutDashboard, label: 'Painel' },
     { id: 'cash_flow' as AppView, icon: BadgeDollarSign, label: 'Fluxo Pagamento' },
+    { id: 'monthly_financial' as AppView, icon: Calculator, label: 'Financeiro Mensal' },
     { id: 'client_payment_flow' as AppView, icon: Layers, label: 'Fluxo de Obra' },
     { id: 'tasks' as AppView, icon: Kanban, label: 'Funil' },
     { id: 'properties' as AppView, icon: Home, label: 'Imóveis' },
@@ -152,12 +153,12 @@ export const Layout: React.FC<LayoutProps> = ({
       </button>
 
       <button 
-        onClick={() => syncStatus === 'disconnected' && onForceReconnect?.()}
+        onClick={() => onForceReconnect?.()}
         className={`p-2 rounded-xl flex items-center space-x-2 transition-all duration-700 border shadow-lg cursor-pointer active:scale-95 ${
-          syncStatus === 'synced' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 
+          syncStatus === 'synced' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20' : 
           syncStatus === 'syncing' ? 'bg-[#d4a853]/10 border-[#d4a853]/30 text-[#d4a853] animate-pulse' : 
           'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20'
-        }`} title={syncStatus === 'synced' ? 'Rede Estável' : syncStatus === 'syncing' ? 'Retomando Conexão...' : 'Sinal Instável - Clique para Resetar'}>
+        }`} title={syncStatus === 'synced' ? 'Rede Estável - Clique para Forçar Sincronia' : syncStatus === 'syncing' ? 'Retomando Conexão...' : 'Sinal Instável - Clique para Resetar'}>
         {syncStatus === 'synced' ? <Wifi size={16} /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> : <WifiOff size={16} />}
         <span className="hidden md:block text-[8px] font-black uppercase tracking-widest">
           {syncStatus === 'synced' ? 'Online' : syncStatus === 'syncing' ? 'Sync' : 'Offline'}

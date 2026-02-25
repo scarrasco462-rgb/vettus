@@ -22,6 +22,7 @@ export type AppView =
   | 'cash_flow' 
   | 'launches'
   | 'client_payment_flow'
+  | 'monthly_financial'
   | 'password_update';
 
 export const ALL_PERMISSIONS: AppView[] = [
@@ -29,6 +30,7 @@ export const ALL_PERMISSIONS: AppView[] = [
   'leasing', 'ads', 'spreadsheets', 'activities', 'reminders', 'brokers', 
   'network', 'lead_import', 'backup', 'restore', 'documents', 
   'construction_companies', 'cash_flow', 'launches', 'client_payment_flow',
+  'monthly_financial',
   'password_update'
 ];
 
@@ -281,5 +283,19 @@ export interface CommissionForecast {
   commissionAmount: number;
   forecastDate: string;
   status: 'Pendente' | 'Recebido' | 'Aguardando Fluxo';
+  updatedAt: string;
+}
+
+export interface Expense {
+  id: string;
+  brokerId: string;
+  description: string;
+  value: number;
+  category: string;
+  dueDate: string;
+  paymentDate?: string;
+  status: 'Pendente' | 'Pago';
+  month: number; // 1-12
+  year: number;
   updatedAt: string;
 }
