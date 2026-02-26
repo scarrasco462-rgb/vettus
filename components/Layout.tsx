@@ -126,7 +126,9 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'password_update' as AppView, icon: Key, label: 'Segurança' },
     { id: 'backup' as AppView, icon: Database, label: 'Backup' },
   ].filter(item => {
-    if ((item.id === 'brokers' || item.id === 'backup') && currentUser.role !== 'Admin') return false;
+    if (['brokers', 'backup', 'monthly_financial'].includes(item.id)) {
+      return currentUser.role === 'Admin';
+    }
     return !currentUser.permissions || currentUser.permissions.includes(item.id);
   });
 
