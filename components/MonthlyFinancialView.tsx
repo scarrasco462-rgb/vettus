@@ -340,7 +340,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     type="text" 
                     value={newExpense.description}
                     onChange={e => setNewExpense({...newExpense, description: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
                     placeholder="Ex: Aluguel Escritório"
                   />
                 </div>
@@ -352,7 +352,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                       type="number" 
                       value={newExpense.value}
                       onChange={e => setNewExpense({...newExpense, value: parseFloat(e.target.value)})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -360,7 +360,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     <select 
                       value={newExpense.category}
                       onChange={e => setNewExpense({...newExpense, category: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
                     >
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -374,7 +374,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                       type="date" 
                       value={newExpense.dueDate}
                       onChange={e => setNewExpense({...newExpense, dueDate: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -382,7 +382,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     <select 
                       value={newExpense.payer}
                       onChange={e => setNewExpense({...newExpense, payer: e.target.value as any})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#d4a853] outline-none transition-all"
                     >
                       <option value="Fluxo de Caixa">Fluxo de Caixa</option>
                       <option value="Sócio: Sergio">Sócio: Sergio</option>
