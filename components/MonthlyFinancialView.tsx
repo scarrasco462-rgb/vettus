@@ -14,7 +14,8 @@ import {
   FileText,
   PieChart,
   Printer,
-  User
+  User,
+  Pencil
 } from 'lucide-react';
 import { Expense, Broker } from '../types.ts';
 
@@ -46,6 +47,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [newExpense, setNewExpense] = useState<Partial<Expense>>({
     description: '',
     value: 0,
@@ -68,23 +70,38 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
   const handleAddExpense = () => {
     if (!newExpense.description || !newExpense.value) return;
 
-    const expense: Expense = {
-      id: Math.random().toString(36).substr(2, 9),
-      brokerId: currentUser.id,
-      description: newExpense.description,
-      value: newExpense.value,
-      category: newExpense.category || 'Outros',
-      dueDate: newExpense.dueDate || new Date().toISOString().split('T')[0],
-      status: newExpense.status as 'Pendente' | 'Pago',
-      payer: newExpense.payer as any,
-      month: selectedMonth,
-      year: selectedYear,
-      updatedAt: new Date().toISOString(),
-      paymentDate: newExpense.status === 'Pago' ? new Date().toISOString().split('T')[0] : undefined
-    };
+    if (editingExpense) {
+      onUpdateExpense({
+        ...editingExpense,
+        description: newExpense.description,
+        value: newExpense.value,
+        category: newExpense.category || 'Outros',
+        dueDate: newExpense.dueDate || new Date().toISOString().split('T')[0],
+        status: newExpense.status as 'Pendente' | 'Pago',
+        payer: newExpense.payer as any,
+        updatedAt: new Date().toISOString(),
+        paymentDate: newExpense.status === 'Pago' ? (editingExpense.paymentDate || new Date().toISOString().split('T')[0]) : undefined
+      });
+    } else {
+      const expense: Expense = {
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: currentUser.id,
+        description: newExpense.description,
+        value: newExpense.value,
+        category: newExpense.category || 'Outros',
+        dueDate: newExpense.dueDate || new Date().toISOString().split('T')[0],
+        status: newExpense.status as 'Pendente' | 'Pago',
+        payer: newExpense.payer as any,
+        month: selectedMonth,
+        year: selectedYear,
+        updatedAt: new Date().toISOString(),
+        paymentDate: newExpense.status === 'Pago' ? new Date().toISOString().split('T')[0] : undefined
+      };
+      onAddExpense(expense);
+    }
 
-    onAddExpense(expense);
     setShowAddModal(false);
+    setEditingExpense(null);
     setNewExpense({
       description: '',
       value: 0,
@@ -93,6 +110,19 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
       status: 'Pendente',
       payer: 'Fluxo de Caixa'
     });
+  };
+
+  const openEditModal = (expense: Expense) => {
+    setEditingExpense(expense);
+    setNewExpense({
+      description: expense.description,
+      value: expense.value,
+      category: expense.category,
+      dueDate: expense.dueDate,
+      status: expense.status,
+      payer: expense.payer
+    });
+    setShowAddModal(true);
   };
 
   const toggleStatus = (expense: Expense) => {
@@ -245,12 +275,22 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     </button>
                   </td>
                   <td className="px-8 py-6 text-right print:hidden">
-                    <button 
-                      onClick={() => onDeleteExpense(expense.id)}
-                      className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-end space-x-2">
+                      <button 
+                        onClick={() => openEditModal(expense)}
+                        className="p-2 text-slate-300 hover:text-[#d4a853] transition-colors"
+                        title="Editar Lançamento"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => onDeleteExpense(expense.id)}
+                        className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                        title="Excluir Lançamento"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -271,20 +311,24 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
 
       {showAddModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-[#020617]/90 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
+          <div className="absolute inset-0 bg-[#020617]/90 backdrop-blur-sm" onClick={() => { setShowAddModal(false); setEditingExpense(null); }}></div>
           <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
             <div className="p-10">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center shadow-lg">
-                    <DollarSign className="w-6 h-6" />
+                    {editingExpense ? <Pencil className="w-6 h-6" /> : <DollarSign className="w-6 h-6" />}
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Nova Despesa</h2>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Lançamento Financeiro</p>
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                      {editingExpense ? 'Editar Despesa' : 'Nova Despesa'}
+                    </h2>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                      {editingExpense ? 'Atualizar Lançamento' : 'Lançamento Financeiro'}
+                    </p>
                   </div>
                 </div>
-                <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <button onClick={() => { setShowAddModal(false); setEditingExpense(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <Plus className="w-6 h-6 text-slate-400 rotate-45" />
                 </button>
               </div>
@@ -369,7 +413,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                   onClick={handleAddExpense}
                   className="w-full gold-gradient text-white py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-yellow-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all mt-4"
                 >
-                  Confirmar Lançamento
+                  {editingExpense ? 'Salvar Alterações' : 'Confirmar Lançamento'}
                 </button>
               </div>
             </div>
