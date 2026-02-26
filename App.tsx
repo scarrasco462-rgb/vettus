@@ -83,6 +83,7 @@ const App: React.FC = () => {
   const activeConnections = useRef<Map<string, DataConnection>>(new Map());
   const peerRef = useRef<Peer | null>(null);
   const isInitializingRef = useRef(false);
+  const initTimeoutRef = useRef<any>(null);
   const statusDebounceRef = useRef<any>(null);
   const reconnectAttemptsRef = useRef(0);
   const stateRef = useRef({ 
@@ -102,7 +103,7 @@ const App: React.FC = () => {
     
     if (currentUser) {
       localStorage.setItem(STORAGE_KEY_PREFIX + 'session_user', JSON.stringify(currentUser));
-      const isSergio = currentUser.email.toLowerCase() === 'scarrasco462@gmail.com';
+      const isSergio = currentUser.email.toLowerCase() === 'scarrasco462@gmail.com' || currentUser.email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
       if (!isSergio) {
          const stillExists = brokers.find(b => b.id === currentUser.id);
          if (!stillExists || stillExists.blocked || stillExists.deleted) handleLogout();
@@ -190,35 +191,53 @@ const App: React.FC = () => {
     }
   }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals]);
 
-  // PeerJS Kernel v6.0 - Protocolo Ultra-Resiliente
+  // PeerJS Kernel v6.4 - Protocolo de Conectividade Blindada (Ultra-Resiliente)
   const initPeer = useCallback(() => {
     if (!currentUser || isInitializingRef.current) return;
     
+    // Se já temos um peer funcional e conectado, não reiniciamos sem necessidade
+    if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
+      return;
+    }
+
+    if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
     isInitializingRef.current = true;
     if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
     setSyncStatus('syncing');
 
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
-    
-    // Fallback logic: Se já tentamos ser Master e falhou, ou se já existe um Master na sessão, viramos Node.
-    // Usamos um timestamp e um random para garantir que o ID do Node seja absolutamente único.
-    const myId = (currentUser.role === 'Admin' && reconnectAttemptsRef.current === 0)
+    const isMasterCandidate = currentUser.role === 'Admin' && 
+                             (currentUser.email.toLowerCase() === 'scarrasco462@gmail.com' || 
+                              currentUser.email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com');
+
+    // Só tenta ser Master se for o Sergio e for a primeira tentativa absoluta
+    const myId = (isMasterCandidate && reconnectAttemptsRef.current === 0)
       ? masterId 
       : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
-    // Destruir anterior se existir e limpar referência
+    // Limpeza profunda e segura com delay para evitar "Aborting!"
     if (peerRef.current) {
+      const oldPeer = peerRef.current;
+      peerRef.current = null;
       try {
-        const oldPeer = peerRef.current;
-        peerRef.current = null;
+        oldPeer.off('open');
+        oldPeer.off('error');
+        oldPeer.off('close');
+        oldPeer.off('disconnected');
         if (!oldPeer.destroyed) {
-          oldPeer.disconnect();
           oldPeer.destroy();
         }
       } catch (e) {
-        console.warn('Erro ao limpar Peer anterior:', e);
+        console.warn('Cleanup Peer Error:', e);
       }
+      
+      // Delay de 2s após destruir para garantir que o PeerJS limpe o estado interno
+      initTimeoutRef.current = setTimeout(() => {
+        isInitializingRef.current = false;
+        initPeer();
+      }, 2000);
+      return;
     }
 
     const peer = (() => {
@@ -239,7 +258,7 @@ const App: React.FC = () => {
 
     if (!peer) {
       isInitializingRef.current = false;
-      setTimeout(initPeer, 5000);
+      initTimeoutRef.current = setTimeout(initPeer, 5000);
       return;
     }
 
@@ -249,15 +268,8 @@ const App: React.FC = () => {
       isInitializingRef.current = false;
       console.log('Kernel P2P On:', id);
       setSyncStatus('synced');
-      
-      if (id === masterId) {
-        reconnectAttemptsRef.current = 0;
-      }
-      
-      // Se eu não consegui ser o Master (meu ID é diferente do masterId), tento me conectar ao Master
-      if (id !== masterId) {
-        connectToMaster();
-      }
+      if (id === masterId) reconnectAttemptsRef.current = 0;
+      if (id !== masterId) connectToMaster();
     });
 
     peer.on('close', () => {
@@ -322,58 +334,27 @@ const App: React.FC = () => {
     });
 
     peer.on('disconnected', () => {
-      // Debounce de 3 segundos para evitar flapping visual
+      if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
       statusDebounceRef.current = setTimeout(() => {
-        setSyncStatus('disconnected');
-        if (!peer.destroyed) peer.reconnect();
-      }, 3000);
+        if (peer && !peer.destroyed && peer.disconnected) {
+          peer.reconnect();
+        }
+      }, 5000);
     });
 
     peer.on('error', (err) => {
       isInitializingRef.current = false;
       const errorType = err.type || (err as any).message || 'unknown';
       console.error('Peer Protocol Alert:', errorType);
-      
-      // Prevenir loops de erro infinitos
-      if (reconnectAttemptsRef.current > 15) {
-        console.error('Muitas tentativas de conexão. Parando Kernel P2P.');
-        setSyncStatus('disconnected');
-        return;
-      }
 
-      setSyncStatus('disconnected');
-      
       if (errorType === 'unavailable-id' || errorType.includes('taken') || errorType.includes('Aborting')) {
-         console.warn('ID Master ocupado ou erro de aborto. Migrando para modo Node...');
          reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1) + 1;
-         if (!peer.destroyed) {
-           peer.disconnect();
-           peer.destroy();
-         }
-         peerRef.current = null;
-         setTimeout(() => {
-           if (currentUser) initPeer();
-         }, 2000 + Math.random() * 1000); 
-      } else if (errorType === 'network' || errorType === 'socket-error' || errorType === 'server-error') {
-         reconnectAttemptsRef.current++;
-         if (!peer.destroyed) {
-           peer.disconnect();
-           peer.destroy();
-         }
-         peerRef.current = null;
-         setTimeout(() => {
-           if (currentUser) initPeer();
-         }, 5000 + Math.random() * 2000);
+         if (!peer.destroyed) peer.destroy();
+         initTimeoutRef.current = setTimeout(() => initPeer(), 4000 + Math.random() * 2000);
       } else {
-         console.warn('PeerJS Non-Fatal Error:', errorType);
          reconnectAttemptsRef.current++;
-         if (!peer.destroyed) {
-           peer.disconnect();
-           peer.destroy();
-           peerRef.current = null;
-           setTimeout(() => {
-             if (currentUser) initPeer();
-           }, 10000 + Math.random() * 5000);
+         if (reconnectAttemptsRef.current < 15) {
+           initTimeoutRef.current = setTimeout(() => initPeer(), 10000);
          }
       }
     });

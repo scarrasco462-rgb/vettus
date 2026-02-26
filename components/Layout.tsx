@@ -154,13 +154,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <button 
         onClick={() => onForceReconnect?.()}
-        className={`p-2 rounded-xl flex items-center space-x-2 transition-all duration-700 border shadow-lg cursor-pointer active:scale-95 ${
-          syncStatus === 'synced' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20' : 
+        className={`p-2.5 rounded-xl flex items-center space-x-2 transition-all duration-700 border shadow-xl cursor-pointer active:scale-95 ${
+          syncStatus === 'synced' ? 'gold-gradient text-[#0a1120] border-[#d4a853]/50' : 
           syncStatus === 'syncing' ? 'bg-[#d4a853]/10 border-[#d4a853]/30 text-[#d4a853] animate-pulse' : 
           'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20'
         }`} title={syncStatus === 'synced' ? 'Rede Estável - Clique para Forçar Sincronia' : syncStatus === 'syncing' ? 'Retomando Conexão...' : 'Sinal Instável - Clique para Resetar'}>
-        {syncStatus === 'synced' ? <Wifi size={16} /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> : <WifiOff size={16} />}
-        <span className="hidden md:block text-[8px] font-black uppercase tracking-widest">
+        {syncStatus === 'synced' ? <Wifi size={18} /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin" /> : <WifiOff size={18} />}
+        <span className="text-[9px] font-black uppercase tracking-widest">
           {syncStatus === 'synced' ? 'Online' : syncStatus === 'syncing' ? 'Sync' : 'Offline'}
         </span>
       </button>
@@ -175,14 +175,13 @@ export const Layout: React.FC<LayoutProps> = ({
           <h1 className="text-sm font-black tracking-[0.2em] text-[#d4a853]">VETTUS</h1>
         </div>
         <div className="flex items-center space-x-2">
-          <SyncIndicator />
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-white hover:bg-white/5 rounded-xl transition-all">
             {isSidebarOpen ? <CloseIcon size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </header>
 
-      <div className="hidden lg:flex fixed top-6 right-8 z-[70] items-center space-x-4">
+      <div className="fixed top-6 right-8 z-[999] flex items-center space-x-4 no-print">
           <SyncIndicator />
       </div>
 

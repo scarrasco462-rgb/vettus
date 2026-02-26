@@ -228,6 +228,7 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
                   <div>
                      <div className="flex items-center space-x-2">
                         <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{broker.name}</h3>
+                        {broker.role === 'Admin' && <Shield className="w-4 h-4 text-[#d4a853]" />}
                      </div>
                      <div className="flex items-center space-x-2 mt-1">
                         <span className="bg-slate-100 text-slate-500 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
@@ -335,6 +336,28 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
                       <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">E-mail Profissional</label>
                       <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 px-6 text-sm font-bold text-slate-900 outline-none focus:border-[#d4a853]" />
                     </div>
+                    {isAdmin && (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Nível de Acesso</label>
+                        <select 
+                          value={formData.role} 
+                          onChange={e => {
+                            const newRole = e.target.value as UserRole;
+                            setFormData({
+                              ...formData, 
+                              role: newRole,
+                              permissions: newRole === 'Admin' 
+                                ? MODULES.map(m => m.id) 
+                                : ['dashboard', 'tasks', 'properties', 'clients', 'activities', 'reminders']
+                            });
+                          }} 
+                          className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 px-6 text-sm font-bold text-slate-900 outline-none focus:border-[#d4a853]"
+                        >
+                          <option value="Broker">Corretor (Padrão)</option>
+                          <option value="Admin">Administrador (Total)</option>
+                        </select>
+                      </div>
+                    )}
                     {isAdmin && (
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-[#d4a853] uppercase ml-2 tracking-widest">Senha de Sincronia</label>
