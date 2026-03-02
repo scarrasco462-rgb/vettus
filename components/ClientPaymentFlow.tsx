@@ -157,6 +157,45 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     onUpdateSale({ ...sale, [field]: val, updatedAt: new Date().toISOString() });
   };
 
+  const handleAddItem = (sale: Commission, type: 'installment' | 'balloon') => {
+    if (!onUpdateSale) return;
+    const newProposal = JSON.parse(JSON.stringify(sale.structuredProposal || { monthlyInstallments: [], balloons: [] }));
+    const lastDate = type === 'installment' 
+      ? (newProposal.monthlyInstallments?.length > 0 ? new Date(newProposal.monthlyInstallments[newProposal.monthlyInstallments.length - 1].date) : new Date())
+      : (newProposal.balloons?.length > 0 ? new Date(newProposal.balloons[newProposal.balloons.length - 1].date) : new Date());
+    
+    const nextDate = new Date(lastDate);
+    nextDate.setMonth(nextDate.getMonth() + 1);
+    
+    const newItem = { 
+      date: nextDate.toISOString().split('T')[0], 
+      value: 0 
+    };
+    
+    if (type === 'installment') {
+      if (!newProposal.monthlyInstallments) newProposal.monthlyInstallments = [];
+      newProposal.monthlyInstallments.push(newItem);
+    } else {
+      if (!newProposal.balloons) newProposal.balloons = [];
+      newProposal.balloons.push(newItem);
+    }
+
+    onUpdateSale({ ...sale, structuredProposal: newProposal, updatedAt: new Date().toISOString() });
+  };
+
+  const handleRemoveItem = (sale: Commission, type: 'installment' | 'balloon', index: number) => {
+    if (!onUpdateSale) return;
+    const newProposal = JSON.parse(JSON.stringify(sale.structuredProposal || {}));
+    
+    if (type === 'installment') {
+      newProposal.monthlyInstallments.splice(index, 1);
+    } else {
+      newProposal.balloons.splice(index, 1);
+    }
+
+    onUpdateSale({ ...sale, structuredProposal: newProposal, updatedAt: new Date().toISOString() });
+  };
+
   const handleDeleteEntry = (id: string) => {
     if (currentUser?.role !== 'Admin') {
       alert("Apenas Administradores podem excluir fluxos.");
@@ -613,6 +652,20 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                       </div>
                                       <div className="flex items-center space-x-3">
                                          <button 
+                                           onClick={() => handleAddItem(sale, 'installment')}
+                                           className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-emerald-500/20"
+                                         >
+                                            <Plus className="w-4 h-4" />
+                                            <span>+ Parcela</span>
+                                         </button>
+                                         <button 
+                                           onClick={() => handleAddItem(sale, 'balloon')}
+                                           className="flex items-center space-x-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-amber-500/20"
+                                         >
+                                            <Plus className="w-4 h-4" />
+                                            <span>+ Balão</span>
+                                         </button>
+                                         <button 
                                            onClick={() => handlePrintFlow(sale)}
                                            className="flex items-center space-x-2 px-6 py-2.5 bg-white/10 hover:bg-[#d4a853] hover:text-[#0a1120] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-inner border border-white/10"
                                          >
@@ -623,6 +676,21 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                    </div>
 
                                    <div className="p-8 space-y-8 bg-slate-50/50">
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                                         <div className="space-y-1.5">
+                                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Cliente Comprador</label>
+                                            <input type="text" defaultValue={sale.clientName} onBlur={e => handleUpdateMainField(sale, 'clientName', e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 px-5 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-inner" />
+                                         </div>
+                                         <div className="space-y-1.5">
+                                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Empreendimento</label>
+                                            <input type="text" defaultValue={sale.propertyTitle} onBlur={e => handleUpdateMainField(sale, 'propertyTitle', e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 px-5 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-inner" />
+                                         </div>
+                                         <div className="space-y-1.5">
+                                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Unidade / Bloco</label>
+                                            <input type="text" defaultValue={sale.unitNumber} onBlur={e => handleUpdateMainField(sale, 'unitNumber', e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 px-5 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-inner" />
+                                         </div>
+                                      </div>
+
                                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                                          <div className="space-y-1.5">
                                             <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Sinal de Reserva</label>
@@ -693,7 +761,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                                            </td>
                                                            <td className="px-8 py-4 text-center">
                                                               {entry.installment ? (
-                                                                 <div className="flex items-center justify-center space-x-2 bg-emerald-50/50 py-2 rounded-xl border border-emerald-100/50">
+                                                                 <div className="flex items-center justify-center space-x-2 bg-emerald-50/50 py-2 rounded-xl border border-emerald-100/50 relative group/item">
                                                                     <DollarSign size={10} className="text-emerald-400" />
                                                                     <input 
                                                                       type="text" 
@@ -701,6 +769,12 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                                                       onBlur={e => handleUpdateItem(sale, 'installment', entry.installment!.idx, 'value', parseCurrencyToNumber(e.target.value))}
                                                                       className="bg-transparent border-none outline-none text-center text-[12px] font-black w-28 text-emerald-700"
                                                                     />
+                                                                    <button 
+                                                                      onClick={() => handleRemoveItem(sale, 'installment', entry.installment!.idx)}
+                                                                      className="absolute -right-2 -top-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity shadow-lg"
+                                                                    >
+                                                                       <X size={10} />
+                                                                    </button>
                                                                  </div>
                                                               ) : (
                                                                  <span className="text-[10px] text-slate-200 uppercase font-black">-</span>
@@ -708,7 +782,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                                            </td>
                                                            <td className="px-8 py-4 text-center">
                                                               {entry.balloon ? (
-                                                                 <div className="flex items-center justify-center space-x-2 bg-amber-50/50 py-2 rounded-xl border border-amber-100/50">
+                                                                 <div className="flex items-center justify-center space-x-2 bg-amber-50/50 py-2 rounded-xl border border-amber-100/50 relative group/item">
                                                                     <Zap size={10} className="text-amber-500" />
                                                                     <input 
                                                                       type="text" 
@@ -716,6 +790,12 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                                                       onBlur={e => handleUpdateItem(sale, 'balloon', entry.balloon!.idx, 'value', parseCurrencyToNumber(e.target.value))}
                                                                       className="bg-transparent border-none outline-none text-center text-[12px] font-black w-28 text-amber-700"
                                                                     />
+                                                                    <button 
+                                                                      onClick={() => handleRemoveItem(sale, 'balloon', entry.balloon!.idx)}
+                                                                      className="absolute -right-2 -top-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity shadow-lg"
+                                                                    >
+                                                                       <X size={10} />
+                                                                    </button>
                                                                  </div>
                                                               ) : (
                                                                  <span className="text-[10px] text-slate-200 uppercase font-black">-</span>
