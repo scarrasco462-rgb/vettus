@@ -103,7 +103,11 @@ export const Layout: React.FC<LayoutProps> = ({
   });
 
   useEffect(() => {
-    localStorage.setItem('vettus_sidebar_collapsed', String(isCollapsed));
+    try {
+      localStorage.setItem('vettus_sidebar_collapsed', String(isCollapsed));
+    } catch (e) {
+      console.warn('Layout: Falha ao salvar estado da sidebar:', e);
+    }
   }, [isCollapsed]);
 
   const navItems = [

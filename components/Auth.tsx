@@ -50,8 +50,30 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     // 2. ACESSO REMOTO RESILIENTE (MESH): Consulta Master ou Outros Nós Ativos
     setStatusMsg(`Localizando Rede ${networkId.toUpperCase()}...`);
     const tempId = `vettus-auth-temp-${Math.random().toString(36).substr(7)}`;
-    const peer = new Peer(tempId, { secure: true });
     
+    const peer = (() => {
+      try {
+        return new Peer(tempId, { 
+          secure: true,
+          debug: 0 // Silenciar logs para evitar alertas desnecessários
+        });
+      } catch (e) {
+        console.error('Erro ao instanciar Peer de Autenticação:', e);
+        return null;
+      }
+    })();
+
+    if (!peer) {
+      setError('Falha ao iniciar protocolo de rede. Tente novamente.');
+      setIsSyncing(false);
+      return;
+    }
+    
+    peer.on('error', (err) => {
+      console.warn('Auth Peer Error (Silenced):', err.type);
+      // Não interrompemos o fluxo, o timeout de 8s cuidará disso se não conectar
+    });
+
     peer.on('open', () => {
       const masterNodeId = `vettus-master-${networkId.toLowerCase().trim()}`;
       const conn = peer.connect(masterNodeId, { reliable: true });
@@ -81,7 +103,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
       conn.on('open', () => {
         clearTimeout(timeout);
         setStatusMsg('Conectado ao Master. Validando credenciais...');
-        conn.send({ type: 'REMOTE_AUTH_REQUEST', payload: { email, password } });
+        try {
+          conn.send({ type: 'REMOTE_AUTH_REQUEST', payload: { email, password } });
+        } catch (e) {
+          console.error('Erro ao enviar solicitação de autenticação remota:', e);
+          setError('Falha na comunicação com o servidor. Tente novamente.');
+          setIsSyncing(false);
+        }
       });
 
       conn.on('data', (d: any) => {

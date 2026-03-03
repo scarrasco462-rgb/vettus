@@ -60,8 +60,12 @@ export const RestoreView: React.FC<RestoreViewProps> = ({ currentUser }) => {
 
         // Injetar novos dados
         Object.keys(data).forEach(key => {
-          const val = data[key];
-          localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : val);
+          try {
+            const val = data[key];
+            localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : val);
+          } catch (e) {
+            console.warn(`Kernel Storage: Falha ao injetar chave ${key}:`, e);
+          }
         });
 
         alert('✅ SUCESSO! O Banco de Dados foi restaurado. O sistema irá reiniciar agora para aplicar as mudanças.');

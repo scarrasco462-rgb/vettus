@@ -78,6 +78,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     downPaymentDate: new Date().toISOString().split('T')[0],
     qtyParcelas: 1,
     valParcela: '0,00',
+    firstInstallmentDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
     individualBalloons: [] as { date: string, value: string }[]
   });
 
@@ -481,8 +482,14 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
         downPaymentValue: parseCurrencyToNumber(formEntry.downPaymentValue),
         downPaymentDate: formEntry.downPaymentDate,
         monthlyInstallments: Array(formEntry.qtyParcelas).fill(null).map((_, i) => {
-          const d = new Date();
-          d.setMonth(d.getMonth() + i + 1);
+          const d = new Date(formEntry.firstInstallmentDate + 'T12:00:00');
+          if (isNaN(d.getTime())) {
+            // Fallback para hoje se a data for inválida
+            const fallback = new Date();
+            fallback.setMonth(fallback.getMonth() + i + 1);
+            return { date: fallback.toISOString().split('T')[0], value: parseCurrencyToNumber(formEntry.valParcela) };
+          }
+          d.setMonth(d.getMonth() + i);
           return { date: d.toISOString().split('T')[0], value: parseCurrencyToNumber(formEntry.valParcela) };
         }),
         balloons: formEntry.individualBalloons.map(b => ({ date: b.date, value: parseCurrencyToNumber(b.value) }))
@@ -494,7 +501,9 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       brokerId: '', propertyTitle: '', clientName: '', unitNumber: '',
       salePrice: '0,00', signalValue: '0,00', signalMethod: 'PIX (Construtora)', signalDate: new Date().toISOString().split('T')[0],
       downPaymentValue: '0,00', downPaymentDate: new Date().toISOString().split('T')[0],
-      qtyParcelas: 1, valParcela: '0,00', individualBalloons: []
+      qtyParcelas: 1, valParcela: '0,00', 
+      firstInstallmentDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+      individualBalloons: []
     });
     setActiveSubTab('spreadsheet');
   };
@@ -952,7 +961,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                           <div className="space-y-8">
                              {/* MENSALIDADES */}
                              <div className="bg-white p-7 rounded-[2.5rem] border-2 border-slate-300 shadow-xl space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                    <div className="space-y-1.5">
                                       <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Qtd Parcelas</label>
                                       <input type="number" min="1" max="360" value={formEntry.qtyParcelas} onChange={e => setFormEntry({...formEntry, qtyParcelas: parseInt(e.target.value) || 1})} className="w-full bg-slate-50 border-2 border-slate-400 rounded-xl py-4 px-5 text-sm font-black text-slate-900" />
@@ -962,6 +971,13 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                       <div className="relative">
                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-700" />
                                          <input type="text" value={formEntry.valParcela} onChange={e => setFormEntry({...formEntry, valParcela: formatInputToBRL(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-400 rounded-xl py-4 px-8 text-sm font-black text-slate-900" />
+                                      </div>
+                                   </div>
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Data Inicial Parcela</label>
+                                      <div className="relative">
+                                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                         <input type="date" value={formEntry.firstInstallmentDate} onChange={e => setFormEntry({...formEntry, firstInstallmentDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-400 rounded-xl py-4 pl-10 px-4 text-xs font-black text-slate-900 shadow-sm outline-none focus:border-[#d4a853]" />
                                       </div>
                                    </div>
                                 </div>

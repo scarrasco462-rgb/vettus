@@ -92,10 +92,14 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
         });
 
         Object.keys(data).forEach(key => {
-          if (typeof data[key] === 'object') {
-            localStorage.setItem(key, JSON.stringify(data[key]));
-          } else {
-            localStorage.setItem(key, data[key]);
+          try {
+            if (typeof data[key] === 'object') {
+              localStorage.setItem(key, JSON.stringify(data[key]));
+            } else {
+              localStorage.setItem(key, data[key]);
+            }
+          } catch (e) {
+            console.warn(`Kernel Storage: Falha ao restaurar chave ${key}:`, e);
           }
         });
 

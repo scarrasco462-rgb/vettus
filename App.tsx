@@ -92,6 +92,40 @@ const App: React.FC = () => {
     constructionCompanies, launches, campaigns, rentals, expenses 
   });
 
+  // Global Error Boundary (Silencioso)
+  useEffect(() => {
+    const handleError = (e: ErrorEvent) => {
+      // Silenciar erros conhecidos do PeerJS
+      if (e.message?.includes('PeerJS') || e.message?.includes('Aborting') || e.message?.includes('unavailable-id')) {
+        console.warn('Kernel P2P: Erro interceptado e silenciado:', e.message);
+        e.preventDefault();
+        return;
+      }
+      
+      // Capturar outros erros "Uncaught" para evitar travamento total
+      console.error('Uncaught Exception Interceptada:', e.message, e.error);
+      // Opcional: e.preventDefault(); // Se quisermos esconder do console, mas melhor deixar logado
+    };
+
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      // Silenciar rejeições do PeerJS
+      if (e.reason?.message?.includes('PeerJS') || e.reason?.type?.includes('PeerJS')) {
+        console.warn('Kernel P2P: Rejeição interceptada e silenciada:', e.reason.message || e.reason.type);
+        e.preventDefault();
+        return;
+      }
+
+      console.error('Unhandled Promise Rejection Interceptada:', e.reason);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   // Sincronização e Auditoria de Sessão
   useEffect(() => {
     stateRef.current = { 
@@ -99,11 +133,34 @@ const App: React.FC = () => {
       commissions, commissionForecasts, documents, 
       constructionCompanies, launches, campaigns, rentals, expenses 
     };
-    Object.entries(stateRef.current).forEach(([k, v]) => localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(v)));
+    Object.entries(stateRef.current).forEach(([k, v]) => {
+      try {
+        localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(v));
+      } catch (e) {
+        console.warn(`Kernel Storage: Falha ao salvar ${k}:`, e);
+        if (k === 'activities' || k === 'properties') {
+          // Se for atividades ou imóveis (muito grandes), tentamos limpar algo se for erro de cota
+          const isQuotaError = e instanceof Error && (
+            e.name === 'QuotaExceededError' || 
+            e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+            e.message?.includes('quota')
+          );
+          
+          if (isQuotaError && k === 'activities') {
+             console.warn('Kernel Storage: Limpando logs antigos para liberar espaço...');
+             setActivities(prev => prev.slice(0, 50)); // Mantém apenas os 50 mais recentes
+          }
+        }
+      }
+    });
     
     if (currentUser) {
-      localStorage.setItem(STORAGE_KEY_PREFIX + 'session_user', JSON.stringify(currentUser));
-      const isSergio = currentUser.email.toLowerCase() === 'scarrasco462@gmail.com' || currentUser.email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
+      try {
+        localStorage.setItem(STORAGE_KEY_PREFIX + 'session_user', JSON.stringify(currentUser));
+      } catch (e) {
+        console.warn('Kernel Storage: Falha ao salvar sessão:', e);
+      }
+      const isSergio = currentUser.email?.toLowerCase() === 'scarrasco462@gmail.com' || currentUser.email?.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
       if (!isSergio) {
          const stillExists = brokers.find(b => b.id === currentUser.id);
          if (!stillExists || stillExists.blocked || stillExists.deleted) handleLogout();
@@ -169,7 +226,11 @@ const App: React.FC = () => {
     if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
 
     if (changed && currentUser?.role === 'Admin') {
-       localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
+      try {
+        localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
+      } catch (e) {
+        console.warn('Falha ao salvar backup local (Quota Exceeded?):', e);
+      }
     }
   }, [currentUser]);
 
@@ -208,8 +269,8 @@ const App: React.FC = () => {
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
     const isMasterCandidate = currentUser.role === 'Admin' && 
-                             (currentUser.email.toLowerCase() === 'scarrasco462@gmail.com' || 
-                              currentUser.email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com');
+                             (currentUser.email?.toLowerCase() === 'scarrasco462@gmail.com' || 
+                              currentUser.email?.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com');
 
     // Só tenta ser Master se for o Sergio e for a primeira tentativa absoluta
     const myId = (isMasterCandidate && reconnectAttemptsRef.current === 0)
@@ -244,7 +305,7 @@ const App: React.FC = () => {
       try {
         return new Peer(myId, { 
           secure: true, 
-          debug: 1,
+          debug: 0, // Silenciar logs internos para evitar alertas desnecessários
           config: {
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
             sdpSemantics: 'unified-plan'
@@ -291,7 +352,11 @@ const App: React.FC = () => {
         });
         conn.on('close', () => activeConnections.current.delete(conn.peer));
         conn.on('error', () => activeConnections.current.delete(conn.peer));
-        conn.send({ type: 'DATA_UPDATE', payload: stateRef.current });
+        try {
+          conn.send({ type: 'DATA_UPDATE', payload: stateRef.current });
+        } catch (e) {
+          console.warn('Erro ao enviar dados iniciais via P2P:', e);
+        }
       });
 
       conn.on('error', (err) => {
@@ -345,17 +410,32 @@ const App: React.FC = () => {
     peer.on('error', (err) => {
       isInitializingRef.current = false;
       const errorType = err.type || (err as any).message || 'unknown';
+      
+      // Tratamento silencioso para ID ocupado (Master já ativo em outra aba)
+      if (errorType === 'unavailable-id' || errorType.includes('taken')) {
+         console.warn('Kernel P2P: ID Master ocupado. Alternando para modo Node...');
+         reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1) + 1;
+         if (!peer.destroyed) {
+            try { peer.destroy(); } catch (e) {}
+         }
+         initTimeoutRef.current = setTimeout(() => initPeer(), 1500);
+         return;
+      }
+
+      if (errorType.includes('Aborting')) {
+         console.warn('Kernel P2P: Abortado. Reiniciando...');
+         if (!peer.destroyed) {
+            try { peer.destroy(); } catch (e) {}
+         }
+         initTimeoutRef.current = setTimeout(() => initPeer(), 3000);
+         return;
+      }
+
       console.error('Peer Protocol Alert:', errorType);
 
-      if (errorType === 'unavailable-id' || errorType.includes('taken') || errorType.includes('Aborting')) {
-         reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1) + 1;
-         if (!peer.destroyed) peer.destroy();
-         initTimeoutRef.current = setTimeout(() => initPeer(), 4000 + Math.random() * 2000);
-      } else {
-         reconnectAttemptsRef.current++;
-         if (reconnectAttemptsRef.current < 15) {
-           initTimeoutRef.current = setTimeout(() => initPeer(), 10000);
-         }
+      reconnectAttemptsRef.current++;
+      if (reconnectAttemptsRef.current < 15) {
+        initTimeoutRef.current = setTimeout(() => initPeer(), 10000);
       }
     });
 
@@ -686,7 +766,11 @@ const App: React.FC = () => {
             a.href = url;
             a.download = `vettus_backup_${currentUser.networkId}_${new Date().toISOString().split('T')[0]}.vettus`;
             a.click();
-            localStorage.setItem(STORAGE_KEY_PREFIX + 'last_backup_date', new Date().toISOString());
+            try {
+              localStorage.setItem(STORAGE_KEY_PREFIX + 'last_backup_date', new Date().toISOString());
+            } catch (e) {
+              console.warn('Kernel Storage: Falha ao salvar data do backup:', e);
+            }
           }} 
         />
       )}
