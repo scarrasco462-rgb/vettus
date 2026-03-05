@@ -4,7 +4,7 @@ import {
   Kanban, ShieldCheck, BadgeDollarSign, TableProperties, FileUp,
   Database, Files, HardHat, TrendingUp, Layers, Key, Palette, Menu, 
   X as CloseIcon, ChevronLeft, ChevronRight, Wifi, WifiOff, RefreshCw,
-  Calculator, AlertCircle, ShieldAlert
+  Calculator, AlertCircle, ShieldAlert, Edit3
 } from 'lucide-react';
 import { Broker, AppView } from '../types.ts';
 
@@ -114,7 +114,7 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'dashboard' as AppView, icon: LayoutDashboard, label: 'Painel' },
     { id: 'cash_flow' as AppView, icon: BadgeDollarSign, label: 'Fluxo Pagamento' },
     { id: 'monthly_financial' as AppView, icon: Calculator, label: 'Financeiro Mensal' },
-    { id: 'client_payment_flow' as AppView, icon: Layers, label: 'Fluxo de Obra' },
+    { id: 'client_payment_flow' as AppView, icon: Edit3, label: 'Fluxo de Obra' },
     { id: 'tasks' as AppView, icon: Kanban, label: 'Funil' },
     { id: 'properties' as AppView, icon: Home, label: 'Imóveis' },
     { id: 'launches' as AppView, icon: Layers, label: 'Lançamentos' },

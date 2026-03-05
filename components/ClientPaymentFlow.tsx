@@ -593,8 +593,9 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 <button 
                                   onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)} 
                                   className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center shadow-sm ${isExpanded ? 'bg-[#050810] text-[#d4a853]' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900'}`}
+                                  title={isExpanded ? "Fechar Edição" : "Editar Fluxo"}
                                 >
-                                   {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                   {isExpanded ? <ChevronUp size={18} /> : <Edit3 size={18} />}
                                 </button>
                                 <div>
                                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{sale.clientName}</p>
@@ -652,11 +653,11 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                    <div className="p-7 bg-[#050810] text-white flex items-center justify-between border-b-4 border-[#d4a853]">
                                       <div className="flex items-center space-x-4">
                                          <div className="w-12 h-12 gold-gradient rounded-2xl flex items-center justify-center shadow-lg">
-                                            <FileSpreadsheet className="w-6 h-6 text-[#0a1120]" />
+                                            <Edit3 className="w-6 h-6 text-[#0a1120]" />
                                          </div>
                                          <div>
-                                            <h4 className="text-sm font-black uppercase tracking-widest">Fluxo de Pagamento</h4>
-                                            <p className="text-[#d4a853] text-[9px] font-bold uppercase tracking-[0.3em]">Fluxo de Pagamento • Ref: {sale.id}</p>
+                                            <h4 className="text-sm font-black uppercase tracking-widest">Editar Fluxo de Pagamento</h4>
+                                            <p className="text-[#d4a853] text-[9px] font-bold uppercase tracking-[0.3em]">Edição de Ativos • Ref: {sale.id}</p>
                                          </div>
                                       </div>
                                       <div className="flex items-center space-x-3">
