@@ -252,10 +252,18 @@ const App: React.FC = () => {
     }
   }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals]);
 
-  // PeerJS Kernel v6.4 - Protocolo de Conectividade Blindada (Ultra-Resiliente)
+  // PeerJS Kernel v6.5 - Protocolo de Conectividade Blindada (Ultra-Resiliente)
   const initPeer = useCallback(() => {
     if (!currentUser || isInitializingRef.current) return;
     
+    // Verificação de conectividade básica do navegador
+    if (!window.navigator.onLine) {
+      setSyncStatus('disconnected');
+      if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
+      initTimeoutRef.current = setTimeout(initPeer, 5000);
+      return;
+    }
+
     // Se já temos um peer funcional e conectado, não reiniciamos sem necessidade
     if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
       return;
@@ -327,9 +335,9 @@ const App: React.FC = () => {
 
     peer.on('open', (id) => {
       isInitializingRef.current = false;
+      reconnectAttemptsRef.current = 0; // Reset ao abrir com sucesso
       console.log('Kernel P2P On:', id);
       setSyncStatus('synced');
-      if (id === masterId) reconnectAttemptsRef.current = 0;
       if (id !== masterId) connectToMaster();
     });
 
@@ -345,6 +353,7 @@ const App: React.FC = () => {
       const conn = peer.connect(masterId, { reliable: true });
       
       conn.on('open', () => {
+        reconnectAttemptsRef.current = 0; // Reset ao conectar ao master
         activeConnections.current.set(conn.peer, conn);
         conn.on('data', (d: any) => {
            if (d.type === 'DATA_UPDATE') mergeData(d.payload);
@@ -411,6 +420,16 @@ const App: React.FC = () => {
       isInitializingRef.current = false;
       const errorType = err.type || (err as any).message || 'unknown';
       
+      // Tratamento para erro de rede (falha de conexão com o servidor de sinalização)
+      if (errorType === 'network') {
+         console.warn('Kernel P2P: Falha de rede detectada. Reescalonando tentativa...');
+         setSyncStatus('disconnected');
+         reconnectAttemptsRef.current++;
+         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 60000);
+         initTimeoutRef.current = setTimeout(() => initPeer(), delay);
+         return;
+      }
+
       // Tratamento silencioso para ID ocupado (Master já ativo em outra aba)
       if (errorType === 'unavailable-id' || errorType.includes('taken')) {
          console.warn('Kernel P2P: ID Master ocupado. Alternando para modo Node...');
@@ -455,7 +474,7 @@ const App: React.FC = () => {
 
       // Visibility Handler: Apenas recriar se estiver desconectado e voltar a ficar visível
       const handleVisibility = () => {
-        if (document.visibilityState === 'visible' && (!peerRef.current || peerRef.current.disconnected)) {
+        if (document.visibilityState === 'visible' && (!peerRef.current || peerRef.current.disconnected || peerRef.current.destroyed)) {
           initPeer();
         }
       };
