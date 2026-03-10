@@ -298,5 +298,7 @@ export interface Expense {
   payer?: 'Fluxo de Caixa' | 'Sócio: Sergio' | 'Sócio: Leonardo';
   month: number; // 1-12
   year: number;
+  isRecurring?: boolean;
+  recurringMonths?: number;
   updatedAt: string;
 }

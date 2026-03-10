@@ -54,7 +54,9 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
     category: 'Outros',
     dueDate: new Date().toISOString().split('T')[0],
     status: 'Pendente',
-    payer: 'Fluxo de Caixa'
+    payer: 'Fluxo de Caixa',
+    isRecurring: false,
+    recurringMonths: 1
   });
 
   const filteredExpenses = useMemo(() => {
@@ -83,21 +85,39 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         paymentDate: newExpense.status === 'Pago' ? (editingExpense.paymentDate || new Date().toISOString().split('T')[0]) : undefined
       });
     } else {
-      const expense: Expense = {
-        id: Math.random().toString(36).substr(2, 9),
-        brokerId: currentUser.id,
-        description: newExpense.description,
-        value: newExpense.value,
-        category: newExpense.category || 'Outros',
-        dueDate: newExpense.dueDate || new Date().toISOString().split('T')[0],
-        status: newExpense.status as 'Pendente' | 'Pago',
-        payer: newExpense.payer as any,
-        month: selectedMonth,
-        year: selectedYear,
-        updatedAt: new Date().toISOString(),
-        paymentDate: newExpense.status === 'Pago' ? new Date().toISOString().split('T')[0] : undefined
-      };
-      onAddExpense(expense);
+      const monthsToCreate = newExpense.isRecurring ? (newExpense.recurringMonths || 1) : 1;
+      
+      for (let i = 0; i < monthsToCreate; i++) {
+        let currentMonth = selectedMonth + i;
+        let currentYear = selectedYear;
+        
+        while (currentMonth > 12) {
+          currentMonth -= 12;
+          currentYear += 1;
+        }
+
+        // Ajustar data de vencimento para os meses subsequentes
+        const baseDate = new Date(newExpense.dueDate || new Date().toISOString().split('T')[0]);
+        const dueDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+
+        const expense: Expense = {
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: currentUser.id,
+          description: newExpense.description + (newExpense.isRecurring && monthsToCreate > 1 ? ` (${i + 1}/${monthsToCreate})` : ''),
+          value: newExpense.value || 0,
+          category: newExpense.category || 'Outros',
+          dueDate: dueDate.toISOString().split('T')[0],
+          status: newExpense.status as 'Pendente' | 'Pago',
+          payer: newExpense.payer as any,
+          month: currentMonth,
+          year: currentYear,
+          isRecurring: newExpense.isRecurring,
+          recurringMonths: newExpense.recurringMonths,
+          updatedAt: new Date().toISOString(),
+          paymentDate: newExpense.status === 'Pago' ? new Date().toISOString().split('T')[0] : undefined
+        };
+        onAddExpense(expense);
+      }
     }
 
     setShowAddModal(false);
@@ -108,7 +128,9 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
       category: 'Outros',
       dueDate: new Date().toISOString().split('T')[0],
       status: 'Pendente',
-      payer: 'Fluxo de Caixa'
+      payer: 'Fluxo de Caixa',
+      isRecurring: false,
+      recurringMonths: 1
     });
   };
 
@@ -408,6 +430,35 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {!editingExpense && (
+                  <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="checkbox" 
+                        id="recurring"
+                        checked={newExpense.isRecurring}
+                        onChange={e => setNewExpense({...newExpense, isRecurring: e.target.checked})}
+                        className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                      />
+                      <label htmlFor="recurring" className="text-[10px] font-black text-slate-900 uppercase tracking-widest cursor-pointer">Recorrente</label>
+                    </div>
+                    {newExpense.isRecurring && (
+                      <div className="flex items-center space-x-2 flex-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase">por</span>
+                        <input 
+                          type="number" 
+                          min="1"
+                          max="60"
+                          value={newExpense.recurringMonths}
+                          onChange={e => setNewExpense({...newExpense, recurringMonths: parseInt(e.target.value) || 1})}
+                          className="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 outline-none"
+                        />
+                        <span className="text-[10px] font-black text-slate-400 uppercase">meses</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <button 
                   onClick={handleAddExpense}
