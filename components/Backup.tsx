@@ -85,25 +85,28 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
       try {
         const data = JSON.parse(event.target?.result as string);
         
+        // Limpar base atual
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith(STORAGE_KEY_PREFIX)) {
             localStorage.removeItem(key);
           }
         });
 
+        // Injetar nova base
         Object.keys(data).forEach(key => {
           try {
+            const storageKey = key.startsWith(STORAGE_KEY_PREFIX) ? key : STORAGE_KEY_PREFIX + key;
             if (typeof data[key] === 'object') {
-              localStorage.setItem(key, JSON.stringify(data[key]));
+              localStorage.setItem(storageKey, JSON.stringify(data[key]));
             } else {
-              localStorage.setItem(key, data[key]);
+              localStorage.setItem(storageKey, data[key]);
             }
           } catch (e) {
             console.warn(`Kernel Storage: Falha ao restaurar chave ${key}:`, e);
           }
         });
 
-        alert('BANCO DE DADOS RESTAURADO! O Vettus será reiniciado para sincronizar a nova base.');
+        alert('BANCO DE DADOS RESTAURADO COM SUCESSO!\n\nO sistema será reiniciado agora para carregar as novas informações.');
         window.location.reload();
       } catch (err) {
         console.error(err);
@@ -214,11 +217,11 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
 
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className={`h-48 border-4 border-dashed rounded-[2.5rem] transition-all flex flex-col items-center justify-center cursor-pointer mb-6 ${
+                className={`h-56 border-4 border-dashed rounded-[2.5rem] transition-all flex flex-col items-center justify-center cursor-pointer mb-6 group/restore ${
                   isRestoring ? 'bg-slate-50 border-slate-200' : 'bg-slate-50/50 border-slate-100 hover:border-[#d4a853]/40 hover:bg-slate-50'
                 }`}
               >
-                <input type="file" ref={fileInputRef} className="hidden" accept=".vettus" onChange={handleRestore} />
+                <input type="file" ref={fileInputRef} className="hidden" accept=".vettus,.json" onChange={handleRestore} />
                 {isRestoring ? (
                   <div className="flex flex-col items-center animate-pulse">
                     <RotateCcw className="w-10 h-10 text-[#d4a853] animate-spin mb-3" />
@@ -226,8 +229,15 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
                   </div>
                 ) : (
                   <>
-                    <UploadCloud className="w-12 h-12 text-slate-300 mb-4 group-hover:scale-110 transition-transform" />
-                    <p className="text-sm font-bold text-slate-900 text-center">Clique para importar backup central</p>
+                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover/restore:scale-110 transition-transform border border-slate-100">
+                      <UploadCloud className="w-8 h-8 text-[#d4a853]" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-900 text-center px-6">Clique para selecionar o arquivo de backup (.vettus)</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Injeção de Base Central</p>
+                    
+                    <button className="mt-6 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors">
+                      Selecionar Arquivo
+                    </button>
                   </>
                 )}
               </div>

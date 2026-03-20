@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Home, Users, Bell, Calendar, LogOut, Megaphone,
   Kanban, ShieldCheck, BadgeDollarSign, TableProperties, FileUp,
   Database, Files, HardHat, TrendingUp, Layers, Key, Palette, Menu, 
-  X as CloseIcon, ChevronLeft, ChevronRight, Wifi, WifiOff, RefreshCw,
+  X as CloseIcon, ChevronLeft, ChevronRight, ChevronDown, Wifi, WifiOff, RefreshCw,
   Calculator, AlertCircle, ShieldAlert, Edit3
 } from 'lucide-react';
 import { Broker, AppView } from '../types.ts';
@@ -101,6 +101,7 @@ export const Layout: React.FC<LayoutProps> = ({
     const saved = localStorage.getItem('vettus_sidebar_collapsed');
     return saved === 'true';
   });
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -116,8 +117,15 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'monthly_financial' as AppView, icon: Calculator, label: 'Financeiro Mensal' },
     { id: 'client_payment_flow' as AppView, icon: Edit3, label: 'Fluxo de Obra' },
     { id: 'tasks' as AppView, icon: Kanban, label: 'Funil' },
-    { id: 'properties' as AppView, icon: Home, label: 'Imóveis' },
-    { id: 'launches' as AppView, icon: Layers, label: 'Lançamentos' },
+    { 
+      id: 'properties_group' as any, 
+      icon: Home, 
+      label: 'Imóveis', 
+      subItems: [
+        { id: 'properties' as AppView, label: 'Prontos' },
+        { id: 'launches' as AppView, label: 'Lançamentos' }
+      ] 
+    },
     { id: 'clients' as AppView, icon: Users, label: 'Clientes' },
     { id: 'reminders' as AppView, icon: Bell, label: 'Lembretes' },
     { id: 'construction_companies' as AppView, icon: HardHat, label: 'Construtoras' },
@@ -130,11 +138,23 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'password_update' as AppView, icon: Key, label: 'Segurança' },
     { id: 'backup' as AppView, icon: Database, label: 'Backup' },
   ].filter(item => {
+    if (item.subItems) {
+      item.subItems = item.subItems.filter(sub => {
+        return !currentUser.permissions || currentUser.permissions.includes(sub.id);
+      });
+      return item.subItems.length > 0;
+    }
     if (['brokers', 'backup', 'monthly_financial'].includes(item.id)) {
       return currentUser.role === 'Admin';
     }
     return !currentUser.permissions || currentUser.permissions.includes(item.id);
   });
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupId) ? prev.filter(g => g !== groupId) : [...prev, groupId]
+    );
+  };
 
   const handleNavClick = (viewId: AppView) => {
     onViewChange(viewId);
@@ -212,30 +232,60 @@ export const Layout: React.FC<LayoutProps> = ({
         </div>
 
         <div className="px-3 py-6 space-y-1 flex-1 overflow-y-auto no-scrollbar">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={`w-full flex items-center px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
-                isCollapsed ? 'justify-center space-x-0' : 'space-x-3'
-              } ${
-                currentView === item.id 
-                ? 'bg-[#d4a853] text-[#0a1120] font-black shadow-lg shadow-yellow-900/40' 
-                : 'text-slate-200/60 hover:bg-white/5 hover:text-white'
-              }`}
-              title={isCollapsed ? item.label : ''}
-            >
-              <item.icon className={`w-5 h-5 shrink-0 ${currentView === item.id ? 'text-[#0a1120]' : 'group-hover:text-[#d4a853] transition-colors'}`} />
-              {!isCollapsed && (
-                <span className="text-[10px] uppercase tracking-widest font-black truncate animate-in fade-in slide-in-from-left-2 duration-300">
-                  {item.label}
-                  {item.id === 'reminders' && pendingRemindersCount > 0 && (
-                    <span className="ml-2 bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded-full">{pendingRemindersCount}</span>
+          {navItems.map((item) => {
+            const isGroup = !!item.subItems;
+            const isExpanded = expandedGroups.includes(item.id) || (isGroup && item.subItems.some(s => s.id === currentView));
+            const isActive = currentView === item.id || (isGroup && item.subItems.some(s => s.id === currentView));
+
+            return (
+              <div key={item.id} className="space-y-1">
+                <button
+                  onClick={() => isGroup ? toggleGroup(item.id) : handleNavClick(item.id)}
+                  className={`w-full flex items-center px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
+                    isCollapsed ? 'justify-center space-x-0' : 'space-x-3'
+                  } ${
+                    isActive 
+                    ? 'bg-[#d4a853] text-[#0a1120] font-black shadow-lg shadow-yellow-900/40' 
+                    : 'text-slate-200/60 hover:bg-white/5 hover:text-white'
+                  }`}
+                  title={isCollapsed ? item.label : ''}
+                >
+                  <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#0a1120]' : 'group-hover:text-[#d4a853] transition-colors'}`} />
+                  {!isCollapsed && (
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-widest font-black truncate animate-in fade-in slide-in-from-left-2 duration-300">
+                        {item.label}
+                        {item.id === 'reminders' && pendingRemindersCount > 0 && (
+                          <span className="ml-2 bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded-full">{pendingRemindersCount}</span>
+                        )}
+                      </span>
+                      {isGroup && (
+                        <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                      )}
+                    </div>
                   )}
-                </span>
-              )}
-            </button>
-          ))}
+                </button>
+
+                {isGroup && isExpanded && !isCollapsed && (
+                  <div className="ml-4 pl-4 border-l border-white/10 space-y-1 animate-in slide-in-from-top-2 duration-300">
+                    {item.subItems.map(sub => (
+                      <button
+                        key={sub.id}
+                        onClick={() => handleNavClick(sub.id)}
+                        className={`w-full flex items-center px-4 py-2.5 rounded-xl transition-all duration-300 group/sub ${
+                          currentView === sub.id 
+                          ? 'text-[#d4a853] font-black' 
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="text-[9px] uppercase tracking-[0.2em] font-black">{sub.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="p-4 border-t border-white/5 space-y-4">
