@@ -33,7 +33,8 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
     progress: 0,
     status: 'Pre-Launch',
     unitsAvailable: 0,
-    description: ''
+    description: '',
+    imageUrl: ''
   });
 
   useEffect(() => {
@@ -46,10 +47,11 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
         progress: editingLaunch.progress,
         status: editingLaunch.status,
         unitsAvailable: editingLaunch.unitsAvailable,
-        description: editingLaunch.description
+        description: editingLaunch.description,
+        imageUrl: editingLaunch.imageUrl || ''
       });
     } else {
-      setFormData({ name: '', builder: '', city: '', deliveryDate: '', progress: 0, status: 'Pre-Launch', unitsAvailable: 0, description: '' });
+      setFormData({ name: '', builder: '', city: '', deliveryDate: '', progress: 0, status: 'Pre-Launch', unitsAvailable: 0, description: '', imageUrl: '' });
     }
   }, [editingLaunch]);
 
@@ -78,6 +80,7 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
         status: formData.status as any,
         unitsAvailable: formData.unitsAvailable || 0,
         description: formData.description || '',
+        imageUrl: formData.imageUrl,
         allocatedClientIds: [],
         updatedAt: new Date().toISOString()
       };
@@ -159,9 +162,21 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
   const getStatusBadge = (status: LaunchProject['status']) => {
     switch(status) {
       case 'Pre-Launch': return { label: 'Pré-Lançamento', color: 'bg-purple-50 text-purple-600 border-purple-100' };
+      case 'Launch': return { label: 'Lançamento', color: 'bg-blue-50 text-blue-600 border-blue-100' };
       case 'Under-Construction': return { label: 'Em Obras', color: 'bg-amber-50 text-amber-600 border-amber-100' };
       case 'Finished': return { label: 'Pronto para Morar', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
       default: return { label: 'Status Indefinido', color: 'bg-slate-50 text-slate-400 border-slate-100' };
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, imageUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -200,7 +215,11 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
                            {badge.label}
                         </span>
                      </div>
-                     <Building2 className="w-16 h-16 text-[#d4a853]/40" />
+                     {project.imageUrl ? (
+                        <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                     ) : (
+                        <Building2 className="w-16 h-16 text-[#d4a853]/40" />
+                     )}
                   </div>
 
                   <div className="flex-1 space-y-4">
@@ -407,9 +426,38 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Status</label>
                        <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 px-6 text-sm font-bold text-slate-900 outline-none">
                           <option value="Pre-Launch">Pré-Lançamento</option>
+                          <option value="Launch">Lançamento</option>
                           <option value="Under-Construction">Em Obras</option>
                           <option value="Finished">Pronto para Morar</option>
                        </select>
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Foto do Empreendimento</label>
+                       <div className="flex items-center space-x-4">
+                          <div className="w-24 h-24 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                             {formData.imageUrl ? (
+                                <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                             ) : (
+                                <UploadCloud className="w-8 h-8 text-slate-300" />
+                             )}
+                          </div>
+                          <div className="flex-1">
+                             <input 
+                               type="file" 
+                               accept="image/*" 
+                               onChange={handleImageUpload}
+                               className="hidden" 
+                               id="launch-image-upload" 
+                             />
+                             <label 
+                               htmlFor="launch-image-upload"
+                               className="inline-flex items-center px-4 py-2 bg-slate-900 text-[#d4a853] rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-800 transition-all"
+                             >
+                                Selecionar Foto
+                             </label>
+                             <p className="text-[8px] text-slate-400 font-bold uppercase mt-2">Formatos aceitos: JPG, PNG. Tamanho máx: 1MB.</p>
+                          </div>
+                       </div>
                     </div>
                     <div className="space-y-1">
                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Progresso (%)</label>

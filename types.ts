@@ -106,7 +106,7 @@ export interface LaunchProject {
   city: string;
   deliveryDate: string;
   progress: number;
-  status: 'Pre-Launch' | 'Under-Construction' | 'Finished';
+  status: 'Pre-Launch' | 'Launch' | 'Under-Construction' | 'Finished';
   unitsAvailable: number;
   imageUrl?: string;
   description?: string;
