@@ -81,6 +81,7 @@ export interface Property {
   acceptsExchange: boolean;
   ownerName: string;
   ownerPhone: string;
+  deleted?: boolean;
   updatedAt: string;
 }
 
@@ -162,6 +163,7 @@ export interface Client {
   spousePhone?: string;
   blocked?: boolean;
   blockReason?: string;
+  deleted?: boolean;
   updatedAt: string;
 }
 
