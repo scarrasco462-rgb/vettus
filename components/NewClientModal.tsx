@@ -225,6 +225,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
                   <option value="Casa">Casa</option>
                   <option value="Terreno">Terreno</option>
                   <option value="Cobertura">Cobertura</option>
+                  <option value="Prontos">Prontos</option>
                 </select>
               </div>
               <div className="space-y-1">

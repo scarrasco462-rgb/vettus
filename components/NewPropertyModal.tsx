@@ -78,6 +78,7 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
 
   const LISTING_TYPES = [
     'LANÇAMENTO',
+    'PRONTOS',
     'APTO TERCEIRO',
     'CASA TERCEIROS',
     'CASA CONDOMINIO',

@@ -149,6 +149,72 @@ export const ClientView: React.FC<ClientViewProps> = ({
     setShowTransferModal(true);
   };
 
+  const handleBulkDelete = () => {
+    if (!isAdmin || selectedClientIds.length === 0) return;
+    
+    if (confirm(`⚠ ALERTA CRÍTICO: Deseja EXCLUIR permanentemente ${selectedClientIds.length} lead(s) selecionado(s)? Esta ação gerará logs de auditoria para cada exclusão e é irreversível.`)) {
+      const now = new Date().toISOString();
+      const dateStr = now.split('T')[0];
+      const timeStr = new Date().toLocaleTimeString('pt-BR');
+
+      selectedClientIds.forEach(clientId => {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) return;
+
+        onAddActivity({
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: currentUser.id,
+          brokerName: currentUser.name,
+          type: 'Meeting',
+          clientName: client.name,
+          description: `[AUDITORIA] EXCLUSÃO EM MASSA: User: ${currentUser.name} (Role: ${currentUser.role}) removeu o lead ${client.name} via ferramenta de exclusão múltipla.`,
+          date: dateStr,
+          time: timeStr,
+          updatedAt: now
+        });
+
+        onDeleteClient(clientId);
+      });
+
+      alert(`${selectedClientIds.length} lead(s) removido(s) com sucesso.`);
+      setSelectedClientIds([]);
+    }
+  };
+
+  const handleDeleteAllClients = () => {
+    if (!isAdmin || clients.length === 0) return;
+
+    const confirm1 = confirm("⚠⚠⚠ ALERTA DE SEGURANÇA MÁXIMA: Você está prestes a EXCLUIR TODOS OS CLIENTES da base de dados. Esta ação é IRREVERSÍVEL e afetará toda a rede. Deseja continuar?");
+    if (!confirm1) return;
+
+    const confirm2 = confirm("CONFIRMAÇÃO FINAL: Você tem certeza absoluta? Todos os históricos, leads e dados de clientes serão perdidos para sempre.");
+    if (!confirm2) return;
+
+    const now = new Date().toISOString();
+    const dateStr = now.split('T')[0];
+    const timeStr = new Date().toLocaleTimeString('pt-BR');
+
+    // Registrar log global de limpeza
+    onAddActivity({
+      id: Math.random().toString(36).substr(2, 9),
+      brokerId: currentUser.id,
+      brokerName: currentUser.name,
+      type: 'Meeting',
+      clientName: 'SISTEMA VETTUS',
+      description: `[AUDITORIA CRÍTICA] LIMPEZA TOTAL DA BASE: O administrador ${currentUser.name} executou o comando de EXCLUSÃO DE TODOS OS CLIENTES (${clients.length} registros removidos).`,
+      date: dateStr,
+      time: timeStr,
+      updatedAt: now
+    });
+
+    clients.forEach(client => {
+      onDeleteClient(client.id);
+    });
+
+    alert("Base de clientes limpa com sucesso.");
+    setSelectedClientIds([]);
+  };
+
   const toggleSelectClient = (clientId: string) => {
     setSelectedClientIds(prev => 
       prev.includes(clientId) 
@@ -529,6 +595,24 @@ export const ClientView: React.FC<ClientViewProps> = ({
             <FileUp className="w-4 h-4 text-emerald-600" />
             <span>Importar</span>
           </button>
+          {isAdmin && selectedClientIds.length > 0 && (
+            <button 
+              onClick={handleBulkDelete} 
+              className="bg-red-50 border border-red-200 text-red-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-red-600 hover:text-white transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Excluir Selecionados ({selectedClientIds.length})</span>
+            </button>
+          )}
+          {isAdmin && clients.length > 0 && (
+            <button 
+              onClick={handleDeleteAllClients} 
+              className="bg-slate-900 text-red-500 border border-red-900/20 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-black uppercase tracking-widest shadow-sm hover:bg-red-600 hover:text-white transition-all"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span>Excluir Tudo</span>
+            </button>
+          )}
           <button onClick={onOpenAddModal} className="gold-gradient text-white px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-lg hover:scale-[1.02] transition-transform">
             <UserPlus className="w-4 h-4" />
             <span>Novo Cliente</span>

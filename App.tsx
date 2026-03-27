@@ -561,7 +561,7 @@ const App: React.FC = () => {
           onEditProperty={p => { setPropertyToEdit(p); setIsPropertyModalOpen(true); }} 
           onDeleteProperty={id => setProperties(v => v.filter(x => x.id !== id))} 
           onOpenAddModal={() => { setPropertyToEdit(null); setIsPropertyModalOpen(true); }} 
-          availableTypes={['Apartamento', 'Casa', 'Terreno', 'Cobertura']} 
+          availableTypes={['Apartamento', 'Casa', 'Terreno', 'Cobertura', 'Prontos']} 
           availableStatuses={['Disponível', 'Vendido', 'Reservado', 'Lançamento']} 
           onAddType={() => {}} 
           onAddStatus={() => {}} 
@@ -802,7 +802,7 @@ const App: React.FC = () => {
         propertyToEdit={propertyToEdit}
         currentUser={currentUser}
         brokers={brokers}
-        availableTypes={['Apartamento', 'Casa', 'Terreno', 'Cobertura']}
+        availableTypes={['Apartamento', 'Casa', 'Terreno', 'Cobertura', 'Prontos']}
         availableStatuses={['Disponível', 'Vendido', 'Reservado', 'Lançamento']}
       />
 
