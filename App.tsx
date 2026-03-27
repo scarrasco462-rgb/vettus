@@ -586,8 +586,10 @@ const App: React.FC = () => {
           onAddClient={c => setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v])} 
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))} 
           onDeleteClient={id => setClients(v => v.filter(x => x.id !== id))} 
+          onDeleteClients={ids => setClients(v => v.filter(x => !ids.includes(x.id)))}
           onEditClient={c => { setClientToEdit(c); setIsClientModalOpen(true); }} 
           onAddActivity={a => setActivities(v => [a, ...v])} 
+          onAddActivities={newActivities => setActivities(v => [...newActivities, ...v])}
           onAddReminder={r => setReminders(v => [r, ...v])} 
           onAddSale={s => setCommissions(v => [s, ...v])} 
           onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? p : x))} 

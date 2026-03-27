@@ -24,8 +24,10 @@ interface ClientViewProps {
   onAddClient: (client: Client) => void;
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
+  onDeleteClients: (ids: string[]) => void;
   onEditClient: (client: Client) => void;
   onAddActivity: (activity: Activity) => void;
+  onAddActivities: (activities: Activity[]) => void;
   onAddReminder: (reminder: Reminder) => void;
   onAddSale: (sale: Commission) => void;
   onUpdateProperty: (property: Property) => void;
@@ -82,7 +84,7 @@ const parseCurrencyToNumber = (value: string): number => {
 
 export const ClientView: React.FC<ClientViewProps> = ({ 
   clients, activities, properties, commissions = [], constructionCompanies = [], commissionForecasts = [], 
-  onUpdateClient, onDeleteClient, onEditClient, onAddActivity, onAddReminder, onAddSale, 
+  onUpdateClient, onDeleteClient, onDeleteClients, onEditClient, onAddActivity, onAddActivities, onAddReminder, onAddSale, 
   onUpdateProperty, onAddForecasts, currentUser, brokers, onOpenAddModal, onOpenImport, onOpenFlow
 }) => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -156,12 +158,13 @@ export const ClientView: React.FC<ClientViewProps> = ({
       const now = new Date().toISOString();
       const dateStr = now.split('T')[0];
       const timeStr = new Date().toLocaleTimeString('pt-BR');
+      const newActivities: Activity[] = [];
 
       selectedClientIds.forEach(clientId => {
         const client = clients.find(c => c.id === clientId);
         if (!client) return;
 
-        onAddActivity({
+        newActivities.push({
           id: Math.random().toString(36).substr(2, 9),
           brokerId: currentUser.id,
           brokerName: currentUser.name,
@@ -172,9 +175,10 @@ export const ClientView: React.FC<ClientViewProps> = ({
           time: timeStr,
           updatedAt: now
         });
-
-        onDeleteClient(clientId);
       });
+
+      onAddActivities(newActivities);
+      onDeleteClients(selectedClientIds);
 
       alert(`${selectedClientIds.length} lead(s) removido(s) com sucesso.`);
       setSelectedClientIds([]);
