@@ -174,31 +174,37 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             size: landscape;
           }
           * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: economy !important;
+            print-color-adjust: economy !important;
             box-shadow: none !important;
+            text-shadow: none !important;
           }
-          body {
+          html, body, #root, main, div, section, table, tr, td, th {
+            background-color: white !important;
             background: white !important;
             color: black !important;
           }
-          .no-print, aside, header, nav, button, .print\\:hidden {
+          .no-print, aside, header, nav, button, .print\\:hidden, [role="dialog"], .fixed {
             display: none !important;
           }
           main {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
+            position: static !important;
+            display: block !important;
           }
           .print-container {
             display: block !important;
             width: 100% !important;
+            background: white !important;
           }
           .print-table {
             width: 100% !important;
             border-collapse: collapse !important;
             margin-top: 1rem !important;
             border: 1.5pt solid #000 !important;
+            background: white !important;
           }
           .print-table th, .print-table td {
             border: 1pt solid #000 !important;
@@ -209,39 +215,50 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           }
           .print-table th {
             background-color: #f1f5f9 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
             font-size: 10pt !important;
           }
           .print-table td {
             font-size: 10pt !important;
+            background: white !important;
           }
           .print-header {
             display: block !important;
             margin-bottom: 2rem !important;
             border-bottom: 2pt solid #000 !important;
             padding-bottom: 1rem !important;
+            background: white !important;
           }
           .print-summary-grid {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
             gap: 1rem !important;
             margin-bottom: 2rem !important;
+            background: white !important;
           }
           .print-summary-item {
             border: 1pt solid #000 !important;
             padding: 1rem !important;
             text-align: center !important;
+            background: white !important;
           }
           .print-summary-label {
             font-size: 9pt !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
             margin-bottom: 0.5rem !important;
+            color: black !important;
           }
           .print-summary-value {
             font-size: 14pt !important;
             font-weight: 900 !important;
+            color: black !important;
+          }
+          .text-emerald-600, .text-amber-600, .text-slate-900 {
+            color: black !important;
           }
           tr {
             page-break-inside: avoid !important;
