@@ -171,27 +171,36 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         @media print {
           @page {
             margin: 1cm;
-            size: landscape;
+            size: auto;
           }
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
+          * {
+            box-shadow: none !important;
+            text-shadow: none !important;
+            -webkit-print-color-adjust: economy !important;
+            print-color-adjust: economy !important;
+          }
+          html, body, #root, .flex, main, .bg-\\[\\#f8fafc\\], .bg-white {
             background-color: white !important;
-            font-size: 11pt !important;
+            background: white !important;
+            color: black !important;
             margin: 0 !important;
             padding: 0 !important;
-            color: black !important;
+          }
+          body {
+            font-size: 10pt !important;
           }
           main, .lg\\:ml-64, .lg\\:ml-20, .mx-auto, .max-w-\\[1600px\\] {
             margin: 0 !important;
             padding: 0 !important;
             max-width: none !important;
             width: 100% !important;
+            position: static !important;
+            display: block !important;
           }
           .print-header {
             display: block !important;
-            margin-bottom: 1rem;
-            border-bottom: 2px solid black;
+            margin-bottom: 1.5rem;
+            border-bottom: 2pt solid black;
             padding-bottom: 0.5rem;
           }
           .print-card {
@@ -199,42 +208,51 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           }
           .print-summary {
             display: block !important;
-            margin-bottom: 10pt;
+            margin-bottom: 1.5rem;
           }
           .print-summary > div {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
             border: 1pt solid black !important;
-            padding: 5pt !important;
+            padding: 8pt !important;
+            background: #f8fafc !important;
           }
           table {
             width: 100% !important;
             border-collapse: collapse !important;
             font-size: 9pt !important;
             border: 1pt solid black !important;
+            background: white !important;
+            page-break-inside: auto;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
           }
           th {
-            background-color: #e2e8f0 !important;
+            background-color: #f1f5f9 !important;
+            background: #f1f5f9 !important;
             color: black !important;
-            padding: 4pt !important;
+            padding: 6pt !important;
             border: 1pt solid black !important;
             text-align: left !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
           }
           td {
-            padding: 4pt !important;
+            padding: 6pt !important;
             border: 1pt solid black !important;
             vertical-align: middle !important;
             color: black !important;
+            background: white !important;
           }
-          .no-print, .print\\:hidden, .lucide {
+          .no-print, .print\\:hidden, .lucide, button, aside, header {
             display: none !important;
           }
           .print\\:block {
             display: block !important;
           }
-          .text-emerald-600, .text-amber-600, .text-slate-900 {
+          .text-emerald-600, .text-amber-600, .text-slate-900, .text-slate-500, .text-\\[\\#d4a853\\] {
             color: black !important;
           }
         }
