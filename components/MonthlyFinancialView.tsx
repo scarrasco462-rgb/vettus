@@ -166,7 +166,79 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 print:p-0">
+    <div className="space-y-8 animate-in fade-in duration-500 print:p-0 print:m-0">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            margin: 1cm;
+            size: landscape;
+          }
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+            background-color: white !important;
+            font-size: 16pt !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          main, .lg\\:ml-64, .lg\\:ml-20, .mx-auto, .max-w-\\[1600px\\] {
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: none !important;
+            width: 100% !important;
+          }
+          .print-header {
+            display: block !important;
+            margin-bottom: 2rem;
+            border-bottom: 4px solid #0f172a;
+            padding-bottom: 1.5rem;
+          }
+          .print-card {
+            border: 2px solid #e2e8f0 !important;
+            break-inside: avoid;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+          }
+          .print-card > div:first-child {
+            margin-right: 1.5rem !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 14pt !important;
+            table-layout: auto !important;
+          }
+          th {
+            background-color: #0f172a !important;
+            color: white !important;
+            padding: 16px 12px !important;
+            font-size: 12pt !important;
+            text-align: left !important;
+          }
+          td {
+            padding: 16px 12px !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            vertical-align: middle !important;
+          }
+          .no-print, .print\\:hidden {
+            display: none !important;
+          }
+          .font-black {
+            font-weight: 900 !important;
+          }
+          .uppercase {
+            text-transform: uppercase !important;
+          }
+          .text-emerald-600 { color: #059669 !important; }
+          .text-amber-600 { color: #d97706 !important; }
+          .text-slate-900 { color: #0f172a !important; }
+          .bg-slate-900 { background-color: #0f172a !important; }
+          .text-\\[\\#d4a853\\] { color: #d4a853 !important; }
+        }
+      `}} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Controle Financeiro</h1>
@@ -209,14 +281,14 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
-        <h1 className="text-2xl font-black uppercase">Relatório Financeiro Mensal - Vettus</h1>
-        <p className="text-sm font-bold uppercase tracking-widest">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+      <div className="hidden print:block print-header">
+        <h1 className="text-3xl font-black uppercase text-slate-900">Relatório Financeiro Mensal - Vettus</h1>
+        <p className="text-lg font-bold uppercase tracking-widest text-slate-500">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-3">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6 print-card">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center print:border print:border-emerald-100">
             <CheckCircle2 className="w-7 h-7" />
           </div>
           <div>
@@ -224,8 +296,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             <p className="text-2xl font-black text-emerald-600">{formatCurrency(totals.paid)}</p>
           </div>
         </div>
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6 print-card">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center print:border print:border-amber-100">
             <Clock className="w-7 h-7" />
           </div>
           <div>
@@ -233,8 +305,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             <p className="text-2xl font-black text-amber-600">{formatCurrency(totals.pending)}</p>
           </div>
         </div>
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6 print-card">
+          <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center print:border print:border-slate-800">
             <Wallet className="w-7 h-7" />
           </div>
           <div>
@@ -244,7 +316,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden print:border-2 print:shadow-none">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
