@@ -171,11 +171,11 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         @media print {
           @page {
             margin: 1cm;
-            size: landscape;
+            size: auto;
           }
           * {
-            -webkit-print-color-adjust: economy !important;
-            print-color-adjust: economy !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             box-shadow: none !important;
             text-shadow: none !important;
             color-scheme: light !important;
@@ -183,7 +183,6 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           html, body, #root, main, div, section, table, tr, td, th {
             background-color: white !important;
             background: white !important;
-            color: black !important;
           }
           .no-print, aside, header, nav, button, .print\\:hidden, [role="dialog"], .fixed, .absolute {
             display: none !important;
@@ -207,12 +206,12 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             margin-top: 1rem !important;
             border: 1.5pt solid #000 !important;
             background: white !important;
+            table-layout: auto !important;
           }
           .print-table th, .print-table td {
             border: 1pt solid #000 !important;
             padding: 8pt !important;
             text-align: left !important;
-            color: black !important;
             background: white !important;
           }
           .print-table th {
@@ -222,6 +221,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             font-weight: bold !important;
             text-transform: uppercase !important;
             font-size: 10pt !important;
+            color: black !important;
           }
           .print-table td {
             font-size: 10pt !important;
@@ -233,6 +233,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             border-bottom: 2pt solid #000 !important;
             padding-bottom: 1rem !important;
             background: white !important;
+            color: black !important;
           }
           .print-summary-grid {
             display: grid !important;
@@ -257,10 +258,6 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           .print-summary-value {
             font-size: 14pt !important;
             font-weight: 900 !important;
-            color: black !important;
-          }
-          .text-emerald-600, .text-amber-600, .text-slate-900 {
-            color: black !important;
           }
           tr {
             page-break-inside: avoid !important;

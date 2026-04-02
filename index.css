@@ -11,9 +11,8 @@ body {
   body {
     background-color: white !important;
     background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: economy !important;
-    print-color-adjust: economy !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     color-scheme: light !important;
   }
 }
