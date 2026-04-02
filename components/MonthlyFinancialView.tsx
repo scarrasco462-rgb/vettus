@@ -177,9 +177,10 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
             background-color: white !important;
-            font-size: 16pt !important;
+            font-size: 11pt !important;
             margin: 0 !important;
             padding: 0 !important;
+            color: black !important;
           }
           main, .lg\\:ml-64, .lg\\:ml-20, .mx-auto, .max-w-\\[1600px\\] {
             margin: 0 !important;
@@ -189,54 +190,53 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           }
           .print-header {
             display: block !important;
-            margin-bottom: 2rem;
-            border-bottom: 4px solid #0f172a;
-            padding-bottom: 1.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid black;
+            padding-bottom: 0.5rem;
           }
           .print-card {
-            border: 2px solid #e2e8f0 !important;
-            break-inside: avoid;
-            margin-bottom: 1.5rem;
-            padding: 1.5rem !important;
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
+            display: none !important;
           }
-          .print-card > div:first-child {
-            margin-right: 1.5rem !important;
+          .print-summary {
+            display: block !important;
+            margin-bottom: 10pt;
+          }
+          .print-summary > div {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            border: 1pt solid black !important;
+            padding: 5pt !important;
           }
           table {
             width: 100% !important;
             border-collapse: collapse !important;
-            font-size: 14pt !important;
-            table-layout: auto !important;
+            font-size: 9pt !important;
+            border: 1pt solid black !important;
           }
           th {
-            background-color: #0f172a !important;
-            color: white !important;
-            padding: 16px 12px !important;
-            font-size: 12pt !important;
+            background-color: #e2e8f0 !important;
+            color: black !important;
+            padding: 4pt !important;
+            border: 1pt solid black !important;
             text-align: left !important;
-          }
-          td {
-            padding: 16px 12px !important;
-            border-bottom: 1px solid #e2e8f0 !important;
-            vertical-align: middle !important;
-          }
-          .no-print, .print\\:hidden {
-            display: none !important;
-          }
-          .font-black {
-            font-weight: 900 !important;
-          }
-          .uppercase {
+            font-weight: bold !important;
             text-transform: uppercase !important;
           }
-          .text-emerald-600 { color: #059669 !important; }
-          .text-amber-600 { color: #d97706 !important; }
-          .text-slate-900 { color: #0f172a !important; }
-          .bg-slate-900 { background-color: #0f172a !important; }
-          .text-\\[\\#d4a853\\] { color: #d4a853 !important; }
+          td {
+            padding: 4pt !important;
+            border: 1pt solid black !important;
+            vertical-align: middle !important;
+            color: black !important;
+          }
+          .no-print, .print\\:hidden, .lucide {
+            display: none !important;
+          }
+          .print\\:block {
+            display: block !important;
+          }
+          .text-emerald-600, .text-amber-600, .text-slate-900 {
+            color: black !important;
+          }
         }
       `}} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
@@ -284,6 +284,23 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
       <div className="hidden print:block print-header">
         <h1 className="text-3xl font-black uppercase text-slate-900">Relatório Financeiro Mensal - Vettus</h1>
         <p className="text-lg font-bold uppercase tracking-widest text-slate-500">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+      </div>
+
+      <div className="hidden print:block print-summary">
+        <div className="grid grid-cols-3 gap-4 border border-black p-4 bg-slate-50">
+          <div>
+            <p className="text-[10px] font-bold uppercase">Total Pago</p>
+            <p className="text-lg font-black">{formatCurrency(totals.paid)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase">A Pagar</p>
+            <p className="text-lg font-black">{formatCurrency(totals.pending)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase">Total Geral</p>
+            <p className="text-lg font-black">{formatCurrency(totals.total)}</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-3">
@@ -342,14 +359,12 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     </span>
                   </td>
                   <td className="px-8 py-6">
-                    <div className="flex items-center text-slate-900 text-[10px] font-black uppercase tracking-widest">
-                      <User className="w-3 h-3 mr-2 text-[#d4a853]" />
+                    <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest">
                       {expense.payer || 'Fluxo de Caixa'}
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <div className="flex items-center text-slate-500 text-xs font-bold">
-                      <Calendar className="w-3.5 h-3.5 mr-2" />
+                    <div className="text-slate-500 text-xs font-bold">
                       {new Date(expense.dueDate).toLocaleDateString('pt-BR')}
                     </div>
                   </td>
