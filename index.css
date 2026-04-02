@@ -6,3 +6,14 @@ body {
   background-color: #020617;
   color: white;
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
+    color-scheme: light !important;
+  }
+}

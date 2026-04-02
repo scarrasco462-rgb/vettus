@@ -194,8 +194,8 @@ export const Layout: React.FC<LayoutProps> = ({
   );
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] overflow-x-hidden">
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#020617] text-white flex items-center justify-between px-4 z-[60] border-b border-white/5 shadow-xl">
+    <div className="flex min-h-screen bg-[#f8fafc] overflow-x-hidden print:bg-white print:block">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#020617] text-white flex items-center justify-between px-4 z-[60] border-b border-white/5 shadow-xl print:hidden">
         <div className="flex items-center space-x-3">
           <VettusSymbol className="w-10 h-10" />
           <h1 className="text-sm font-black tracking-[0.2em] text-[#d4a853]">VETTUS</h1>
@@ -296,8 +296,8 @@ export const Layout: React.FC<LayoutProps> = ({
         </div>
       </aside>
 
-      <main className={`flex-1 transition-all duration-300 min-h-screen pt-16 lg:pt-0 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <div className="p-4 md:p-6 lg:p-10 max-w-[1600px] mx-auto">
+      <main className={`flex-1 transition-all duration-300 min-h-screen pt-16 lg:pt-0 print:m-0 print:p-0 print:pt-0 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+        <div className="p-4 md:p-6 lg:p-10 max-w-[1600px] mx-auto print:p-0 print:max-w-none">
           {children}
         </div>
       </main>

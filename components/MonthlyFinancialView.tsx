@@ -178,13 +178,14 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             print-color-adjust: economy !important;
             box-shadow: none !important;
             text-shadow: none !important;
+            color-scheme: light !important;
           }
           html, body, #root, main, div, section, table, tr, td, th {
             background-color: white !important;
             background: white !important;
             color: black !important;
           }
-          .no-print, aside, header, nav, button, .print\\:hidden, [role="dialog"], .fixed {
+          .no-print, aside, header, nav, button, .print\\:hidden, [role="dialog"], .fixed, .absolute {
             display: none !important;
           }
           main {
@@ -193,6 +194,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             width: 100% !important;
             position: static !important;
             display: block !important;
+            background: white !important;
           }
           .print-container {
             display: block !important;
