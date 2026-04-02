@@ -166,94 +166,16 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 print:p-0 print:m-0">
+    <div className="space-y-8 animate-in fade-in duration-500 print:p-0">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            margin: 1cm;
-            size: auto;
-          }
-          * {
-            box-shadow: none !important;
-            text-shadow: none !important;
-            -webkit-print-color-adjust: economy !important;
-            print-color-adjust: economy !important;
-          }
-          html, body, #root, .flex, main, .bg-\\[\\#f8fafc\\], .bg-white {
-            background-color: white !important;
-            background: white !important;
-            color: black !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            margin: 1.5cm;
+            size: landscape;
           }
           body {
-            font-size: 10pt !important;
-          }
-          main, .lg\\:ml-64, .lg\\:ml-20, .mx-auto, .max-w-\\[1600px\\] {
-            margin: 0 !important;
-            padding: 0 !important;
-            max-width: none !important;
-            width: 100% !important;
-            position: static !important;
-            display: block !important;
-          }
-          .print-header {
-            display: block !important;
-            margin-bottom: 1.5rem;
-            border-bottom: 2pt solid black;
-            padding-bottom: 0.5rem;
-          }
-          .print-card {
-            display: none !important;
-          }
-          .print-summary {
-            display: block !important;
-            margin-bottom: 1.5rem;
-          }
-          .print-summary > div {
-            display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
-            border: 1pt solid black !important;
-            padding: 8pt !important;
-            background: #f8fafc !important;
-          }
-          table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            font-size: 9pt !important;
-            border: 1pt solid black !important;
-            background: white !important;
-            page-break-inside: auto;
-          }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-          th {
-            background-color: #f1f5f9 !important;
-            background: #f1f5f9 !important;
-            color: black !important;
-            padding: 6pt !important;
-            border: 1pt solid black !important;
-            text-align: left !important;
-            font-weight: bold !important;
-            text-transform: uppercase !important;
-          }
-          td {
-            padding: 6pt !important;
-            border: 1pt solid black !important;
-            vertical-align: middle !important;
-            color: black !important;
-            background: white !important;
-          }
-          .no-print, .print\\:hidden, .lucide, button, aside, header {
-            display: none !important;
-          }
-          .print\\:block {
-            display: block !important;
-          }
-          .text-emerald-600, .text-amber-600, .text-slate-900, .text-slate-500, .text-\\[\\#d4a853\\] {
-            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}} />
@@ -299,31 +221,14 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="hidden print:block print-header">
-        <h1 className="text-3xl font-black uppercase text-slate-900">Relatório Financeiro Mensal - Vettus</h1>
-        <p className="text-lg font-bold uppercase tracking-widest text-slate-500">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
-      </div>
-
-      <div className="hidden print:block print-summary">
-        <div className="grid grid-cols-3 gap-4 border border-black p-4 bg-slate-50">
-          <div>
-            <p className="text-[10px] font-bold uppercase">Total Pago</p>
-            <p className="text-lg font-black">{formatCurrency(totals.paid)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase">A Pagar</p>
-            <p className="text-lg font-black">{formatCurrency(totals.pending)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase">Total Geral</p>
-            <p className="text-lg font-black">{formatCurrency(totals.total)}</p>
-          </div>
-        </div>
+      <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+        <h1 className="text-2xl font-black uppercase">Relatório Financeiro Mensal - Vettus</h1>
+        <p className="text-sm font-bold uppercase tracking-widest">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-3">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6 print-card">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center print:border print:border-emerald-100">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <CheckCircle2 className="w-7 h-7" />
           </div>
           <div>
@@ -331,8 +236,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             <p className="text-2xl font-black text-emerald-600">{formatCurrency(totals.paid)}</p>
           </div>
         </div>
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6 print-card">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center print:border print:border-amber-100">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
             <Clock className="w-7 h-7" />
           </div>
           <div>
@@ -340,8 +245,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             <p className="text-2xl font-black text-amber-600">{formatCurrency(totals.pending)}</p>
           </div>
         </div>
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6 print-card">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center print:border print:border-slate-800">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
+          <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center">
             <Wallet className="w-7 h-7" />
           </div>
           <div>
@@ -351,55 +256,54 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden print:border-2 print:shadow-none">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
-                <th className="px-8 py-6">Descrição</th>
-                <th className="px-8 py-6">Categoria</th>
-                <th className="px-8 py-6">Pagador</th>
-                <th className="px-8 py-6">Vencimento</th>
-                <th className="px-8 py-6">Valor</th>
-                <th className="px-8 py-6">Status</th>
+                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Descrição</th>
+                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Categoria</th>
+                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Pagador</th>
+                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Vencimento</th>
+                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Valor</th>
+                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Status</th>
                 <th className="px-8 py-6 text-right print:hidden">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredExpenses.map((expense) => (
                 <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-8 py-6">
-                    <p className="font-black text-slate-900 text-sm uppercase">{expense.description}</p>
+                  <td className="px-8 py-6 print:px-4 print:py-3">
+                    <p className="font-black text-slate-900 text-sm uppercase print:text-base">{expense.description}</p>
                   </td>
-                  <td className="px-8 py-6">
-                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200">
+                  <td className="px-8 py-6 print:px-4 print:py-3">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-slate-300">
                       {expense.category}
                     </span>
                   </td>
-                  <td className="px-8 py-6">
-                    <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest">
+                  <td className="px-8 py-6 print:px-4 print:py-3">
+                    <div className="flex items-center text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
+                      <User className="w-3 h-3 mr-2 text-[#d4a853] print:hidden" />
                       {expense.payer || 'Fluxo de Caixa'}
                     </div>
                   </td>
-                  <td className="px-8 py-6">
-                    <div className="text-slate-500 text-xs font-bold">
+                  <td className="px-8 py-6 print:px-4 print:py-3">
+                    <div className="flex items-center text-slate-500 text-xs font-bold print:text-sm print:text-slate-900">
+                      <Calendar className="w-3.5 h-3.5 mr-2 print:hidden" />
                       {new Date(expense.dueDate).toLocaleDateString('pt-BR')}
                     </div>
                   </td>
-                  <td className="px-8 py-6">
-                    <p className="font-black text-slate-900 text-sm">{formatCurrency(expense.value)}</p>
+                  <td className="px-8 py-6 print:px-4 print:py-3">
+                    <p className="font-black text-slate-900 text-sm print:text-base">{formatCurrency(expense.value)}</p>
                   </td>
-                  <td className="px-8 py-6">
-                    <button 
-                      onClick={() => toggleStatus(expense)}
-                      className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${
+                  <td className="px-8 py-6 print:px-4 print:py-3">
+                    <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-slate-400 ${
                         expense.status === 'Pago' 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                        : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100'
-                      }`}
-                    >
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100 print:bg-transparent print:text-emerald-700' 
+                        : 'bg-amber-50 text-amber-600 border-amber-100 print:bg-transparent print:text-amber-700'
+                      }`}>
                       {expense.status}
-                    </button>
+                    </div>
                   </td>
                   <td className="px-8 py-6 text-right print:hidden">
                     <div className="flex items-center justify-end space-x-2">
