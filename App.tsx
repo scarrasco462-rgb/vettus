@@ -49,6 +49,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Broker | null>(() => loadLocal('session_user', null));
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected'>('disconnected');
+  const [lastSavedTime, setLastSavedTime] = useState<string>('');
 
   // Estados Gerenciados (Rede Vettus)
   const [brokers, setBrokers] = useState<Broker[]>(() => {
@@ -153,6 +154,8 @@ const App: React.FC = () => {
         }
       }
     });
+
+    setLastSavedTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     
     if (currentUser) {
       try {
@@ -166,7 +169,7 @@ const App: React.FC = () => {
          if (!stillExists || stillExists.blocked || stillExists.deleted) handleLogout();
       }
     }
-  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, currentUser]);
+  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses, currentUser]);
 
   const logSystemAction = useCallback((description: string, type: string = 'System') => {
     if (!currentUser) return;
@@ -250,7 +253,7 @@ const App: React.FC = () => {
         }
       });
     }
-  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals]);
+  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses]);
 
   // PeerJS Kernel v6.5 - Protocolo de Conectividade Blindada (Ultra-Resiliente)
   const initPeer = useCallback(() => {
@@ -529,6 +532,7 @@ const App: React.FC = () => {
         reconnectAttemptsRef.current = 0;
         initPeer();
       }}
+      lastSaved={lastSavedTime}
     >
       {currentView === 'dashboard' && (
         <Dashboard 
@@ -667,6 +671,9 @@ const App: React.FC = () => {
           clients={(isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted)} 
           currentUser={currentUser} 
           brokers={brokers}
+          onAddCampaign={c => setCampaigns(v => [c, ...v])}
+          onUpdateCampaign={c => setCampaigns(v => v.map(x => x.id === c.id ? c : x))}
+          onDeleteCampaign={id => setCampaigns(v => v.filter(x => x.id !== id))}
         />
       )}
 

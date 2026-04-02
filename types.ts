@@ -124,6 +124,7 @@ export interface VettusDocument {
   type: string;
   data: string; // Base64
   date: string;
+  updatedAt: string;
 }
 
 export interface Broker {

@@ -17,7 +17,9 @@ import {
   Trash2,
   AlertTriangle,
   Wifi,
-  Monitor
+  Monitor,
+  RefreshCw,
+  Save
 } from 'lucide-react';
 import { Broker } from '../types';
 
@@ -118,6 +120,17 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
     reader.readAsText(file);
   };
 
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const handleManualSave = () => {
+    setSaveStatus('saving');
+    // Forçar o salvamento no localStorage (o App.tsx já faz isso via useEffect, mas aqui damos feedback visual)
+    setTimeout(() => {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }, 800);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -128,9 +141,20 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
           </h1>
           <p className="text-slate-500 text-sm mt-1 font-medium italic">Consolidação de rede em tempo real e proteção de ativos digitais.</p>
         </div>
-        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center space-x-2 shadow-sm">
-           <ShieldCheck className="w-5 h-5" />
-           <span className="text-[10px] font-black uppercase tracking-widest">Master Node: Sergio Carrasco Jr.</span>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={handleManualSave}
+            className={`px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center space-x-2 shadow-sm border ${
+              saveStatus === 'saved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {saveStatus === 'saving' ? <RefreshCw className="w-4 h-4 animate-spin" /> : saveStatus === 'saved' ? <CheckCircle2 className="w-4 h-4" /> : <Database className="w-4 h-4" />}
+            <span>{saveStatus === 'saving' ? 'Gravando...' : saveStatus === 'saved' ? 'Dados Gravados!' : 'Gravar Agora'}</span>
+          </button>
+          <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center space-x-2 shadow-sm">
+             <ShieldCheck className="w-5 h-5" />
+             <span className="text-[10px] font-black uppercase tracking-widest">Master Node: Sergio Carrasco Jr.</span>
+          </div>
         </div>
       </div>
 

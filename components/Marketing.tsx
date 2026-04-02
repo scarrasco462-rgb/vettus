@@ -22,7 +22,8 @@ import {
   Smartphone,
   QrCode,
   Filter,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { Campaign, Client, Broker, ClientStatus } from '../types';
 
@@ -30,11 +31,30 @@ interface MarketingViewProps {
   campaigns: Campaign[];
   clients: Client[];
   currentUser: Broker;
-  brokers: Broker[]; // Adicionado para permitir filtro por corretor
+  brokers: Broker[];
+  onAddCampaign: (campaign: Campaign) => void;
+  onUpdateCampaign: (campaign: Campaign) => void;
+  onDeleteCampaign: (id: string) => void;
 }
 
-export const MarketingView: React.FC<MarketingViewProps> = ({ campaigns, clients, currentUser, brokers = [] }) => {
+export const MarketingView: React.FC<MarketingViewProps> = ({ 
+  campaigns, 
+  clients, 
+  currentUser, 
+  brokers = [],
+  onAddCampaign,
+  onUpdateCampaign,
+  onDeleteCampaign
+}) => {
   const [activeTab, setActiveTab] = useState<'campaigns' | 'email' | 'whatsapp' | 'ai'>('campaigns');
+  const [showAddCampaignModal, setShowAddCampaignModal] = useState(false);
+  const [newCampaignData, setNewCampaignData] = useState<Partial<Campaign>>({
+    name: '',
+    segment: 'VIP',
+    status: 'Draft',
+    sentCount: 0,
+    openRate: 0
+  });
   
   // AI State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -153,8 +173,42 @@ export const MarketingView: React.FC<MarketingViewProps> = ({ campaigns, clients
     c.email && (c.name.toLowerCase().includes(recipientSearch.toLowerCase()) || c.email.toLowerCase().includes(recipientSearch.toLowerCase()))
   );
 
+  const handleCreateCampaign = () => {
+    if (!newCampaignData.name) return;
+    
+    const campaign: Campaign = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: newCampaignData.name,
+      segment: newCampaignData.segment || 'VIP',
+      status: 'Active',
+      sentCount: 0,
+      openRate: 0,
+      brokerId: currentUser.id,
+      updatedAt: new Date().toISOString()
+    };
+    
+    onAddCampaign(campaign);
+    setShowAddCampaignModal(false);
+    setNewCampaignData({ name: '', segment: 'VIP' });
+  };
+
+  const handleToggleCampaignStatus = (campaign: Campaign) => {
+    onUpdateCampaign({
+      ...campaign,
+      status: campaign.status === 'Active' ? 'Draft' : 'Active',
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const handleDeleteCampaign = (id: string) => {
+    if (confirm('Deseja realmente excluir esta campanha?')) {
+      onDeleteCampaign(id);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Marketing de Elite</h1>
@@ -200,7 +254,12 @@ export const MarketingView: React.FC<MarketingViewProps> = ({ campaigns, clients
              </div>
              <h3 className="text-xl font-bold text-slate-900">Nova Estratégia</h3>
              <p className="text-slate-400 text-sm mt-2 mb-8">Defina novos canais de prospecção para sua carteira VIP.</p>
-             <button className="gold-gradient text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Criar Campanha</button>
+             <button 
+               onClick={() => setShowAddCampaignModal(true)}
+               className="gold-gradient text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+             >
+               Criar Campanha
+             </button>
           </div>
           {campaigns.map(campaign => (
             <div key={campaign.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
@@ -208,11 +267,19 @@ export const MarketingView: React.FC<MarketingViewProps> = ({ campaigns, clients
                 <div className="w-12 h-12 bg-[#0f172a] text-[#d4a853] rounded-2xl flex items-center justify-center shadow-lg">
                   <Megaphone className="w-5 h-5" />
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                  campaign.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100'
-                }`}>
-                  {campaign.status === 'Active' ? 'Em Veiculação' : 'Rascunho'}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                    campaign.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100'
+                  }`}>
+                    {campaign.status === 'Active' ? 'Em Veiculação' : 'Rascunho'}
+                  </span>
+                  <button 
+                    onClick={() => handleDeleteCampaign(campaign.id)}
+                    className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               <h3 className="text-lg font-black text-slate-900 mb-1 uppercase tracking-tight">{campaign.name}</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6 flex items-center">
@@ -228,12 +295,67 @@ export const MarketingView: React.FC<MarketingViewProps> = ({ campaigns, clients
                     <p className="text-[10px] font-black text-emerald-600">{campaign.openRate}%</p>
                     <p className="text-[8px] font-bold text-slate-400 uppercase">Abertura</p>
                  </div>
-                 <button className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-[#d4a853] transition-colors"><Play className="w-4 h-4" /></button>
+                 <button 
+                   onClick={() => handleToggleCampaignStatus(campaign)}
+                   className={`p-2 rounded-lg transition-colors ${campaign.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400 hover:text-[#d4a853]'}`}
+                 >
+                   <Play className="w-4 h-4" />
+                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Modal de Nova Campanha */}
+      {showAddCampaignModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#0f172a]/90 backdrop-blur-sm" onClick={() => setShowAddCampaignModal(false)}></div>
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 relative z-10 shadow-2xl animate-in zoom-in duration-300">
+            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-6">Nova Estratégia de Marketing</h2>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Nome da Campanha</label>
+                <input 
+                  type="text" 
+                  value={newCampaignData.name}
+                  onChange={e => setNewCampaignData({...newCampaignData, name: e.target.value})}
+                  placeholder="Ex: Lançamento Residencial Ouro"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d4a853]"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Segmento de Público</label>
+                <select 
+                  value={newCampaignData.segment}
+                  onChange={e => setNewCampaignData({...newCampaignData, segment: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d4a853]"
+                >
+                  <option value="VIP">VIP (Alta Renda)</option>
+                  <option value="Investidores">Investidores</option>
+                  <option value="Primeiro Imóvel">Primeiro Imóvel</option>
+                  <option value="Geral">Base Geral</option>
+                </select>
+              </div>
+              <div className="pt-4 flex space-x-3">
+                <button 
+                  onClick={() => setShowAddCampaignModal(false)}
+                  className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleCreateCampaign}
+                  className="flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-white gold-gradient shadow-lg"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* ABA: WHATSAPP VIP (NOVA) */}
       {activeTab === 'whatsapp' && (

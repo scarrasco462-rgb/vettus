@@ -65,7 +65,8 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ documents, onUploa
         size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
         type: file.type,
         data: base64,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       onUpload(newDoc);

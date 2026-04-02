@@ -46,6 +46,11 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
 }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [activeTab, setActiveTab] = useState<'list' | 'reports'>('list');
+  const [reportFilter, setReportFilter] = useState({
+    status: 'Ambas' as 'Pendente' | 'Pago' | 'Ambas',
+    period: 'month' as 'month' | 'all'
+  });
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [newExpense, setNewExpense] = useState<Partial<Expense>>({
@@ -68,6 +73,26 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
     const pending = filteredExpenses.filter(e => e.status === 'Pendente').reduce((acc, e) => acc + e.value, 0);
     return { paid, pending, total: paid + pending };
   }, [filteredExpenses]);
+
+  const reportExpenses = useMemo(() => {
+    let base = expenses;
+    if (reportFilter.period === 'month') {
+      base = expenses.filter(e => e.month === selectedMonth && e.year === selectedYear);
+    }
+    
+    if (reportFilter.status === 'Pendente') {
+      return base.filter(e => e.status === 'Pendente');
+    } else if (reportFilter.status === 'Pago') {
+      return base.filter(e => e.status === 'Pago');
+    }
+    return base;
+  }, [expenses, reportFilter, selectedMonth, selectedYear]);
+
+  const reportTotals = useMemo(() => {
+    const paid = reportExpenses.filter(e => e.status === 'Pago').reduce((acc, e) => acc + e.value, 0);
+    const pending = reportExpenses.filter(e => e.status === 'Pendente').reduce((acc, e) => acc + e.value, 0);
+    return { paid, pending, total: paid + pending };
+  }, [reportExpenses]);
 
   const handleAddExpense = () => {
     if (!newExpense.description || !newExpense.value) return;
@@ -270,6 +295,20 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           <p className="text-slate-500 font-medium">Gestão de despesas mensais e fluxo de caixa.</p>
         </div>
         <div className="flex items-center space-x-3">
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 mr-2">
+            <button 
+              onClick={() => setActiveTab('list')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Lançamentos
+            </button>
+            <button 
+              onClick={() => setActiveTab('reports')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'reports' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Relatórios
+            </button>
+          </div>
           <button 
             onClick={handlePrint}
             className="bg-white border border-slate-200 text-slate-600 p-3.5 rounded-2xl hover:bg-slate-50 transition-all shadow-sm flex items-center space-x-2"
@@ -296,13 +335,15 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </button>
           </div>
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="gold-gradient text-white px-6 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-105 transition-all flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nova Despesa</span>
-          </button>
+          {activeTab === 'list' && (
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="gold-gradient text-white px-6 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-105 transition-all flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nova Despesa</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -313,7 +354,10 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             <p className="text-lg font-bold text-slate-500 uppercase tracking-widest">Vettus Imóveis</p>
           </div>
           <div className="text-right">
-            <p className="text-xl font-black uppercase">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+            <p className="text-xl font-black uppercase">
+              {reportFilter.period === 'month' ? `${MONTHS[selectedMonth - 1]} ${selectedYear}` : 'Todos os Meses'}
+            </p>
+            <p className="text-xs font-bold text-slate-400 italic">Filtro: {reportFilter.status === 'Ambas' ? 'Pagas e Pendentes' : reportFilter.status}</p>
             <p className="text-xs font-bold text-slate-400">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
           </div>
         </div>
@@ -321,132 +365,279 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
 
       <div className="hidden print:block print-summary-grid">
         <div className="print-summary-item">
-          <p className="print-summary-label">Total Pago</p>
-          <p className="print-summary-value text-emerald-600">{formatCurrency(totals.paid)}</p>
+          <p className="print-summary-label">Total Itens</p>
+          <p className="print-summary-value text-slate-900">{reportExpenses.length}</p>
         </div>
-        <div className="print-summary-item">
-          <p className="print-summary-label">A Pagar</p>
-          <p className="print-summary-value text-amber-600">{formatCurrency(totals.pending)}</p>
-        </div>
+        {(reportFilter.status === 'Ambas' || reportFilter.status === 'Pago') && (
+          <div className="print-summary-item">
+            <p className="print-summary-label">Total Pago</p>
+            <p className="print-summary-value text-emerald-600">{formatCurrency(reportTotals.paid)}</p>
+          </div>
+        )}
+        {(reportFilter.status === 'Ambas' || reportFilter.status === 'Pendente') && (
+          <div className="print-summary-item">
+            <p className="print-summary-label">A Pagar</p>
+            <p className="print-summary-value text-amber-600">{formatCurrency(reportTotals.pending)}</p>
+          </div>
+        )}
         <div className="print-summary-item">
           <p className="print-summary-label">Total Geral</p>
-          <p className="print-summary-value text-slate-900">{formatCurrency(totals.total)}</p>
+          <p className="print-summary-value text-slate-900">{formatCurrency(reportTotals.total)}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 className="w-7 h-7" />
+      {activeTab === 'list' ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Pago</p>
+                <p className="text-2xl font-black text-emerald-600">{formatCurrency(totals.paid)}</p>
+              </div>
+            </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Clock className="w-7 h-7" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A Pagar</p>
+                <p className="text-2xl font-black text-amber-600">{formatCurrency(totals.pending)}</p>
+              </div>
+            </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
+              <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center">
+                <Wallet className="w-7 h-7" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Geral</p>
+                <p className="text-2xl font-black text-slate-900">{formatCurrency(totals.total)}</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Pago</p>
-            <p className="text-2xl font-black text-emerald-600">{formatCurrency(totals.paid)}</p>
-          </div>
-        </div>
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Clock className="w-7 h-7" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A Pagar</p>
-            <p className="text-2xl font-black text-amber-600">{formatCurrency(totals.pending)}</p>
-          </div>
-        </div>
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center">
-            <Wallet className="w-7 h-7" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Geral</p>
-            <p className="text-2xl font-black text-slate-900">{formatCurrency(totals.total)}</p>
-          </div>
-        </div>
-      </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none print:rounded-none">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left print-table">
-            <thead>
-              <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
-                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Descrição</th>
-                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Categoria</th>
-                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Pagador</th>
-                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Vencimento</th>
-                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Valor</th>
-                <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Status</th>
-                <th className="px-8 py-6 text-right print:hidden">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredExpenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-8 py-6 print:px-4 print:py-3">
-                    <p className="font-black text-slate-900 text-sm uppercase print:text-base">{expense.description}</p>
-                  </td>
-                  <td className="px-8 py-6 print:px-4 print:py-3">
-                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-none">
-                      {expense.category}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6 print:px-4 print:py-3">
-                    <div className="flex items-center text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
-                      <User className="w-3 h-3 mr-2 text-[#d4a853] print:hidden" />
-                      {expense.payer || 'Fluxo de Caixa'}
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 print:px-4 print:py-3">
-                    <div className="flex items-center text-slate-500 text-xs font-bold print:text-sm print:text-slate-900">
-                      <Calendar className="w-3.5 h-3.5 mr-2 print:hidden" />
-                      {new Date(expense.dueDate).toLocaleDateString('pt-BR')}
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 print:px-4 print:py-3">
-                    <p className="font-black text-slate-900 text-sm print:text-base">{formatCurrency(expense.value)}</p>
-                  </td>
-                  <td className="px-8 py-6 print:px-4 print:py-3">
-                    <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-none print:p-0 ${
-                        expense.status === 'Pago' 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100 print:bg-transparent print:text-emerald-700' 
-                        : 'bg-amber-50 text-amber-600 border-amber-100 print:bg-transparent print:text-amber-700'
-                      }`}>
-                      {expense.status}
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 text-right print:hidden">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button 
-                        onClick={() => openEditModal(expense)}
-                        className="p-2 text-slate-300 hover:text-[#d4a853] transition-colors"
-                        title="Editar Lançamento"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => onDeleteExpense(expense.id)}
-                        className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                        title="Excluir Lançamento"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredExpenses.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-8 py-20 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-300">
-                      <FileText className="w-12 h-12 mb-4 opacity-20" />
-                      <p className="text-xs font-black uppercase tracking-widest">Nenhuma despesa lançada para este mês</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none print:rounded-none">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left print-table">
+                <thead>
+                  <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Descrição</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Categoria</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Pagador</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Vencimento</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Valor</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Status</th>
+                    <th className="px-8 py-6 text-right print:hidden">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredExpenses.map((expense) => (
+                    <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <p className="font-black text-slate-900 text-sm uppercase print:text-base">{expense.description}</p>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-none">
+                          {expense.category}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <div className="flex items-center text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
+                          <User className="w-3 h-3 mr-2 text-[#d4a853] print:hidden" />
+                          {expense.payer || 'Fluxo de Caixa'}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <div className="flex items-center text-slate-500 text-xs font-bold print:text-sm print:text-slate-900">
+                          <Calendar className="w-3.5 h-3.5 mr-2 print:hidden" />
+                          {new Date(expense.dueDate).toLocaleDateString('pt-BR')}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <p className="font-black text-slate-900 text-sm print:text-base">{formatCurrency(expense.value)}</p>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-none print:p-0 ${
+                            expense.status === 'Pago' 
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 print:bg-transparent print:text-emerald-700' 
+                            : 'bg-amber-50 text-amber-600 border-amber-100 print:bg-transparent print:text-amber-700'
+                          }`}>
+                          {expense.status}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right print:hidden">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button 
+                            onClick={() => openEditModal(expense)}
+                            className="p-2 text-slate-300 hover:text-[#d4a853] transition-colors"
+                            title="Editar Lançamento"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => onDeleteExpense(expense.id)}
+                            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                            title="Excluir Lançamento"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredExpenses.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-300">
+                          <FileText className="w-12 h-12 mb-4 opacity-20" />
+                          <p className="text-xs font-black uppercase tracking-widest">Nenhuma despesa lançada para este mês</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-8 print:space-y-0">
+          <div className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-xl print:hidden">
+            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-8 flex items-center">
+              <Printer className="w-6 h-6 mr-3 text-[#d4a853]" />
+              Configurações de Impressão
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block">Status das Contas</label>
+                <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200">
+                  {(['Pendente', 'Pago', 'Ambas'] as const).map((s) => (
+                    <button 
+                      key={s}
+                      onClick={() => setReportFilter({...reportFilter, status: s})}
+                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reportFilter.status === s ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {s === 'Ambas' ? 'Todas' : s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block">Período</label>
+                <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200">
+                  <button 
+                    onClick={() => setReportFilter({...reportFilter, period: 'month'})}
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reportFilter.period === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Mês Atual ({MONTHS[selectedMonth - 1]})
+                  </button>
+                  <button 
+                    onClick={() => setReportFilter({...reportFilter, period: 'all'})}
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reportFilter.period === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Todos os Meses
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10 pt-10 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={handlePrint}
+                className="gold-gradient text-white px-10 py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-yellow-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center space-x-3"
+              >
+                <Printer className="w-5 h-5" />
+                <span>Gerar e Imprimir Relatório</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none print:rounded-none">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between print:hidden">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Prévia do Relatório</h3>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">{reportExpenses.length} itens encontrados</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left print-table">
+                <thead>
+                  <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
+                    {reportFilter.period === 'all' && (
+                      <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Mês/Ano</th>
+                    )}
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Data/Venc.</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Descrição</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Categoria</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Pagador</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Valor</th>
+                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {reportExpenses.sort((a, b) => {
+                    const dateA = new Date(a.dueDate).getTime();
+                    const dateB = new Date(b.dueDate).getTime();
+                    return dateA - dateB;
+                  }).map((expense) => (
+                    <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
+                      {reportFilter.period === 'all' && (
+                        <td className="px-8 py-6 print:px-4 print:py-3">
+                          <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
+                            {MONTHS[expense.month - 1]} {expense.year}
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <div className="text-slate-500 text-xs font-bold print:text-sm print:text-slate-900">
+                          {new Date(expense.dueDate).toLocaleDateString('pt-BR')}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <p className="font-black text-slate-900 text-sm uppercase print:text-base">{expense.description}</p>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-none">
+                          {expense.category}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
+                          {expense.payer || 'Fluxo de Caixa'}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <p className="font-black text-slate-900 text-sm print:text-base">{formatCurrency(expense.value)}</p>
+                      </td>
+                      <td className="px-8 py-6 print:px-4 print:py-3">
+                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-none print:p-0 ${
+                            expense.status === 'Pago' 
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 print:bg-transparent print:text-emerald-700' 
+                            : 'bg-amber-50 text-amber-600 border-amber-100 print:bg-transparent print:text-amber-700'
+                          }`}>
+                          {expense.status}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {reportExpenses.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-300">
+                          <FileText className="w-12 h-12 mb-4 opacity-20" />
+                          <p className="text-xs font-black uppercase tracking-widest">Nenhum dado encontrado para os filtros selecionados</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {showAddModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">

@@ -25,7 +25,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     setStatusMsg('Iniciando protocolos de rede...');
 
     // REGRA MASTER: Sergio Carrasco Jr sempre tem acesso root local
-    if (email.toLowerCase() === 'scarrasco462@gmail.com') {
+    const isSergio = email.toLowerCase() === 'scarrasco462@gmail.com' || email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
+    if (isSergio) {
        onLogin({
           id: 'admin-sergio',
           name: 'Sergio Carrasco Junior',
