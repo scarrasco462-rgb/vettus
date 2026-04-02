@@ -170,12 +170,81 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            margin: 1.5cm;
+            margin: 1cm;
             size: landscape;
           }
-          body {
+          * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            box-shadow: none !important;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          .no-print, aside, header, nav, button, .print\\:hidden {
+            display: none !important;
+          }
+          main {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
+          .print-container {
+            display: block !important;
+            width: 100% !important;
+          }
+          .print-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 1rem !important;
+            border: 1.5pt solid #000 !important;
+          }
+          .print-table th, .print-table td {
+            border: 1pt solid #000 !important;
+            padding: 8pt !important;
+            text-align: left !important;
+            color: black !important;
+            background: white !important;
+          }
+          .print-table th {
+            background-color: #f1f5f9 !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            font-size: 10pt !important;
+          }
+          .print-table td {
+            font-size: 10pt !important;
+          }
+          .print-header {
+            display: block !important;
+            margin-bottom: 2rem !important;
+            border-bottom: 2pt solid #000 !important;
+            padding-bottom: 1rem !important;
+          }
+          .print-summary-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 1rem !important;
+            margin-bottom: 2rem !important;
+          }
+          .print-summary-item {
+            border: 1pt solid #000 !important;
+            padding: 1rem !important;
+            text-align: center !important;
+          }
+          .print-summary-label {
+            font-size: 9pt !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            margin-bottom: 0.5rem !important;
+          }
+          .print-summary-value {
+            font-size: 14pt !important;
+            font-weight: 900 !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
           }
         }
       `}} />
@@ -221,12 +290,35 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
-        <h1 className="text-2xl font-black uppercase">Relatório Financeiro Mensal - Vettus</h1>
-        <p className="text-sm font-bold uppercase tracking-widest">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+      <div className="hidden print:block print-header">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-black uppercase text-slate-900">Relatório Financeiro</h1>
+            <p className="text-lg font-bold text-slate-500 uppercase tracking-widest">Vettus Imóveis</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-black uppercase">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+            <p className="text-xs font-bold text-slate-400">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:grid-cols-3">
+      <div className="hidden print:block print-summary-grid">
+        <div className="print-summary-item">
+          <p className="print-summary-label">Total Pago</p>
+          <p className="print-summary-value text-emerald-600">{formatCurrency(totals.paid)}</p>
+        </div>
+        <div className="print-summary-item">
+          <p className="print-summary-label">A Pagar</p>
+          <p className="print-summary-value text-amber-600">{formatCurrency(totals.pending)}</p>
+        </div>
+        <div className="print-summary-item">
+          <p className="print-summary-label">Total Geral</p>
+          <p className="print-summary-value text-slate-900">{formatCurrency(totals.total)}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center space-x-6">
           <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <CheckCircle2 className="w-7 h-7" />
@@ -256,9 +348,9 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none print:rounded-none">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left print-table">
             <thead>
               <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
                 <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Descrição</th>
@@ -277,7 +369,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     <p className="font-black text-slate-900 text-sm uppercase print:text-base">{expense.description}</p>
                   </td>
                   <td className="px-8 py-6 print:px-4 print:py-3">
-                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-slate-300">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-none">
                       {expense.category}
                     </span>
                   </td>
@@ -297,7 +389,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     <p className="font-black text-slate-900 text-sm print:text-base">{formatCurrency(expense.value)}</p>
                   </td>
                   <td className="px-8 py-6 print:px-4 print:py-3">
-                    <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-slate-400 ${
+                    <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-none print:p-0 ${
                         expense.status === 'Pago' 
                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100 print:bg-transparent print:text-emerald-700' 
                         : 'bg-amber-50 text-amber-600 border-amber-100 print:bg-transparent print:text-amber-700'
