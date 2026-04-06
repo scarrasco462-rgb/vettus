@@ -780,6 +780,9 @@ const App: React.FC = () => {
           commissions={commissions} 
           properties={properties} 
           currentUser={currentUser}
+          onDeleteClients={ids => setClients(v => v.map(c => ids.includes(c.id) ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))}
+          onAddActivities={newActivities => setActivities(v => [...newActivities, ...v])}
+          onNavigate={setCurrentView}
         />
       )}
 
