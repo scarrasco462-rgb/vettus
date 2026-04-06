@@ -248,11 +248,11 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             print-color-adjust: exact !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
-            font-size: 10pt !important;
+            font-size: 12pt !important;
             color: black !important;
           }
           .print-table td {
-            font-size: 10pt !important;
+            font-size: 12pt !important;
             background: white !important;
           }
           .print-header {
@@ -262,6 +262,13 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             padding-bottom: 1rem !important;
             background: white !important;
             color: black !important;
+          }
+          .print-header h1 {
+            font-size: 16pt !important;
+            margin-bottom: 4pt !important;
+          }
+          .print-header p {
+            font-size: 12pt !important;
           }
           .print-summary-grid {
             display: grid !important;
@@ -277,14 +284,14 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             background: white !important;
           }
           .print-summary-label {
-            font-size: 9pt !important;
+            font-size: 10pt !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
             margin-bottom: 0.5rem !important;
             color: black !important;
           }
           .print-summary-value {
-            font-size: 14pt !important;
+            font-size: 12pt !important;
             font-weight: 900 !important;
           }
           tr {
