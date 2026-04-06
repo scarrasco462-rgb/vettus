@@ -128,9 +128,12 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
   };
 
   const confirmImport = () => {
+    const importId = `import-${Date.now()}`;
+    const importName = file?.name || 'Importação Manual';
+    
     const finalLeads: Client[] = previewLeads.map(lead => ({
       id: Math.random().toString(36).substr(2, 9),
-      brokerId: 'unassigned', // IMPORTANTE: Entra como não atribuído
+      brokerId: 'unassigned', 
       name: lead.name || 'Sem Nome',
       email: lead.email || '',
       phone: lead.phone || '',
@@ -139,6 +142,8 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
       budget: lead.budget || 0,
       assignedAgent: '',
       preference: lead.preference || '',
+      importId,
+      importName,
       updatedAt: new Date().toISOString()
     }));
 

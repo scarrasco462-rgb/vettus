@@ -7,6 +7,7 @@ import {
   LayoutGrid, List, MessageSquare, ExternalLink, Trophy, Briefcase, 
   Percent, Calculator, PlusCircle, MinusCircle, Table2, ListOrdered,
   ArrowRight, Info, TrendingUp, CalendarPlus, LayoutPanelTop, Printer, FileText,
+  FileSpreadsheet,
   Layers, HardHat, ArrowDownWideNarrow,
   UploadCloud, ShieldAlert, Trash, AlertTriangle, ChevronDown,
   Repeat, ArrowRightLeft, UserCheck2, ShieldOff, Lock, Unlock, ShieldAlert as ShieldIcon
@@ -92,6 +93,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas'>('carteira');
   
   // Estados para Registro de Atendimento
   const [currentAtendimento, setCurrentAtendimento] = useState({ type: 'Call', desc: '' });
@@ -113,6 +115,22 @@ export const ClientView: React.FC<ClientViewProps> = ({
   // Estado para Bloqueio
   const [blockReason, setBlockReason] = useState('');
   const [selectedBrokerFilter, setSelectedBrokerFilter] = useState<string>('all');
+  const [selectedImportFilter, setSelectedImportFilter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    type: 'danger' | 'warning' | 'success';
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    type: 'warning'
+  });
 
   const isAdmin = currentUser.role === 'Admin';
 
@@ -154,35 +172,48 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const handleBulkDelete = () => {
     if (!isAdmin || selectedClientIds.length === 0) return;
     
-    if (confirm(`⚠ ALERTA CRÍTICO: Deseja EXCLUIR permanentemente ${selectedClientIds.length} lead(s) selecionado(s)? Esta ação gerará logs de auditoria para cada exclusão e é irreversível.`)) {
-      const now = new Date().toISOString();
-      const dateStr = now.split('T')[0];
-      const timeStr = new Date().toLocaleTimeString('pt-BR');
-      const newActivities: Activity[] = [];
+    setConfirmModal({
+      show: true,
+      title: '⚠ ALERTA CRÍTICO',
+      message: `Deseja EXCLUIR permanentemente ${selectedClientIds.length} lead(s) selecionado(s)? Esta ação gerará logs de auditoria para cada exclusão e é irreversível.`,
+      confirmText: 'Excluir Selecionados',
+      cancelText: 'Cancelar',
+      type: 'danger',
+      onConfirm: () => {
+        const now = new Date().toISOString();
+        const dateStr = now.split('T')[0];
+        const timeStr = new Date().toLocaleTimeString('pt-BR');
+        const newActivities: Activity[] = [];
 
-      selectedClientIds.forEach(clientId => {
-        const client = clients.find(c => c.id === clientId);
-        if (!client) return;
+        selectedClientIds.forEach(clientId => {
+          const client = clients.find(c => c.id === clientId);
+          if (!client) return;
 
-        newActivities.push({
-          id: Math.random().toString(36).substr(2, 9),
-          brokerId: currentUser.id,
-          brokerName: currentUser.name,
-          type: 'Meeting',
-          clientName: client.name,
-          description: `[AUDITORIA] EXCLUSÃO EM MASSA: User: ${currentUser.name} (Role: ${currentUser.role}) removeu o lead ${client.name} via ferramenta de exclusão múltipla.`,
-          date: dateStr,
-          time: timeStr,
-          updatedAt: now
+          newActivities.push({
+            id: Math.random().toString(36).substr(2, 9),
+            brokerId: currentUser.id,
+            brokerName: currentUser.name,
+            type: 'Meeting',
+            clientName: client.name,
+            description: `[AUDITORIA] EXCLUSÃO EM MASSA: User: ${currentUser.name} (Role: ${currentUser.role}) removeu o lead ${client.name} via ferramenta de exclusão múltipla.`,
+            date: dateStr,
+            time: timeStr,
+            updatedAt: now
+          });
         });
-      });
 
-      onAddActivities(newActivities);
-      onDeleteClients(selectedClientIds);
+        onAddActivities(newActivities);
+        onDeleteClients(selectedClientIds);
 
-      alert(`${selectedClientIds.length} lead(s) removido(s) com sucesso.`);
-      setSelectedClientIds([]);
-    }
+        setConfirmModal({
+          show: true,
+          title: 'Sucesso',
+          message: `${selectedClientIds.length} lead(s) removido(s) com sucesso.`,
+          type: 'success'
+        });
+        setSelectedClientIds([]);
+      }
+    });
   };
 
   const toggleSelectClient = (clientId: string) => {
@@ -266,7 +297,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
       type: 'Call'
     });
 
-    alert("Próxima ação agendada e lembrete Master criado!");
+    setConfirmModal({
+      show: true,
+      title: 'Sucesso',
+      message: "Próxima ação agendada e lembrete Master criado!",
+      type: 'success'
+    });
   };
 
   const handleConfirmTransfer = () => {
@@ -320,7 +356,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
       });
     });
 
-    alert(`Transferência de ${selectedClientIds.length} lead(s) concluída. ${newBroker.name} foi notificado.`);
+    setConfirmModal({
+      show: true,
+      title: 'Sucesso',
+      message: `Transferência de ${selectedClientIds.length} lead(s) concluída. ${newBroker.name} foi notificado.`,
+      type: 'success'
+    });
     setShowTransferModal(false);
     setSelectedClient(null);
     setSelectedClientIds([]);
@@ -333,7 +374,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const now = new Date().toISOString();
 
     if (isBlocking && !blockReason.trim()) {
-      alert("Por favor, informe o motivo do bloqueio para auditoria.");
+      setConfirmModal({
+        show: true,
+        title: 'Atenção',
+        message: "Por favor, informe o motivo do bloqueio para auditoria.",
+        type: 'warning'
+      });
       return;
     }
 
@@ -360,7 +406,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
       updatedAt: now
     });
 
-    alert(isBlocking ? "Lead bloqueado com sucesso." : "Lead desbloqueado com sucesso.");
+    setConfirmModal({
+      show: true,
+      title: 'Sucesso',
+      message: isBlocking ? "Lead bloqueado com sucesso." : "Lead desbloqueado com sucesso.",
+      type: 'success'
+    });
     setShowBlockModal(false);
     setSelectedClient(null);
   };
@@ -373,60 +424,138 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   const handleDeleteLead = (client: Client) => {
     if (!isAdmin) {
-      alert("Acesso negado - Administrador requerido");
+      setConfirmModal({
+        show: true,
+        title: 'Acesso Negado',
+        message: 'Administrador requerido para esta ação.',
+        type: 'warning'
+      });
       return;
     }
 
-    if (confirm(`⚠ ALERTA CRÍTICO: Deseja EXCLUIR permanentemente o lead ${client.name}? Esta ação gerará um log de auditoria irreversível.`)) {
-      onAddActivity({
-        id: Math.random().toString(36).substr(2, 9),
-        brokerId: currentUser.id,
-        brokerName: currentUser.name,
-        type: 'Meeting',
-        clientName: client.name,
-        description: `[AUDITORIA] EXCLUSÃO DE LEAD: User: ${currentUser.name} (Role: ${currentUser.role}) removeu o lead ${client.name}.`,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('pt-BR'),
-        updatedAt: new Date().toISOString()
-      });
+    setConfirmModal({
+      show: true,
+      title: '⚠ ALERTA CRÍTICO',
+      message: `Deseja EXCLUIR permanentemente o lead ${client.name}? Esta ação gerará um log de auditoria irreversível.`,
+      confirmText: 'Excluir Permanentemente',
+      cancelText: 'Cancelar',
+      type: 'danger',
+      onConfirm: () => {
+        onAddActivity({
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: currentUser.id,
+          brokerName: currentUser.name,
+          type: 'Meeting',
+          clientName: client.name,
+          description: `[AUDITORIA] EXCLUSÃO DE LEAD: User: ${currentUser.name} (Role: ${currentUser.role}) removeu o lead ${client.name}.`,
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString('pt-BR'),
+          updatedAt: new Date().toISOString()
+        });
 
-      onDeleteClient(client.id);
-      alert("Lead removido com sucesso.");
-    }
+        onDeleteClient(client.id);
+        setConfirmModal({
+          show: true,
+          title: 'Sucesso',
+          message: 'Lead removido com sucesso.',
+          type: 'success'
+        });
+      }
+    });
+  };
+
+  const handleDeleteImport = (importId: string, importName: string) => {
+    if (!isAdmin) return;
+    
+    const leadsToDelete = clients.filter(c => c.importId === importId && !c.deleted);
+    if (leadsToDelete.length === 0) return;
+
+    setConfirmModal({
+      show: true,
+      title: '⚠ ALERTA CRÍTICO',
+      message: `Deseja EXCLUIR permanentemente todos os ${leadsToDelete.length} leads da planilha "${importName}"? Esta ação é irreversível e gerará logs de auditoria.`,
+      confirmText: 'Excluir Tudo',
+      cancelText: 'Cancelar',
+      type: 'danger',
+      onConfirm: () => {
+        const now = new Date().toISOString();
+        const dateStr = now.split('T')[0];
+        const timeStr = new Date().toLocaleTimeString('pt-BR');
+        
+        const newActivities: Activity[] = leadsToDelete.map(client => ({
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: currentUser.id,
+          brokerName: currentUser.name,
+          type: 'Meeting',
+          clientName: client.name,
+          description: `[AUDITORIA] EXCLUSÃO POR PLANILHA: Lead removido na exclusão da planilha "${importName}" por ${currentUser.name}.`,
+          date: dateStr,
+          time: timeStr,
+          updatedAt: now
+        }));
+
+        onAddActivities(newActivities);
+        onDeleteClients(leadsToDelete.map(c => c.id));
+        setConfirmModal({
+          show: true,
+          title: 'Sucesso',
+          message: `Planilha "${importName}" removida com sucesso. ${leadsToDelete.length} leads excluídos.`,
+          type: 'success'
+        });
+      }
+    });
   };
 
   const handleRegisterClosing = (client: Client) => {
     if (saleValue <= 0) {
-      alert("Por favor, insira o valor da venda realizada para registrar o fechamento.");
+      setConfirmModal({
+        show: true,
+        title: 'Atenção',
+        message: "Por favor, insira o valor da venda realizada para registrar o fechamento.",
+        type: 'warning'
+      });
       return;
     }
 
-    if (confirm(`Confirmar fechamento para ${client.name} no valor de R$ ${displaySaleValue}? O lead será movido para o status GANHO.`)) {
-      const updatedAt = new Date().toISOString();
-      const updatedClient = { 
-        ...client, 
-        status: ClientStatus.WON, 
-        budget: saleValue, 
-        updatedAt 
-      };
-      
-      onUpdateClient(updatedClient);
+    setConfirmModal({
+      show: true,
+      title: 'Confirmar Fechamento',
+      message: `Confirmar fechamento para ${client.name} no valor de R$ ${displaySaleValue}? O lead será movido para o status GANHO.`,
+      confirmText: 'Confirmar Venda',
+      cancelText: 'Cancelar',
+      type: 'success',
+      onConfirm: () => {
+        const updatedAt = new Date().toISOString();
+        const updatedClient = { 
+          ...client, 
+          status: ClientStatus.WON, 
+          budget: saleValue, 
+          updatedAt 
+        };
+        
+        onUpdateClient(updatedClient);
 
-      onAddActivity({
-        id: Math.random().toString(36).substr(2, 9),
-        brokerId: currentUser.id,
-        brokerName: currentUser.name,
-        type: 'Meeting',
-        clientName: client.name,
-        description: `FECHAMENTO CONCLUÍDO: Lead classificado como GANHO. Valor da Venda: ${formatCurrencyBRL(saleValue)}.`,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('pt-BR'),
-        updatedAt
-      });
+        onAddActivity({
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: currentUser.id,
+          brokerName: currentUser.name,
+          type: 'Meeting',
+          clientName: client.name,
+          description: `FECHAMENTO CONCLUÍDO: Lead classificado como GANHO. Valor da Venda: ${formatCurrencyBRL(saleValue)}.`,
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString('pt-BR'),
+          updatedAt
+        });
 
-      setSelectedClient(updatedClient);
-      alert("Venda registrada com sucesso! Parabéns pelo fechamento.");
-    }
+        setSelectedClient(updatedClient);
+        setConfirmModal({
+          show: true,
+          title: 'Parabéns!',
+          message: "Venda registrada com sucesso! Parabéns pelo fechamento.",
+          type: 'success'
+        });
+      }
+    });
   };
 
   const handleFluxUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -441,7 +570,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
         const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         setImportedFlux(json);
       } catch (err) { 
-        alert("Erro ao ler planilha de fluxo. Verifique o formato."); 
+        setConfirmModal({
+          show: true,
+          title: 'Erro',
+          message: "Erro ao ler planilha de fluxo. Verifique o formato.",
+          type: 'danger'
+        });
       } finally { 
         setParsingFlux(false); 
       }
@@ -452,11 +586,21 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const handleVincularConstrutora = () => {
     if (!selectedClient) return;
     if (!selectedCompanyId) {
-      alert("Selecione uma Construtora antes de vincular.");
+      setConfirmModal({
+        show: true,
+        title: 'Atenção',
+        message: "Selecione uma Construtora antes de vincular.",
+        type: 'warning'
+      });
       return;
     }
     if (importedFlux.length === 0) {
-      alert("Faça o upload da planilha de fluxo para processar os ganhos.");
+      setConfirmModal({
+        show: true,
+        title: 'Atenção',
+        message: "Faça o upload da planilha de fluxo para processar os ganhos.",
+        type: 'warning'
+      });
       return;
     }
 
@@ -511,10 +655,20 @@ export const ClientView: React.FC<ClientViewProps> = ({
         updatedAt: new Date().toISOString()
       });
 
-      alert(`${newForecasts.length} previsões de comissão geradas com sucesso!`);
+      setConfirmModal({
+        show: true,
+        title: 'Sucesso',
+        message: `${newForecasts.length} previsões de comissão geradas com sucesso!`,
+        type: 'success'
+      });
       setShowGanhosModal(false);
     } else {
-      alert("Nenhuma linha atingiu o gatilho de liberação.");
+      setConfirmModal({
+        show: true,
+        title: 'Aviso',
+        message: "Nenhuma linha atingiu o gatilho de liberação.",
+        type: 'warning'
+      });
     }
   };
 
@@ -533,19 +687,60 @@ export const ClientView: React.FC<ClientViewProps> = ({
     if (isAdmin && selectedBrokerFilter !== 'all') {
       filtered = filtered.filter(c => c.brokerId === selectedBrokerFilter);
     }
+    if (selectedImportFilter) {
+      filtered = filtered.filter(c => c.importId === selectedImportFilter);
+    }
+    if (searchTerm) {
+      const lowSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.name.toLowerCase().includes(lowSearch) || 
+        c.phone.includes(searchTerm) ||
+        c.email.toLowerCase().includes(lowSearch)
+      );
+    }
     return filtered;
-  }, [clients, isAdmin, selectedBrokerFilter]);
+  }, [clients, isAdmin, selectedBrokerFilter, selectedImportFilter, searchTerm]);
 
   const sortedClients = useMemo(() => [...filteredClients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [filteredClients]);
+
+  const spreadsheetGroups = useMemo(() => {
+    const groups: Record<string, { id: string, name: string, count: number, date: string }> = {};
+    clients.filter(c => !c.deleted && c.importId).forEach(c => {
+      if (!groups[c.importId!]) {
+        groups[c.importId!] = {
+          id: c.importId!,
+          name: c.importName || 'Importação Sem Nome',
+          count: 0,
+          date: c.updatedAt
+        };
+      }
+      groups[c.importId!].count++;
+    });
+    return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [clients]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Gestão Comercial de Carteira</h1>
-          <p className="text-slate-500 font-medium">Controle de leads, histórico de atendimento e follow-up.</p>
+          <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Central de Clientes Vettus</h1>
+          <p className="text-slate-500 font-medium">Gestão de leads, histórico de atendimento e controle de planilhas.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {selectedImportFilter && (
+            <div className="flex items-center bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 shadow-sm">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 mr-2" />
+              <span className="text-[10px] font-black text-emerald-700 uppercase truncate max-w-[150px]">
+                {clients.find(c => c.importId === selectedImportFilter)?.importName || 'Planilha'}
+              </span>
+              <button 
+                onClick={() => setSelectedImportFilter(null)}
+                className="ml-2 p-0.5 hover:bg-emerald-200 rounded-full transition-colors"
+              >
+                <X className="w-3 h-3 text-emerald-600" />
+              </button>
+            </div>
+          )}
           {isAdmin && (
             <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
               <Filter className="w-4 h-4 text-slate-400 mr-2" />
@@ -561,11 +756,21 @@ export const ClientView: React.FC<ClientViewProps> = ({
               </select>
             </div>
           )}
+          <div className="relative">
+            <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Buscar lead..." 
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="bg-white border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-xs font-bold text-slate-600 outline-none focus:border-[#d4a853] transition-all w-48"
+            />
+          </div>
           <button onClick={onOpenImport} className="bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors">
             <FileUp className="w-4 h-4 text-emerald-600" />
             <span>Importar</span>
           </button>
-          {isAdmin && selectedClientIds.length > 0 && (
+          {isAdmin && selectedClientIds.length > 0 && activeTab === 'carteira' && (
             <button 
               onClick={handleBulkDelete} 
               className="bg-red-50 border border-red-200 text-red-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-red-600 hover:text-white transition-all"
@@ -581,167 +786,258 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
-                {isAdmin && (
-                  <th className="px-8 py-6 w-10">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedClientIds.length === sortedClients.length && sortedClients.length > 0}
-                      onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-[#d4a853] focus:ring-[#d4a853]"
-                    />
-                  </th>
-                )}
-                <th className="px-8 py-6">Perfil do Lead</th>
-                <th className="px-8 py-6">Responsável</th>
-                <th className="px-8 py-6">Status</th>
-                <th className="px-8 py-6">Próxima Ação</th>
-                <th className="px-8 py-6 text-right">Ação Necessária</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sortedClients.map((client) => (
-                <tr key={client.id} className={`hover:bg-[#d4a853]/5 transition-colors group ${client.blocked ? 'grayscale bg-slate-50 opacity-70' : ''} ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/10' : ''}`}>
+      <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab('carteira')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'carteira' 
+            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+            : 'text-slate-500 hover:bg-white hover:text-slate-900'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          <span>Carteira de Clientes</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('planilhas')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'planilhas' 
+            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+            : 'text-slate-500 hover:bg-white hover:text-slate-900'
+          }`}
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" />
+          <span>Gestão de Planilhas</span>
+        </button>
+      </div>
+
+      {activeTab === 'carteira' ? (
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
                   {isAdmin && (
-                    <td className="px-8 py-7">
+                    <th className="px-8 py-6 w-10">
                       <input 
                         type="checkbox" 
-                        checked={selectedClientIds.includes(client.id)}
-                        onChange={() => toggleSelectClient(client.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                        checked={selectedClientIds.length === sortedClients.length && sortedClients.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-[#d4a853] focus:ring-[#d4a853]"
                       />
-                    </td>
+                    </th>
                   )}
-                  <td className="px-8 py-7">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-lg">{client.name[0]}</div>
-                        {client.blocked && (
-                          <div className="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-1 rounded-full border-2 border-white shadow-sm">
-                            <ShieldOff className="w-3 h-3" />
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                           <p className="font-black text-slate-900 text-sm uppercase">{client.name}</p>
-                           {client.blocked && (
-                              <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm" title={`Motivo: ${client.blockReason}`}>BLOQUEADO</span>
-                           )}
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{client.phone}</p>
-                        {client.spouseName && (
-                          <p className="text-[9px] text-[#d4a853] font-black uppercase tracking-tighter mt-0.5">
-                            Esposa: {client.spouseName} {client.spousePhone && `(${client.spousePhone})`}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-7">
-                    <div className="flex items-center space-x-2">
-                       <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200">
-                          {client.assignedAgent || 'Gestão'}
-                       </span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-7">
-                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center justify-center min-w-[100px] ${client.status === ClientStatus.WON ? 'gold-gradient text-white border-transparent' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
-                      {client.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-7">
-                    {client.nextActivityDate ? (
-                       <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-slate-900 uppercase">
-                             {new Date(client.nextActivityDate + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </span>
-                          <span className="text-[9px] font-black text-[#d4a853] uppercase tracking-tighter">
-                             {client.nextActivityType || 'Follow-up'} às {client.nextActivityTime}
-                          </span>
-                       </div>
-                    ) : (
-                       <span className="text-[9px] text-slate-300 font-black uppercase tracking-widest italic">Aguardando Agenda</span>
-                    )}
-                  </td>
-                  <td className="px-8 py-7 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button 
-                        disabled={client.blocked}
-                        onClick={() => handleOpenHistory(client)}
-                        className="p-2.5 bg-blue-50 text-blue-600 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-blue-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Histórico & Próxima Ação"
-                      >
-                        <History className="w-4 h-4" />
-                      </button>
-                      <button 
-                        disabled={client.blocked}
-                        onClick={() => onOpenFlow?.(client.id)}
-                        className="p-2.5 bg-slate-50 text-slate-400 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-slate-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Montar Fluxo de Obra"
-                      >
-                        <Layers className="w-4 h-4" />
-                      </button>
-                      
-                      {isAdmin && (
-                        <>
-                          <button 
-                            onClick={() => handleOpenTransfer(client)}
-                            className="p-2.5 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl border border-amber-200 transition-all shadow-sm"
-                            title="Transferir Custódia do Lead"
-                          >
-                            <Repeat className="w-4 h-4" />
-                          </button>
-                          
-                          <button 
-                            onClick={() => handleOpenBlock(client)}
-                            className={`p-2.5 border transition-all shadow-sm rounded-xl ${client.blocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white' : 'bg-slate-900 text-[#d4a853] border-slate-800 hover:bg-red-600 hover:text-white'}`}
-                            title={client.blocked ? "Desbloquear Lead" : "Bloquear Lead"}
-                          >
-                            {client.blocked ? <Unlock className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
-                          </button>
-                        </>
-                      )}
-
-                      <button 
-                        disabled={client.blocked}
-                        onClick={() => handleOpenGanhos(client)} 
-                        className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl border border-emerald-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed" 
-                        title="Ganho"
-                      >
-                        <Trophy className="w-4 h-4" />
-                      </button>
-                      
-                      {isAdmin && (
-                        <button 
-                          onClick={() => handleDeleteLead(client)} 
-                          className="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl border border-red-200 transition-all shadow-sm" 
-                          title="Excluir Lead"
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
-                      )}
-                      
-                      <button 
-                        disabled={client.blocked}
-                        onClick={() => onEditClient(client)} 
-                        className="p-2.5 bg-white text-slate-400 hover:text-[#d4a853] rounded-xl border border-slate-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Editar Lead"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+                  <th className="px-8 py-6">Perfil do Lead</th>
+                  <th className="px-8 py-6">Responsável</th>
+                  <th className="px-8 py-6">Status</th>
+                  <th className="px-8 py-6">Próxima Ação</th>
+                  <th className="px-8 py-6 text-right">Ação Necessária</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sortedClients.map((client) => (
+                  <tr key={client.id} className={`hover:bg-[#d4a853]/5 transition-colors group ${client.blocked ? 'grayscale bg-slate-50 opacity-70' : ''} ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/10' : ''}`}>
+                    {isAdmin && (
+                      <td className="px-8 py-7">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedClientIds.includes(client.id)}
+                          onChange={() => toggleSelectClient(client.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                        />
+                      </td>
+                    )}
+                    <td className="px-8 py-7">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-lg">{client.name[0]}</div>
+                          {client.blocked && (
+                            <div className="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-1 rounded-full border-2 border-white shadow-sm">
+                              <ShieldOff className="w-3 h-3" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                             <p className="font-black text-slate-900 text-sm uppercase">{client.name}</p>
+                             {client.blocked && (
+                                <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm" title={`Motivo: ${client.blockReason}`}>BLOQUEADO</span>
+                             )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{client.phone}</p>
+                          {client.spouseName && (
+                            <p className="text-[9px] text-[#d4a853] font-black uppercase tracking-tighter mt-0.5">
+                              Esposa: {client.spouseName} {client.spousePhone && `(${client.spousePhone})`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-7">
+                      <div className="flex items-center space-x-2">
+                         <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200">
+                            {client.assignedAgent || 'Gestão'}
+                         </span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-7">
+                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center justify-center min-w-[100px] ${client.status === ClientStatus.WON ? 'gold-gradient text-white border-transparent' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+                        {client.status}
+                      </span>
+                    </td>
+                    <td className="px-8 py-7">
+                      {client.nextActivityDate ? (
+                         <div className="flex flex-col">
+                            <span className="text-[11px] font-black text-slate-900 uppercase">
+                               {new Date(client.nextActivityDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            </span>
+                            <span className="text-[9px] font-black text-[#d4a853] uppercase tracking-tighter">
+                               {client.nextActivityType || 'Follow-up'} às {client.nextActivityTime}
+                            </span>
+                         </div>
+                      ) : (
+                         <span className="text-[9px] text-slate-300 font-black uppercase tracking-widest italic">Aguardando Agenda</span>
+                      )}
+                    </td>
+                    <td className="px-8 py-7 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button 
+                          disabled={client.blocked}
+                          onClick={() => handleOpenHistory(client)}
+                          className="p-2.5 bg-blue-50 text-blue-600 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-blue-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Histórico & Próxima Ação"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
+                        <button 
+                          disabled={client.blocked}
+                          onClick={() => onOpenFlow?.(client.id)}
+                          className="p-2.5 bg-slate-50 text-slate-400 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-slate-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Montar Fluxo de Obra"
+                        >
+                          <Layers className="w-4 h-4" />
+                        </button>
+                        
+                        {isAdmin && (
+                          <>
+                            <button 
+                              onClick={() => handleOpenTransfer(client)}
+                              className="p-2.5 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl border border-amber-200 transition-all shadow-sm"
+                              title="Transferir Custódia do Lead"
+                            >
+                              <Repeat className="w-4 h-4" />
+                            </button>
+                            
+                            <button 
+                              onClick={() => handleOpenBlock(client)}
+                              className={`p-2.5 border transition-all shadow-sm rounded-xl ${client.blocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white' : 'bg-slate-900 text-[#d4a853] border-slate-800 hover:bg-red-600 hover:text-white'}`}
+                              title={client.blocked ? "Desbloquear Lead" : "Bloquear Lead"}
+                            >
+                              {client.blocked ? <Unlock className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                            </button>
+                          </>
+                        )}
+
+                        <button 
+                          disabled={client.blocked}
+                          onClick={() => handleOpenGanhos(client)} 
+                          className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl border border-emerald-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed" 
+                          title="Ganho"
+                        >
+                          <Trophy className="w-4 h-4" />
+                        </button>
+                        
+                        {isAdmin && (
+                          <button 
+                            onClick={() => handleDeleteLead(client)} 
+                            className="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl border border-red-200 transition-all shadow-sm" 
+                            title="Excluir Lead"
+                          >
+                            <Trash className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        <button 
+                          disabled={client.blocked}
+                          onClick={() => onEditClient(client)} 
+                          className="p-2.5 bg-white text-slate-400 hover:text-[#d4a853] rounded-xl border border-slate-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Editar Lead"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {spreadsheetGroups.map(group => (
+              <div key={group.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-xl hover:shadow-2xl transition-all group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:rotate-12 transition-transform">
+                   <FileSpreadsheet className="w-24 h-24" />
+                </div>
+                
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="w-14 h-14 bg-[#0f172a] rounded-2xl flex items-center justify-center shadow-lg">
+                    <Table2 className="w-7 h-7 text-[#d4a853]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight truncate max-w-[180px]" title={group.name}>
+                      {group.name}
+                    </h3>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                      {new Date(group.date).toLocaleDateString('pt-BR')} às {new Date(group.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-4 h-4 text-[#d4a853]" />
+                    <span className="text-xs font-black text-slate-700">{group.count} Leads</span>
+                  </div>
+                  <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded-lg">Importado</span>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={() => {
+                      setSelectedImportFilter(group.id);
+                      setActiveTab('carteira');
+                    }}
+                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center"
+                  >
+                    <UserSearch className="w-3.5 h-3.5 mr-2" />
+                    Ver Leads
+                  </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => handleDeleteImport(group.id, group.name)}
+                      className="p-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl border border-red-100 transition-all"
+                      title="Excluir Planilha e Leads"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {spreadsheetGroups.length === 0 && (
+              <div className="col-span-full py-32 text-center border-2 border-dashed border-slate-200 rounded-[3rem] bg-slate-50/50">
+                 <FileSpreadsheet className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                 <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Nenhuma planilha importada recentemente</p>
+                 <button onClick={onOpenImport} className="mt-4 text-[#d4a853] text-[10px] font-black uppercase underline tracking-widest">Fazer primeira importação</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* MODAL BLOQUEIO DE SEGURANÇA */}
       {showBlockModal && selectedClient && (
@@ -1101,6 +1397,72 @@ export const ClientView: React.FC<ClientViewProps> = ({
                    <span>Vincular e Gerar Previsões</span>
                 </button>
              </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE CONFIRMAÇÃO / ALERTA CUSTOMIZADO */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#0f172a]/95 backdrop-blur-md" onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}></div>
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-0 relative z-10 shadow-2xl animate-in zoom-in duration-300 overflow-hidden border border-white/10">
+            <div className={`p-8 flex flex-col items-center text-center space-y-4 ${
+              confirmModal.type === 'danger' ? 'bg-red-50' : 
+              confirmModal.type === 'success' ? 'bg-emerald-50' : 'bg-amber-50'
+            }`}>
+              <div className={`w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg ${
+                confirmModal.type === 'danger' ? 'bg-red-600 text-white' : 
+                confirmModal.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+              }`}>
+                {confirmModal.type === 'danger' ? <Trash2 className="w-10 h-10" /> : 
+                 confirmModal.type === 'success' ? <CheckCircle2 className="w-10 h-10" /> : <AlertTriangle className="w-10 h-10" />}
+              </div>
+              <div>
+                <h3 className={`text-xl font-black uppercase tracking-tight ${
+                  confirmModal.type === 'danger' ? 'text-red-900' : 
+                  confirmModal.type === 'success' ? 'text-emerald-900' : 'text-amber-900'
+                }`}>
+                  {confirmModal.title}
+                </h3>
+                <p className="text-slate-600 text-sm font-bold mt-2 px-4 leading-relaxed">
+                  {confirmModal.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 bg-white flex flex-col space-y-3">
+              {confirmModal.onConfirm ? (
+                <>
+                  <button 
+                    onClick={() => {
+                      confirmModal.onConfirm?.();
+                      setConfirmModal(prev => ({ ...prev, show: false }));
+                    }}
+                    className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all hover:scale-[1.02] active:scale-95 ${
+                      confirmModal.type === 'danger' ? 'bg-red-600 text-white' : 
+                      confirmModal.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                    }`}
+                  >
+                    {confirmModal.confirmText || 'Confirmar'}
+                  </button>
+                  <button 
+                    onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                    className="w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+                  >
+                    {confirmModal.cancelText || 'Cancelar'}
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                  className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all hover:scale-[1.02] active:scale-95 ${
+                    confirmModal.type === 'danger' ? 'bg-red-600 text-white' : 
+                    confirmModal.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                  }`}
+                >
+                  Entendido
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

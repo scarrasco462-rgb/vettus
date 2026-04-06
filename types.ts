@@ -164,6 +164,8 @@ export interface Client {
   spousePhone?: string;
   blocked?: boolean;
   blockReason?: string;
+  importId?: string;
+  importName?: string;
   deleted?: boolean;
   updatedAt: string;
 }
