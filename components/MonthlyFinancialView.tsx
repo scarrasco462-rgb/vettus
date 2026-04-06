@@ -230,29 +230,30 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           }
           .print-table {
             width: 100% !important;
+            max-width: 100% !important;
             border-collapse: collapse !important;
             margin-top: 1rem !important;
-            border: 1.5pt solid #000 !important;
+            border: 0.5pt solid #000 !important;
             background: white !important;
             table-layout: auto !important;
           }
           .print-table th, .print-table td {
-            border: 1pt solid #000 !important;
-            padding: 8pt !important;
+            border: 0.5pt solid #000 !important;
+            padding: 4pt 6pt !important;
             text-align: left !important;
             background: white !important;
           }
           .print-table th {
-            background-color: #f1f5f9 !important;
+            background-color: #f8fafc !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
-            font-size: 12pt !important;
+            font-size: 9pt !important;
             color: black !important;
           }
           .print-table td {
-            font-size: 12pt !important;
+            font-size: 9pt !important;
             background: white !important;
           }
           .print-header {
@@ -264,11 +265,11 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             color: black !important;
           }
           .print-header h1 {
-            font-size: 16pt !important;
-            margin-bottom: 4pt !important;
+            font-size: 14pt !important;
+            margin-bottom: 2pt !important;
           }
           .print-header p {
-            font-size: 12pt !important;
+            font-size: 10pt !important;
           }
           .print-summary-grid {
             display: grid !important;
@@ -284,14 +285,14 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
             background: white !important;
           }
           .print-summary-label {
-            font-size: 10pt !important;
+            font-size: 8pt !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
-            margin-bottom: 0.5rem !important;
+            margin-bottom: 0.25rem !important;
             color: black !important;
           }
           .print-summary-value {
-            font-size: 12pt !important;
+            font-size: 10pt !important;
             font-weight: 900 !important;
           }
           tr {
@@ -619,14 +620,14 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                 <thead>
                   <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
                     {reportFilter.period !== 'month' && (
-                      <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Mês/Ano</th>
+                      <th className="px-8 py-6 print:px-2 print:py-2">Mês/Ano</th>
                     )}
-                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Data/Venc.</th>
-                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Descrição</th>
-                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Categoria</th>
-                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Pagador</th>
-                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Valor</th>
-                    <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Status</th>
+                    <th className="px-8 py-6 print:px-2 print:py-2">Data/Venc.</th>
+                    <th className="px-8 py-6 print:px-2 print:py-2">Descrição</th>
+                    <th className="px-8 py-6 print:px-2 print:py-2">Categoria</th>
+                    <th className="px-8 py-6 print:px-2 print:py-2">Pagador</th>
+                    <th className="px-8 py-6 print:px-2 print:py-2">Valor</th>
+                    <th className="px-8 py-6 print:px-2 print:py-2">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -637,35 +638,35 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                   }).map((expense) => (
                     <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
                       {reportFilter.period !== 'month' && (
-                        <td className="px-8 py-6 print:px-4 print:py-3">
-                          <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
+                        <td className="px-8 py-6 print:px-2 print:py-2">
+                          <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest">
                             {MONTHS[expense.month - 1]} {expense.year}
                           </div>
                         </td>
                       )}
-                      <td className="px-8 py-6 print:px-4 print:py-3">
-                        <div className="text-slate-500 text-xs font-bold print:text-sm print:text-slate-900">
+                      <td className="px-8 py-6 print:px-2 print:py-2">
+                        <div className="text-slate-500 text-xs font-bold print:text-slate-900">
                           {new Date(expense.dueDate).toLocaleDateString('pt-BR')}
                         </div>
                       </td>
-                      <td className="px-8 py-6 print:px-4 print:py-3">
-                        <p className="font-black text-slate-900 text-sm uppercase print:text-base">{expense.description}</p>
+                      <td className="px-8 py-6 print:px-2 print:py-2">
+                        <p className="font-black text-slate-900 text-sm uppercase">{expense.description}</p>
                       </td>
-                      <td className="px-8 py-6 print:px-4 print:py-3">
-                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:text-[11px] print:bg-transparent print:border-none">
+                      <td className="px-8 py-6 print:px-2 print:py-2">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200 print:bg-transparent print:border-none">
                           {expense.category}
                         </span>
                       </td>
-                      <td className="px-8 py-6 print:px-4 print:py-3">
-                        <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
+                      <td className="px-8 py-6 print:px-2 print:py-2">
+                        <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest">
                           {expense.payer || 'Fluxo de Caixa'}
                         </div>
                       </td>
-                      <td className="px-8 py-6 print:px-4 print:py-3">
-                        <p className="font-black text-slate-900 text-sm print:text-base">{formatCurrency(expense.value)}</p>
+                      <td className="px-8 py-6 print:px-2 print:py-2">
+                        <p className="font-black text-slate-900 text-sm">{formatCurrency(expense.value)}</p>
                       </td>
-                      <td className="px-8 py-6 print:px-4 print:py-3">
-                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:text-[10px] print:border-none print:p-0 ${
+                      <td className="px-8 py-6 print:px-2 print:py-2">
+                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all print:border-none print:p-0 ${
                             expense.status === 'Pago' 
                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100 print:bg-transparent print:text-emerald-700' 
                             : 'bg-amber-50 text-amber-600 border-amber-100 print:bg-transparent print:text-amber-700'
