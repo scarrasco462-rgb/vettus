@@ -49,7 +49,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
   const [activeTab, setActiveTab] = useState<'list' | 'reports'>('list');
   const [reportFilter, setReportFilter] = useState({
     status: 'Ambas' as 'Pendente' | 'Pago' | 'Ambas',
-    period: 'month' as 'month' | 'all'
+    period: 'month' as 'month' | 'all' | 'custom',
+    months: [new Date().getMonth() + 1] as number[]
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -78,6 +79,8 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
     let base = expenses;
     if (reportFilter.period === 'month') {
       base = expenses.filter(e => e.month === selectedMonth && e.year === selectedYear);
+    } else if (reportFilter.period === 'custom') {
+      base = expenses.filter(e => reportFilter.months.includes(e.month) && e.year === selectedYear);
     }
     
     if (reportFilter.status === 'Pendente') {
@@ -355,7 +358,11 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
           </div>
           <div className="text-right">
             <p className="text-xl font-black uppercase">
-              {reportFilter.period === 'month' ? `${MONTHS[selectedMonth - 1]} ${selectedYear}` : 'Todos os Meses'}
+              {reportFilter.period === 'month' 
+                ? `${MONTHS[selectedMonth - 1]} ${selectedYear}` 
+                : reportFilter.period === 'all' 
+                  ? 'Todos os Meses' 
+                  : reportFilter.months.map(m => MONTHS[m-1]).join(', ') + ` ${selectedYear}`}
             </p>
             <p className="text-xs font-bold text-slate-400 italic">Filtro: {reportFilter.status === 'Ambas' ? 'Pagas e Pendentes' : reportFilter.status}</p>
             <p className="text-xs font-bold text-slate-400">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
@@ -533,7 +540,13 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     onClick={() => setReportFilter({...reportFilter, period: 'month'})}
                     className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reportFilter.period === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                   >
-                    Mês Atual ({MONTHS[selectedMonth - 1]})
+                    Mês Atual
+                  </button>
+                  <button 
+                    onClick={() => setReportFilter({...reportFilter, period: 'custom'})}
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reportFilter.period === 'custom' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Selecionar Meses
                   </button>
                   <button 
                     onClick={() => setReportFilter({...reportFilter, period: 'all'})}
@@ -544,6 +557,39 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                 </div>
               </div>
             </div>
+
+            {reportFilter.period === 'custom' && (
+              <div className="mt-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-200 animate-in slide-in-from-top-2 duration-300">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 block">Selecione os Meses para o Relatório</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {MONTHS.map((month, index) => {
+                    const monthNum = index + 1;
+                    const isSelected = reportFilter.months.includes(monthNum);
+                    return (
+                      <button
+                        key={month}
+                        onClick={() => {
+                          const newMonths = isSelected
+                            ? reportFilter.months.filter(m => m !== monthNum)
+                            : [...reportFilter.months, monthNum].sort((a, b) => a - b);
+                          setReportFilter({...reportFilter, months: newMonths});
+                        }}
+                        className={`py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                          isSelected 
+                          ? 'bg-[#0f172a] text-[#d4a853] border-[#0f172a] shadow-lg scale-105' 
+                          : 'bg-white text-slate-400 border-slate-200 hover:border-[#d4a853] hover:text-slate-600'
+                        }`}
+                      >
+                        {month}
+                      </button>
+                    );
+                  })}
+                </div>
+                {reportFilter.months.length === 0 && (
+                  <p className="text-[10px] font-bold text-red-500 uppercase mt-4 text-center">Selecione pelo menos um mês para gerar o relatório</p>
+                )}
+              </div>
+            )}
 
             <div className="mt-10 pt-10 border-t border-slate-100 flex justify-end">
               <button 
@@ -565,7 +611,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
               <table className="w-full text-left print-table">
                 <thead>
                   <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
-                    {reportFilter.period === 'all' && (
+                    {reportFilter.period !== 'month' && (
                       <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Mês/Ano</th>
                     )}
                     <th className="px-8 py-6 print:px-4 print:py-3 print:text-sm">Data/Venc.</th>
@@ -583,7 +629,7 @@ export const MonthlyFinancialView: React.FC<MonthlyFinancialViewProps> = ({
                     return dateA - dateB;
                   }).map((expense) => (
                     <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
-                      {reportFilter.period === 'all' && (
+                      {reportFilter.period !== 'month' && (
                         <td className="px-8 py-6 print:px-4 print:py-3">
                           <div className="text-slate-900 text-[10px] font-black uppercase tracking-widest print:text-xs">
                             {MONTHS[expense.month - 1]} {expense.year}
