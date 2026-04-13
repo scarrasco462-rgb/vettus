@@ -23,6 +23,7 @@ interface ClientPaymentFlowProps {
   onAddSale?: (sale: Commission) => void;
   onDeleteSale?: (id: string) => void;
   preselectedClientId?: string | null;
+  preselectedTab?: 'spreadsheet' | 'entry';
   onClearPreselection?: () => void;
 }
 
@@ -58,7 +59,7 @@ const parseCurrencyToNumber = (value: string): number => {
 
 export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({ 
   commissions, brokers, clients, properties, launches, currentUser, onUpdateSale, onAddSale, onDeleteSale,
-  preselectedClientId, onClearPreselection
+  preselectedClientId, preselectedTab, onClearPreselection
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry'>('spreadsheet');
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,11 +102,14 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
           brokerId: client.brokerId,
           salePrice: formatNumberToInputBRL(client.budget || 0)
         }));
-        setActiveSubTab('entry');
+        setActiveSubTab(preselectedTab || 'entry');
+        if (preselectedTab === 'spreadsheet') {
+          setSearchTerm(client.name);
+        }
         onClearPreselection?.();
       }
     }
-  }, [preselectedClientId, clients, onClearPreselection]);
+  }, [preselectedClientId, clients, onClearPreselection, preselectedTab]);
 
   const getBrokerName = (id: string) => brokers.find(b => b.id === id)?.name || 'Externo';
 
@@ -1041,24 +1045,43 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                              {/* MENSALIDADES */}
                              <div className="bg-white p-7 rounded-[2.5rem] border-2 border-slate-300 shadow-xl space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                   <div className="space-y-2">
-                                      <label className="text-[11px] font-black text-slate-900 uppercase ml-1">Qtd Parcelas</label>
-                                      <input type="number" min="1" max="360" value={formEntry.qtyParcelas} onChange={e => setFormEntry({...formEntry, qtyParcelas: parseInt(e.target.value) || 1})} className="w-full bg-slate-50 border-2 border-slate-400 rounded-2xl py-5 px-6 text-base font-black text-slate-900 shadow-sm focus:border-[#d4a853] outline-none" />
-                                   </div>
-                                   <div className="space-y-2">
-                                      <label className="text-[11px] font-black text-slate-900 uppercase ml-1">Valor Mensal</label>
-                                      <div className="relative">
-                                         <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-700" />
-                                         <input type="text" value={formEntry.valParcela} onChange={e => setFormEntry({...formEntry, valParcela: formatInputToBRL(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-400 rounded-2xl py-5 px-12 text-base font-black text-slate-900 shadow-sm focus:border-emerald-600 outline-none" />
-                                      </div>
-                                   </div>
-                                   <div className="space-y-2">
-                                      <label className="text-[11px] font-black text-slate-900 uppercase ml-1">Data Inicial Parcela</label>
-                                      <div className="relative">
-                                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                                         <input type="date" value={formEntry.firstInstallmentDate} onChange={e => setFormEntry({...formEntry, firstInstallmentDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-400 rounded-2xl py-5 pl-12 px-6 text-sm font-black text-slate-900 shadow-sm outline-none focus:border-[#d4a853]" />
-                                      </div>
-                                   </div>
+                                    <div className="space-y-4 text-center">
+                                       <label className="text-[12px] font-black text-slate-900 uppercase block tracking-widest">Qtd Parcelas</label>
+                                       <div className="bg-white border-2 border-slate-300 rounded-[2.5rem] p-6 shadow-xl hover:border-[#d4a853] transition-all group">
+                                          <input 
+                                             type="number" 
+                                             min="1" 
+                                             max="360" 
+                                             value={formEntry.qtyParcelas} 
+                                             onChange={e => setFormEntry({...formEntry, qtyParcelas: parseInt(e.target.value) || 1})} 
+                                             className="w-full bg-transparent border-none text-center text-4xl font-black text-slate-900 outline-none" 
+                                          />
+                                       </div>
+                                    </div>
+                                    <div className="space-y-4 text-center">
+                                       <label className="text-[12px] font-black text-slate-900 uppercase block tracking-widest">Valor Mensal</label>
+                                       <div className="bg-white border-2 border-slate-300 rounded-[2.5rem] p-6 shadow-xl hover:border-emerald-500 transition-all group flex items-center justify-center">
+                                          <span className="text-3xl font-black text-emerald-600 mr-2">$</span>
+                                          <input 
+                                             type="text" 
+                                             value={formEntry.valParcela} 
+                                             onChange={e => setFormEntry({...formEntry, valParcela: formatInputToBRL(e.target.value)})} 
+                                             className="w-full bg-transparent border-none text-center text-4xl font-black text-emerald-700 outline-none" 
+                                          />
+                                       </div>
+                                    </div>
+                                    <div className="space-y-4 text-center">
+                                       <label className="text-[12px] font-black text-slate-900 uppercase block tracking-widest">Data Inicial Parcela</label>
+                                       <div className="bg-white border-2 border-slate-300 rounded-[2.5rem] p-6 shadow-xl hover:border-[#d4a853] transition-all group flex items-center justify-center relative">
+                                          <Calendar className="w-8 h-8 text-slate-300 mr-4" />
+                                          <input 
+                                             type="date" 
+                                             value={formEntry.firstInstallmentDate} 
+                                             onChange={e => setFormEntry({...formEntry, firstInstallmentDate: e.target.value})} 
+                                             className="bg-transparent border-none text-center text-xl font-black text-slate-900 outline-none cursor-pointer" 
+                                          />
+                                       </div>
+                                    </div>
                                 </div>
                              </div>
 

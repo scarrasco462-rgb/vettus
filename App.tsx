@@ -74,6 +74,7 @@ const App: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>(() => loadLocal('expenses', []));
 
   const [preselectedClientForFlow, setPreselectedClientForFlow] = useState<string | null>(null);
+  const [preselectedFlowTab, setPreselectedFlowTab] = useState<'spreadsheet' | 'entry'>('entry');
 
   // Modais
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
@@ -600,7 +601,7 @@ const App: React.FC = () => {
           onAddForecasts={f => setCommissionForecasts(v => [...f, ...v])} 
           onOpenAddModal={() => { setClientToEdit(null); setIsClientModalOpen(true); }}
           onOpenImport={() => setCurrentView('lead_import')}
-          onOpenFlow={(clientId) => { setPreselectedClientForFlow(clientId); setCurrentView('client_payment_flow'); }}
+          onOpenFlow={(clientId, tab) => { setPreselectedClientForFlow(clientId); setPreselectedFlowTab(tab || 'entry'); setCurrentView('client_payment_flow'); }}
         />
       )}
 
@@ -652,6 +653,7 @@ const App: React.FC = () => {
           onAddSale={s => setCommissions(v => [s, ...v])}
           onDeleteSale={id => setCommissions(v => v.filter(x => x.id !== id))}
           preselectedClientId={preselectedClientForFlow}
+          preselectedTab={preselectedFlowTab}
           onClearPreselection={() => setPreselectedClientForFlow(null)}
         />
       )}
