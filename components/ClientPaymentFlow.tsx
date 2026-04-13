@@ -85,7 +85,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     signalDate: new Date().toISOString().split('T')[0],
     downPaymentValue: '0,00',
     downPaymentDate: new Date().toISOString().split('T')[0],
-    qtyParcelas: 1,
+    qtyParcelas: 0,
     valParcela: '0,00',
     firstInstallmentDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
     individualBalloons: [] as { date: string, value: string }[]
@@ -1043,45 +1043,54 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
                           <div className="space-y-8">
                              {/* MENSALIDADES */}
-                             <div className="bg-white p-7 rounded-[2.5rem] border-2 border-slate-300 shadow-xl space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <div className="space-y-4 text-center">
-                                       <label className="text-[12px] font-black text-slate-900 uppercase block tracking-widest">Qtd Parcelas</label>
-                                       <div className="bg-white border-2 border-slate-300 rounded-[2.5rem] p-6 shadow-xl hover:border-[#d4a853] transition-all group">
-                                          <input 
-                                             type="number" 
-                                             min="1" 
-                                             max="360" 
-                                             value={formEntry.qtyParcelas} 
-                                             onChange={e => setFormEntry({...formEntry, qtyParcelas: parseInt(e.target.value) || 1})} 
-                                             className="w-full bg-transparent border-none text-center text-4xl font-black text-slate-900 outline-none" 
-                                          />
-                                       </div>
-                                    </div>
-                                    <div className="space-y-4 text-center">
-                                       <label className="text-[12px] font-black text-slate-900 uppercase block tracking-widest">Valor Mensal</label>
-                                       <div className="bg-white border-2 border-slate-300 rounded-[2.5rem] p-6 shadow-xl hover:border-emerald-500 transition-all group flex items-center justify-center">
-                                          <span className="text-3xl font-black text-emerald-600 mr-2">$</span>
-                                          <input 
-                                             type="text" 
-                                             value={formEntry.valParcela} 
-                                             onChange={e => setFormEntry({...formEntry, valParcela: formatInputToBRL(e.target.value)})} 
-                                             className="w-full bg-transparent border-none text-center text-4xl font-black text-emerald-700 outline-none" 
-                                          />
-                                       </div>
-                                    </div>
-                                    <div className="space-y-4 text-center">
-                                       <label className="text-[12px] font-black text-slate-900 uppercase block tracking-widest">Data Inicial Parcela</label>
-                                       <div className="bg-white border-2 border-slate-300 rounded-[2.5rem] p-6 shadow-xl hover:border-[#d4a853] transition-all group flex items-center justify-center relative">
-                                          <Calendar className="w-8 h-8 text-slate-300 mr-4" />
-                                          <input 
-                                             type="date" 
-                                             value={formEntry.firstInstallmentDate} 
-                                             onChange={e => setFormEntry({...formEntry, firstInstallmentDate: e.target.value})} 
-                                             className="bg-transparent border-none text-center text-xl font-black text-slate-900 outline-none cursor-pointer" 
-                                          />
-                                       </div>
-                                    </div>
+                             <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-300 shadow-xl space-y-6">
+                                <div className="flex items-center space-x-2 border-b-2 border-slate-100 pb-3">
+                                   <Layers className="w-4 h-4 text-[#d4a853]" />
+                                   <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Fluxo de Mensalidades</span>
+                                </div>
+                                
+                                <div className="space-y-6">
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Quantidade de Parcelas</label>
+                                      <div className="relative">
+                                         <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                         <input 
+                                            type="number" 
+                                            min="0" 
+                                            max="360" 
+                                            value={formEntry.qtyParcelas || ''} 
+                                            onChange={e => setFormEntry({...formEntry, qtyParcelas: e.target.value === '' ? 0 : parseInt(e.target.value)})} 
+                                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl py-4 pl-10 pr-4 text-sm font-black text-slate-900 shadow-inner outline-none focus:border-[#d4a853]" 
+                                            placeholder="0"
+                                         />
+                                      </div>
+                                   </div>
+
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Valor Mensal</label>
+                                      <div className="relative">
+                                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-700" />
+                                         <input 
+                                            type="text" 
+                                            value={formEntry.valParcela} 
+                                            onChange={e => setFormEntry({...formEntry, valParcela: formatInputToBRL(e.target.value)})} 
+                                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl py-4 pl-10 pr-4 text-sm font-black text-slate-900 shadow-inner outline-none focus:border-emerald-600" 
+                                         />
+                                      </div>
+                                   </div>
+
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Data Inicial</label>
+                                      <div className="relative">
+                                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                         <input 
+                                            type="date" 
+                                            value={formEntry.firstInstallmentDate} 
+                                            onChange={e => setFormEntry({...formEntry, firstInstallmentDate: e.target.value})} 
+                                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl py-4 pl-10 pr-4 text-sm font-black text-slate-900 shadow-inner outline-none focus:border-[#d4a853]" 
+                                         />
+                                      </div>
+                                   </div>
                                 </div>
                              </div>
 
