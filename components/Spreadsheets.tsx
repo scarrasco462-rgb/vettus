@@ -228,7 +228,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
         .filter(b => brokerFilter === 'Todos' || b.id === brokerFilter)
         .map(broker => {
           const bSales = baseCommissions.filter(c => c.brokerId === broker.id);
-          const total = bSales.reduce((acc, c) => acc + c.amount, 0);
+          const totalAgency = bSales.reduce((acc, c) => acc + (c.agencyAmount || 0), 0);
+          const totalBroker = bSales.reduce((acc, c) => acc + (c.brokerAmount || 0), 0);
           const bClients = baseClients.filter(c => c.brokerId === broker.id).length;
           const conv = bClients > 0 ? (bSales.length / bClients * 100).toFixed(1) : '0.0';
           return {
@@ -236,7 +237,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
             activeClients: bClients,
             salesCount: bSales.length,
             conversion: conv + '%',
-            totalFaturado: total,
+            totalAgency,
+            totalBroker,
             performance: broker.performance + '%'
           };
         }).filter(b => b.name.toLowerCase().includes(search));
@@ -291,7 +293,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
         <table>
           <thead>
             <tr>
-              <th>Corretor</th><th>Imóvel</th><th>Data</th><th>Cliente</th><th>Contato</th><th>Comissão</th>
+              <th>Corretor</th><th>Imóvel</th><th>Data</th><th>Cliente</th><th>Contato</th><th>Comissão Imob.</th><th>Comissão Corretor</th>
             </tr>
           </thead>
           <tbody>
@@ -302,7 +304,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                 <td>${new Date(s.date).toLocaleDateString('pt-BR')}</td>
                 <td>${s.clientName}</td>
                 <td>${getClientPhone(s.clientName)}</td>
-                <td><b>${formatCurrency(s.amount)}</b></td>
+                <td><b>${formatCurrency(s.agencyAmount || 0)}</b></td>
+                <td><b>${formatCurrency(s.brokerAmount || 0)}</b></td>
               </tr>
             `).join('')}
           </tbody>
@@ -312,7 +315,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
         <table>
           <thead>
             <tr>
-              <th>Membro</th><th>Carteira Ativa</th><th>Fechamentos</th><th>Conversão</th><th>Volume Total</th><th>Score</th>
+              <th>Membro</th><th>Carteira Ativa</th><th>Fechamentos</th><th>Conversão</th><th>Comissão Imob.</th><th>Comissão Corretor</th><th>Score</th>
             </tr>
           </thead>
           <tbody>
@@ -322,7 +325,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                 <td>${p.activeClients}</td>
                 <td>${p.salesCount}</td>
                 <td>${p.conversion}</td>
-                <td>${formatCurrency(p.totalFaturado)}</td>
+                <td><b>${formatCurrency(p.totalAgency)}</b></td>
+                <td><b>${formatCurrency(p.totalBroker)}</b></td>
                 <td>${p.performance}</td>
               </tr>
             `).join('')}
@@ -413,16 +417,16 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
       ];
     } else if (activeTab === 'sales') {
       ws_data = [
-        ['Corretor', 'Imóvel', 'Data Venda', 'Cliente', 'Telefone Cliente', 'Valor Comissão', 'Status'],
+        ['Corretor', 'Imóvel', 'Data Venda', 'Cliente', 'Telefone Cliente', 'Comissão Imobiliária', 'Comissão Corretor', 'Status'],
         ...data.map((s: any) => [
-          getBrokerName(s.brokerId), s.propertyTitle, s.date, s.clientName, getClientPhone(s.clientName), s.amount, s.status
+          getBrokerName(s.brokerId), s.propertyTitle, s.date, s.clientName, getClientPhone(s.clientName), s.agencyAmount || 0, s.brokerAmount || 0, s.status
         ])
       ];
     } else if (activeTab === 'performance') {
       ws_data = [
-        ['Corretor', 'Carteira Ativa', 'Fechamentos', 'Conversão', 'Total Comissões', 'Score'],
+        ['Corretor', 'Carteira Ativa', 'Fechamentos', 'Conversão', 'Comissão Imobiliária', 'Comissão Corretor', 'Score'],
         ...data.map((p: any) => [
-          p.name, p.activeClients, p.salesCount, p.conversion, p.totalFaturado, p.performance
+          p.name, p.activeClients, p.salesCount, p.conversion, p.totalAgency, p.totalBroker, p.performance
         ])
       ];
     } else {
@@ -502,7 +506,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
         <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-2xl w-fit">
           {[
             { id: 'clients', label: 'Clientes', icon: Users },
-            { id: 'sales', label: 'Vendas', icon: BadgeDollarSign },
+            { id: 'sales', label: 'Comissão Realizada', icon: BadgeDollarSign },
             { id: 'performance', label: 'Performance', icon: TrendingUp },
             { id: 'leads', label: 'Leads', icon: PieChart },
             { id: 'imports', label: 'Gestão de Planilhas', icon: FileSpreadsheet },
@@ -703,7 +707,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                       <th className="px-8 py-5">Comprador</th>
                       <th className="px-8 py-5">Telefone Comprador</th>
                       <th className="px-8 py-5">Data Transação</th>
-                      <th className="px-8 py-5 text-right">Comissão Realizada</th>
+                      <th className="px-8 py-5 text-right">Comissão Imobiliária</th>
+                      <th className="px-8 py-5 text-right">Comissão Corretor</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -714,7 +719,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                         <td className="px-8 py-5 text-xs font-bold text-slate-600">{sale.clientName}</td>
                         <td className="px-8 py-5 text-xs font-black text-emerald-600">{getClientPhone(sale.clientName)}</td>
                         <td className="px-8 py-5 text-xs text-slate-500 font-medium">{new Date(sale.date).toLocaleDateString('pt-BR')}</td>
-                        <td className="px-8 py-5 text-right font-mono text-sm font-black text-[#d4a853]">{formatCurrency(sale.amount)}</td>
+                        <td className="px-8 py-5 text-right font-mono text-sm font-black text-blue-600">{formatCurrency(sale.agencyAmount || 0)}</td>
+                        <td className="px-8 py-5 text-right font-mono text-sm font-black text-emerald-600">{formatCurrency(sale.brokerAmount || 0)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -729,7 +735,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                       <th className="px-8 py-5 text-center">Carteira Ativa</th>
                       <th className="px-8 py-5 text-center">Vendas Fechadas</th>
                       <th className="px-8 py-5 text-center">Conversão Médias</th>
-                      <th className="px-8 py-5 text-right">Volume de Comissões</th>
+                      <th className="px-8 py-5 text-right">Comissão Imobiliária</th>
+                      <th className="px-8 py-5 text-right">Comissão Corretor</th>
                       <th className="px-8 py-5 text-right">Performance Global</th>
                     </tr>
                   </thead>
@@ -740,7 +747,8 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                         <td className="px-8 py-5 text-center text-xs font-bold text-slate-600">{data.activeClients}</td>
                         <td className="px-8 py-5 text-center text-xs font-bold text-slate-600">{data.salesCount}</td>
                         <td className="px-8 py-5 text-center font-black text-emerald-600 text-xs">{data.conversion}</td>
-                        <td className="px-8 py-5 text-right font-mono text-xs font-black text-slate-900">{formatCurrency(data.totalFaturado)}</td>
+                        <td className="px-8 py-5 text-right font-mono text-xs font-black text-blue-600">{formatCurrency(data.totalAgency)}</td>
+                        <td className="px-8 py-5 text-right font-mono text-xs font-black text-emerald-600">{formatCurrency(data.totalBroker)}</td>
                         <td className="px-8 py-5 text-right">
                           <span className="px-3 py-1 bg-slate-900 text-[#d4a853] rounded-lg text-[9px] font-black uppercase tracking-tighter shadow-sm border border-[#d4a853]/20">{data.performance}</span>
                         </td>
