@@ -88,7 +88,9 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     qtyParcelas: 0,
     valParcela: '0,00',
     firstInstallmentDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
-    individualBalloons: [] as { date: string, value: string }[]
+    individualBalloons: [] as { date: string, value: string }[],
+    triggerDate: '',
+    commissionReceiptDate: ''
   });
 
   // Efeito para "Importar Automaticamente" ao navegar da aba Clientes
@@ -512,6 +514,8 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       agencyAmount: (salePriceNum * 0.06) * 0.6,
       status: 'Pending',
       date: new Date().toISOString().split('T')[0],
+      triggerDate: formEntry.triggerDate,
+      commissionReceiptDate: formEntry.commissionReceiptDate,
       updatedAt: new Date().toISOString(),
       structuredProposal: {
         signalValue: parseCurrencyToNumber(formEntry.signalValue),
@@ -540,7 +544,9 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       downPaymentValue: '0,00', downPaymentDate: new Date().toISOString().split('T')[0],
       qtyParcelas: 1, valParcela: '0,00', 
       firstInstallmentDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
-      individualBalloons: []
+      individualBalloons: [],
+      triggerDate: '',
+      commissionReceiptDate: ''
     });
     setActiveSubTab('spreadsheet');
   };
@@ -611,6 +617,8 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">VGV Total</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/5">Durante Obra</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/10 text-emerald-400">Pós Obra</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Data Gatilho</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Receb. Comissão</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Ações</th>
                   </tr>
                 </thead>
@@ -672,6 +680,12 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                              </div>
                           </td>
                           <td className="px-8 py-6 text-center">
+                             <span className="text-xs font-bold text-slate-600">{sale.triggerDate ? new Date(sale.triggerDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                          </td>
+                          <td className="px-8 py-6 text-center">
+                             <span className="text-xs font-bold text-slate-600">{sale.commissionReceiptDate ? new Date(sale.commissionReceiptDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                          </td>
+                          <td className="px-8 py-6 text-center">
                              {currentUser?.role === 'Admin' && (
                                <button 
                                  onClick={() => handleDeleteEntry(sale.id)} 
@@ -685,7 +699,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
                         {isExpanded && (
                           <tr className="bg-slate-100/50">
-                             <td colSpan={6} className="px-12 py-12">
+                             <td colSpan={8} className="px-12 py-12">
                                 <div className="bg-white rounded-[3rem] border-2 border-slate-200 shadow-2xl overflow-hidden animate-in slide-in-from-top-4 duration-500">
                                    <div className="p-7 bg-[#050810] text-white flex items-center justify-between border-b-4 border-[#d4a853]">
                                       <div className="flex items-center space-x-4">
@@ -783,6 +797,23 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                             <div className="relative">
                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                                <input type="date" defaultValue={prop?.downPaymentDate} onBlur={e => handleUpdateItem(sale, 'entry', 0, 'date', e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 pl-9 px-4 text-[11px] font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-inner" />
+                                            </div>
+                                         </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                                         <div className="space-y-1.5">
+                                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Data do Gatilho</label>
+                                            <div className="relative">
+                                               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-600" />
+                                               <input type="date" defaultValue={sale.triggerDate} onBlur={e => handleUpdateMainField(sale, 'triggerDate', e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 pl-9 px-4 text-[11px] font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-inner" />
+                                            </div>
+                                         </div>
+                                         <div className="space-y-1.5">
+                                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Data do Recebimento da Comissão</label>
+                                            <div className="relative">
+                                               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                                               <input type="date" defaultValue={sale.commissionReceiptDate} onBlur={e => handleUpdateMainField(sale, 'commissionReceiptDate', e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 pl-9 px-4 text-[11px] font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-inner" />
                                             </div>
                                          </div>
                                       </div>
@@ -1037,6 +1068,23 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 <div className="relative">
                                    <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-[#d4a853]" />
                                    <input type="text" value={formEntry.salePrice} onChange={e => setFormEntry({...formEntry, salePrice: formatInputToBRL(e.target.value)})} className="w-full bg-white border-2 border-slate-500 rounded-[2rem] py-6 px-14 text-2xl font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-lg" />
+                                </div>
+                             </div>
+
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                                <div className="space-y-1.5">
+                                   <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Data do Gatilho</label>
+                                   <div className="relative">
+                                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-600" />
+                                      <input type="date" value={formEntry.triggerDate} onChange={e => setFormEntry({...formEntry, triggerDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl py-4 pl-12 pr-4 text-xs font-black text-slate-900 shadow-inner outline-none focus:border-[#d4a853]" />
+                                   </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                   <label className="text-[10px] font-black text-slate-900 uppercase ml-1">Data Receb. Comissão</label>
+                                   <div className="relative">
+                                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                                      <input type="date" value={formEntry.commissionReceiptDate} onChange={e => setFormEntry({...formEntry, commissionReceiptDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl py-4 pl-12 pr-4 text-xs font-black text-slate-900 shadow-inner outline-none focus:border-[#d4a853]" />
+                                   </div>
                                 </div>
                              </div>
                           </div>

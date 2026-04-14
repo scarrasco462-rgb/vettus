@@ -234,6 +234,8 @@ export interface Commission {
   date: string;
   expectedPaymentDate?: string;
   clientName: string;
+  triggerDate?: string;
+  commissionReceiptDate?: string;
   proposalDetails?: string;
   structuredProposal?: PaymentProposal;
   updatedAt: string;
