@@ -619,7 +619,6 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/10 text-emerald-400">Pós Obra</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Data Gatilho</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Receb. Comissão</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -642,6 +641,18 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 >
                                    {isExpanded ? <ChevronUp size={18} /> : <Edit3 size={18} />}
                                 </button>
+                                {currentUser?.role === 'Admin' && (
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteEntry(sale.id);
+                                    }} 
+                                    className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm border border-red-100"
+                                    title="Excluir Fluxo"
+                                  >
+                                     <Trash2 size={16} />
+                                  </button>
+                                )}
                                 <div>
                                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{sale.clientName}</p>
                                    <div className="flex items-center space-x-2 mt-0.5">
@@ -685,21 +696,11 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                           <td className="px-8 py-6 text-center">
                              <span className="text-xs font-bold text-slate-600">{sale.commissionReceiptDate ? new Date(sale.commissionReceiptDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
                           </td>
-                          <td className="px-8 py-6 text-center">
-                             {currentUser?.role === 'Admin' && (
-                               <button 
-                                 onClick={() => handleDeleteEntry(sale.id)} 
-                                 className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm border border-red-100"
-                               >
-                                  <Trash2 size={16} />
-                               </button>
-                             )}
-                          </td>
                         </tr>
 
                         {isExpanded && (
                           <tr className="bg-slate-100/50">
-                             <td colSpan={8} className="px-12 py-12">
+                             <td colSpan={7} className="px-12 py-12">
                                 <div className="bg-white rounded-[3rem] border-2 border-slate-200 shadow-2xl overflow-hidden animate-in slide-in-from-top-4 duration-500">
                                    <div className="p-7 bg-[#050810] text-white flex items-center justify-between border-b-4 border-[#d4a853]">
                                       <div className="flex items-center space-x-4">
