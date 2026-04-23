@@ -208,7 +208,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
     // Filtro de segurança por role
     const baseClients = isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));
     const baseCommissions = isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id);
-    const baseBrokers = isAdmin ? brokers : brokers.filter(b => b.id === currentUser.id);
+    const baseBrokers = (isAdmin ? brokers : brokers.filter(b => b.id === currentUser.id)).filter(b => !b.deleted);
 
     if (activeTab === 'clients' || activeTab === 'bulk_delete') {
       return baseClients.filter(c => {
@@ -255,7 +255,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
             hot: bClients.filter(c => c.status === ClientStatus.HOT).length,
             total: bClients.length
           };
-        }).filter(b => b.name.toLowerCase().includes(search));
+        }).filter(b => b.name.toLowerCase().includes(search) && b.total > 0);
     }
   };
 
@@ -537,7 +537,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                  className="text-[10px] font-black uppercase bg-transparent outline-none text-slate-700 cursor-pointer pr-4"
                >
                   <option value="Todos">Toda a Equipe</option>
-                  {brokers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  {brokers.filter(b => !b.deleted).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                </select>
             </div>
           )}
