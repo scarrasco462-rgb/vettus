@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected'>('disconnected');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
+  const loginTimeRef = useRef<number>(Date.now());
 
   // Estados Gerenciados (Rede Vettus)
   const [brokers, setBrokers] = useState<Broker[]>(() => loadLocal('brokers', MOCK_BROKERS));
@@ -165,16 +166,27 @@ const App: React.FC = () => {
 
       if (!isSergioEmail(currentUser.email)) {
          // Se temos brokers carregados (mais do que apenas o Sergio inicial), validamos a existência
-         if (brokers.length > 2) { 
+         // Damos uma carência maior (60s) para que o P2P sincronize a base antes de validar a sessão
+         const sessionAge = Date.now() - loginTimeRef.current;
+         if (brokers.length > 2 && sessionAge > 60000) { 
            const stillExists = brokers.find(b => (b.id === currentUser.id || b.email.toLowerCase().trim() === currentUser.email?.toLowerCase().trim()) && !b.deleted);
-           if (!stillExists || stillExists.blocked || stillExists.deleted) {
-              console.warn('Sessão Inválida: Usuário não encontrado ou bloqueado.');
+           if (!stillExists) {
+              console.warn(`Sessão Inválida: Usuário ${currentUser.email} não encontrado na base sincronizada (Size: ${brokers.length}).`);
+              handleLogout();
+           } else if (stillExists.blocked || stillExists.deleted) {
+              console.warn(`Sessão Inválida: Usuário ${currentUser.email} está bloqueado ou removido.`);
               handleLogout();
            }
          }
       }
     }
   }, [brokers, currentUser]);
+
+  const handleLogin = (user: Broker) => {
+    loginTimeRef.current = Date.now();
+    setCurrentUser(user);
+    // logSystemAction é chamado via useCallback, precisamos definir logSystemAction ANTES ou usar uma referência
+  };
 
   const logSystemAction = useCallback((description: string, type: string = 'System') => {
     if (!currentUser) return;
@@ -477,21 +489,25 @@ const App: React.FC = () => {
         if (d.type === 'PING') conn.send({ type: 'PONG' });
         
           if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
-           const { email, password } = d.payload;
-           const emailClean = email.toLowerCase().trim();
-           const passwordClean = (password || '').trim();
-           
-           console.log(`[CORE] Auth P2P: Requisição recebida de ${emailClean} via ${conn.peer}`);
-           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
-           if (broker) {
-              console.log(`[CORE] Auth P2P: Broker encontrado: ${broker.name}. Validando senha...`);
-              if (broker.password === passwordClean || (!broker.password && !passwordClean)) {
-                 if (broker.blocked || broker.deleted) {
-                    console.warn(`[CORE] Auth P2P: Acesso Recusado para ${emailClean} (Bloqueado/Removido)`);
-                    conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Contate o administrador.' });
-                 } else {
-                    console.log(`[CORE] Auth P2P: SUCESSO para ${emailClean}. Enviando base de dados...`);
-                    conn.send({ type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
+            const { email, password } = d.payload;
+            const emailClean = email.toLowerCase().trim();
+            const passwordClean = (password || '').trim();
+            console.log(`[CORE] Auth P2P: Requisição recebida de ${emailClean} via ${conn.peer}`);
+            const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
+            
+            if (broker) {
+               console.log(`[CORE] Auth P2P: Broker encontrado: ${broker.name}. Status: ${broker.blocked ? 'BLOQUEADO' : 'ATIVO'}`);
+               if (broker.password === passwordClean || (!broker.password && !passwordClean)) {
+                  if (broker.blocked) {
+                     console.warn(`[CORE] Auth P2P: Acesso Recusado para ${emailClean} (Status: BLOQUEADO)`);
+                     conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema do Administrador.' });
+                  } else if (broker.deleted) {
+                     console.warn(`[CORE] Auth P2P: Acesso Recusado para ${emailClean} (Status: REMOVIDO)`);
+                     conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO NEGADO: Este usuário foi removido da equipe.' });
+                  } else {
+                     console.log(`[CORE] Auth P2P: SUCESSO para ${emailClean}. Enviando base de dados...`);
+                     conn.send({ type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
+
                  }
               } else {
                  console.warn(`[CORE] Auth P2P: SENHA INCORRETA para ${emailClean}`);
@@ -615,7 +631,7 @@ const App: React.FC = () => {
     alert(`Membro removido da rede. ${orphanedLeads.length} leads foram movidos para a Fila de Triagem.`);
   };
 
-  if (!currentUser) return <Auth onLogin={setCurrentUser} existingBrokers={brokers} onUpdateInitialData={mergeData} />;
+  if (!currentUser) return <Auth onLogin={handleLogin} existingBrokers={brokers} onUpdateInitialData={mergeData} />;
 
   const isAdmin = currentUser.role === 'Admin';
   const pendingRemindersCount = reminders.filter(r => !r.completed && r.brokerId === currentUser.id).length;
