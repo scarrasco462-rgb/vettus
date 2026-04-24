@@ -29,6 +29,7 @@ interface ClientViewProps {
   onEditClient: (client: Client) => void;
   onAddActivity: (activity: Activity) => void;
   onAddActivities: (activities: Activity[]) => void;
+  onUpdateActivitiesByClient?: (clientName: string, newBrokerId: string, newBrokerName: string) => void;
   onAddReminder: (reminder: Reminder) => void;
   onAddSale: (sale: Commission) => void;
   onUpdateProperty: (property: Property) => void;
@@ -85,7 +86,7 @@ const parseCurrencyToNumber = (value: string): number => {
 
 export const ClientView: React.FC<ClientViewProps> = ({ 
   clients, activities, properties, commissions = [], constructionCompanies = [], commissionForecasts = [], 
-  onUpdateClient, onDeleteClient, onDeleteClients, onEditClient, onAddActivity, onAddActivities, onAddReminder, onAddSale, 
+  onUpdateClient, onDeleteClient, onDeleteClients, onEditClient, onAddActivity, onAddActivities, onUpdateActivitiesByClient, onAddReminder, onAddSale, 
   onUpdateProperty, onAddForecasts, currentUser, brokers, onOpenAddModal, onOpenImport, onOpenFlow
 }) => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -329,8 +330,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
         updatedAt: now
       };
       onUpdateClient(updatedClient);
-
-      // 2. Registrar Log de Auditoria
+      
+      // 1.1 Transferir Histórico de Atividades
+      if (onUpdateActivitiesByClient) {
+        onUpdateActivitiesByClient(client.name, newBroker.id, newBroker.name);
+      }
       onAddActivity({
         id: Math.random().toString(36).substr(2, 9),
         brokerId: currentUser.id,

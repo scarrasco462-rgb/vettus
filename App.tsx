@@ -710,6 +710,9 @@ const App: React.FC = () => {
           onEditClient={c => { setClientToEdit(c); setIsClientModalOpen(true); }} 
           onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
           onAddActivities={newActivities => setActivities(v => [...newActivities.map(a => ({...a, updatedAt: new Date().toISOString()})), ...v])}
+          onUpdateActivitiesByClient={(clientName, newBrokerId, newBrokerName) => {
+            setActivities(prev => prev.map(a => a.clientName === clientName ? { ...a, brokerId: newBrokerId, brokerName: newBrokerName, updatedAt: new Date().toISOString() } : a));
+          }}
           onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
           onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])} 
           onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? {...p, updatedAt: new Date().toISOString()} : x))} 
@@ -831,6 +834,10 @@ const App: React.FC = () => {
           onUpdateLead={l => {
              const updatedAt = new Date().toISOString();
              if (l.brokerId !== 'unassigned') {
+                const newBroker = brokers.find(b => b.id === l.brokerId);
+                if (newBroker) {
+                   setActivities(prev => prev.map(a => a.clientName === l.name ? { ...a, brokerId: newBroker.id, brokerName: newBroker.name, updatedAt } : a));
+                }
                 const newReminder: Reminder = {
                    id: Math.random().toString(36).substr(2, 9),
                    brokerId: l.brokerId,
@@ -944,7 +951,12 @@ const App: React.FC = () => {
           logSystemAction(`Novo cliente cadastrado: ${c.name}`);
         }} 
         onUpdateClient={c => {
-          setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x));
+          const updatedAt = new Date().toISOString();
+          const newBroker = brokers.find(b => b.id === c.brokerId);
+          if (newBroker) {
+             setActivities(prev => prev.map(a => a.clientName === c.name ? { ...a, brokerId: newBroker.id, brokerName: newBroker.name, updatedAt } : a));
+          }
+          setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt} : x));
           logSystemAction(`Cliente atualizado: ${c.name}`);
         }}
         clientToEdit={clientToEdit}
