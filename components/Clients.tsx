@@ -94,7 +94,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos'>('carteira');
+  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia'>('carteira');
   
   // Estados para Registro de Atendimento
   const [currentAtendimento, setCurrentAtendimento] = useState({ type: 'Call', desc: '' });
@@ -369,6 +369,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
     setShowTransferModal(false);
     setSelectedClient(null);
     setSelectedClientIds([]);
+    setTargetBrokerId('');
   };
 
   const handleConfirmBlock = () => {
@@ -781,13 +782,22 @@ export const ClientView: React.FC<ClientViewProps> = ({
             <span>Importar</span>
           </button>
           {isAdmin && selectedClientIds.length > 0 && activeTab === 'carteira' && (
-            <button 
-              onClick={handleBulkDelete} 
-              className="bg-red-50 border border-red-200 text-red-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-red-600 hover:text-white transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Excluir Selecionados ({selectedClientIds.length})</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={handleBulkDelete} 
+                className="bg-red-50 border border-red-200 text-red-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-red-600 hover:text-white transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Excluir Selecionados ({selectedClientIds.length})</span>
+              </button>
+              <button 
+                onClick={handleOpenBulkTransfer} 
+                className="bg-amber-50 border border-amber-200 text-amber-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-amber-600 hover:text-white transition-all"
+              >
+                <Repeat className="w-4 h-4" />
+                <span>Transferir Selecionados ({selectedClientIds.length})</span>
+              </button>
+            </div>
           )}
           <button onClick={onOpenAddModal} className="gold-gradient text-white px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-lg hover:scale-[1.02] transition-transform">
             <UserPlus className="w-4 h-4" />
@@ -830,6 +840,19 @@ export const ClientView: React.FC<ClientViewProps> = ({
           <HardHat className="w-3.5 h-3.5" />
           <span>Fluxos de Obra</span>
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('transferencia')}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'transferencia' 
+              ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+              : 'text-slate-500 hover:bg-white hover:text-slate-900'
+            }`}
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            <span>Transferência</span>
+          </button>
+        )}
       </div>
 
       {activeTab === 'carteira' ? (
@@ -1143,6 +1166,110 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       )}
 
+      {activeTab === 'transferencia' && isAdmin && (
+        <div className="space-y-6 animate-in slide-in-from-right duration-500">
+           <div className="bg-[#0f172a] rounded-[2.5rem] p-8 shadow-2xl border border-[#d4a853]/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-12 opacity-5 translate-x-1/2 -translate-y-1/2">
+                 <ArrowRightLeft className="w-64 h-64 text-[#d4a853]" />
+              </div>
+              
+              <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+                 <div className="flex items-center space-x-6">
+                    <div className="w-20 h-20 gold-gradient rounded-[2rem] flex items-center justify-center shadow-2xl scale-110">
+                       <Repeat className="w-10 h-10 text-[#0a1120]" />
+                    </div>
+                    <div>
+                       <h2 className="text-2xl font-black text-white uppercase tracking-tight">Transferência em Massa</h2>
+                       <p className="text-[#d4a853] text-[10px] font-black uppercase tracking-[0.3em] mt-1">Re-alocação Estratégica de Leads</p>
+                    </div>
+                 </div>
+
+                 <div className="flex items-center space-x-6 bg-white/5 p-4 rounded-[2rem] border border-white/10 backdrop-blur-sm">
+                    <div className="text-right">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Status da Seleção</p>
+                       <p className="text-xl font-black text-white leading-none mt-1">{selectedClientIds.length} <span className="text-[10px] text-[#d4a853]">LEADS</span></p>
+                    </div>
+                    <div className="h-10 w-px bg-white/10"></div>
+                    <div className="flex flex-col space-y-2">
+                       <select 
+                          value={targetBrokerId} 
+                          onChange={e => setTargetBrokerId(e.target.value)}
+                          className="bg-[#0a1120] border border-[#d4a853]/30 rounded-xl px-4 py-2 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4a853] min-w-[200px]"
+                       >
+                          <option value="">Destino do Patrimônio...</option>
+                          {brokers.filter(b => !b.deleted && !b.blocked).map(b => (
+                             <option key={b.id} value={b.id}>{b.name} ({b.role})</option>
+                          ))}
+                       </select>
+                       <button 
+                          disabled={selectedClientIds.length === 0 || !targetBrokerId}
+                          onClick={handleConfirmTransfer}
+                          className="gold-gradient text-[#0a1120] px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all hover:scale-[1.02] shadow-xl"
+                       >
+                          Executar Transferência
+                       </button>
+                    </div>
+                 </div>
+              </div>
+           </div>
+
+           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                    <thead>
+                       <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100">
+                          <th className="px-8 py-6 w-10">
+                             <input 
+                               type="checkbox" 
+                               checked={selectedClientIds.length === sortedClients.length && sortedClients.length > 0}
+                               onChange={toggleSelectAll}
+                               className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                             />
+                          </th>
+                          <th className="px-8 py-6">Lead</th>
+                          <th className="px-8 py-6">Responsável Atual</th>
+                          <th className="px-8 py-6">Status Comercial</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                       {sortedClients.map(client => (
+                          <tr key={client.id} className={`hover:bg-slate-50 transition-colors ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/5' : ''}`}>
+                             <td className="px-8 py-6">
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedClientIds.includes(client.id)}
+                                  onChange={() => toggleSelectClient(client.id)}
+                                  className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                                />
+                             </td>
+                             <td className="px-8 py-6">
+                                <div className="flex items-center space-x-4">
+                                   <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black text-xs">{client.name[0]}</div>
+                                   <div>
+                                      <p className="font-black text-slate-900 text-xs uppercase">{client.name}</p>
+                                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{client.phone}</p>
+                                   </div>
+                                </div>
+                             </td>
+                             <td className="px-8 py-6">
+                                <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase">
+                                   {client.assignedAgent || 'Não Atribuído'}
+                                </span>
+                             </td>
+                             <td className="px-8 py-6">
+                                <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${client.status === ClientStatus.WON ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
+                                   {client.status}
+                                </span>
+                             </td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* MODAL BLOQUEIO DE SEGURANÇA */}
       {showBlockModal && selectedClient && (
         <div className="fixed inset-0 z-[195] flex items-center justify-center p-4">
@@ -1213,7 +1340,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       )}
 
       {/* MODAL TRANSFERÊNCIA DE CUSTÓDIA */}
-      {showTransferModal && selectedClient && (
+      {showTransferModal && (selectedClient || selectedClientIds.length > 0) && (
         <div className="fixed inset-0 z-[145] flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-[#0f172a]/95 backdrop-blur-md" onClick={() => setShowTransferModal(false)}></div>
            <div className="bg-white w-full max-w-lg rounded-[3rem] p-0 relative z-10 shadow-2xl animate-in zoom-in duration-300 overflow-hidden border border-white/10">
@@ -1224,7 +1351,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                           <ArrowRightLeft className="w-8 h-8 text-[#d4a853]" />
                        </div>
                        <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight">Transferência</h2>
+                          <h2 className="text-2xl font-black uppercase tracking-tight">{selectedClientIds.length > 1 ? 'Transferência em Massa' : 'Transferência'}</h2>
                           <p className="text-[#0a1120]/70 text-[10px] font-black uppercase tracking-[0.3em]">Remanejamento de Patrimônio</p>
                        </div>
                     </div>
@@ -1234,11 +1361,15 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
               <div className="p-10 bg-slate-50 space-y-8">
                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Lead em Remanejamento</p>
-                    <h4 className="text-lg font-black text-slate-900 uppercase">{selectedClient.name}</h4>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{selectedClientIds.length > 1 ? 'Leads em Remanejamento' : 'Lead em Remanejamento'}</p>
+                    <h4 className="text-lg font-black text-slate-900 uppercase">
+                        {selectedClientIds.length > 1 
+                          ? `${selectedClientIds.length} Leads Selecionados`
+                          : selectedClient?.name || (selectedClientIds.length === 1 ? clients.find(c => c.id === selectedClientIds[0])?.name : 'Lead Selecionado')}
+                    </h4>
                     <div className="flex items-center space-x-2 mt-2">
                        <span className="text-[9px] font-bold text-slate-400 uppercase">Custódia Atual:</span>
-                       <span className="text-[10px] font-black text-slate-600 uppercase bg-slate-100 px-2 py-0.5 rounded">{selectedClient.assignedAgent || 'Não Atribuído'}</span>
+                       <span className="text-[10px] font-black text-slate-600 uppercase bg-slate-100 px-2 py-0.5 rounded">{selectedClient?.assignedAgent || (selectedClientIds.length === 1 ? clients.find(c => c.id === selectedClientIds[0])?.assignedAgent : '') || 'Não Atribuído'}</span>
                     </div>
                  </div>
 
