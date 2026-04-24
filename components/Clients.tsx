@@ -685,7 +685,13 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const filteredClients = useMemo(() => {
     let filtered = clients;
     if (isAdmin && selectedBrokerFilter !== 'all') {
-      filtered = filtered.filter(c => c.brokerId === selectedBrokerFilter);
+      const selectedBroker = brokers.find(b => b.id === selectedBrokerFilter);
+      const brokerName = selectedBroker?.name.toLowerCase().trim();
+      
+      filtered = filtered.filter(c => 
+        c.brokerId === selectedBrokerFilter || 
+        (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName)
+      );
     }
     if (selectedImportFilter) {
       filtered = filtered.filter(c => c.importId === selectedImportFilter);
@@ -699,7 +705,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       );
     }
     return filtered;
-  }, [clients, isAdmin, selectedBrokerFilter, selectedImportFilter, searchTerm]);
+  }, [clients, isAdmin, selectedBrokerFilter, selectedImportFilter, searchTerm, brokers]);
 
   const sortedClients = useMemo(() => [...filteredClients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [filteredClients]);
 
@@ -750,7 +756,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                 className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer pr-4"
               >
                 <option value="all">Todos os Corretores</option>
-                {brokers.map(b => (
+                {brokers.filter(b => !b.deleted).map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>

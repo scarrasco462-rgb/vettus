@@ -211,16 +211,26 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
     const baseBrokers = (isAdmin ? brokers : brokers.filter(b => b.id === currentUser.id)).filter(b => !b.deleted);
 
     if (activeTab === 'clients' || activeTab === 'bulk_delete') {
+      const selectedBroker = brokers.find(b => b.id === brokerFilter);
+      const brokerName = selectedBroker?.name.toLowerCase().trim();
+
       return baseClients.filter(c => {
         const matchesSearch = c.name.toLowerCase().includes(search);
         const matchesStatus = statusFilter === 'Todos' || c.status === statusFilter;
-        const matchesBroker = brokerFilter === 'Todos' || c.brokerId === brokerFilter;
+        const matchesBroker = brokerFilter === 'Todos' || 
+                             c.brokerId === brokerFilter ||
+                             (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName);
         return matchesSearch && matchesStatus && matchesBroker && !c.deleted;
       });
     } else if (activeTab === 'sales') {
+      const selectedBroker = brokers.find(b => b.id === brokerFilter);
+      const brokerName = selectedBroker?.name.toLowerCase().trim();
+
       return baseCommissions.filter(s => {
         const matchesSearch = s.propertyTitle.toLowerCase().includes(search) || s.clientName.toLowerCase().includes(search);
-        const matchesBroker = brokerFilter === 'Todos' || s.brokerId === brokerFilter;
+        const matchesBroker = brokerFilter === 'Todos' || 
+                             s.brokerId === brokerFilter ||
+                             (brokerName && s.assignedAgent && s.assignedAgent.toLowerCase().trim() === brokerName);
         return matchesSearch && matchesBroker;
       });
     } else if (activeTab === 'performance') {

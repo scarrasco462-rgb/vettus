@@ -248,7 +248,7 @@ export const Layout: React.FC<LayoutProps> = ({
         </button>
 
         <div className={`flex flex-col border-b border-white/5 relative transition-all duration-300 ${isCollapsed ? 'p-4 items-center' : 'p-6 items-stretch'}`}>
-          <div className={`flex items-center w-full ${isCollapsed ? 'flex-col space-y-4' : 'justify-between'}`}>
+          <div className={`flex items-center w-full ${isCollapsed ? 'flex-col space-y-4' : 'space-x-4 justify-start'}`}>
             <div className="flex items-center space-x-3">
               <VettusSymbol className={isCollapsed ? "w-10 h-10" : "w-11 h-11"} />
               {!isCollapsed && (

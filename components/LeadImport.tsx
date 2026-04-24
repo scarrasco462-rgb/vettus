@@ -302,7 +302,7 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
                              className="bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-8 text-xs font-bold text-slate-700 outline-none focus:border-[#d4a853] appearance-none"
                            >
                               <option value="">Selecionar Corretor...</option>
-                              {brokers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                              {brokers.filter(b => !b.deleted).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                            </select>
                         </div>
                         <button 
