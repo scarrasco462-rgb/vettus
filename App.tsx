@@ -562,7 +562,7 @@ const App: React.FC = () => {
           properties={properties.filter(p => !p.deleted)} 
           currentUser={currentUser} 
           brokers={brokers} 
-          onAddProperty={p => setProperties(v => [p, ...v])} 
+          onAddProperty={p => setProperties(v => [{...p, updatedAt: new Date().toISOString()}, ...v])} 
           onEditProperty={p => { setPropertyToEdit(p); setIsPropertyModalOpen(true); }} 
           onDeleteProperty={id => setProperties(v => v.map(p => p.id === id ? { ...p, deleted: true, updatedAt: new Date().toISOString() } : p))} 
           onOpenAddModal={() => { setPropertyToEdit(null); setIsPropertyModalOpen(true); }} 
@@ -593,12 +593,12 @@ const App: React.FC = () => {
           onDeleteClient={id => setClients(v => v.map(c => c.id === id ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))} 
           onDeleteClients={ids => setClients(v => v.map(c => ids.includes(c.id) ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))}
           onEditClient={c => { setClientToEdit(c); setIsClientModalOpen(true); }} 
-          onAddActivity={a => setActivities(v => [a, ...v])} 
-          onAddActivities={newActivities => setActivities(v => [...newActivities, ...v])}
-          onAddReminder={r => setReminders(v => [r, ...v])} 
-          onAddSale={s => setCommissions(v => [s, ...v])} 
-          onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? p : x))} 
-          onAddForecasts={f => setCommissionForecasts(v => [...f, ...v])} 
+          onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
+          onAddActivities={newActivities => setActivities(v => [...newActivities.map(a => ({...a, updatedAt: new Date().toISOString()})), ...v])}
+          onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
+          onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])} 
+          onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? {...p, updatedAt: new Date().toISOString()} : x))} 
+          onAddForecasts={f => setCommissionForecasts(v => [...f.map(item => ({...item, updatedAt: new Date().toISOString()})), ...v])} 
           onOpenAddModal={() => { setClientToEdit(null); setIsClientModalOpen(true); }}
           onOpenImport={() => setCurrentView('lead_import')}
           onOpenFlow={(clientId, tab) => { setPreselectedClientForFlow(clientId); setPreselectedFlowTab(tab || 'entry'); setCurrentView('client_payment_flow'); }}
@@ -610,8 +610,8 @@ const App: React.FC = () => {
           clients={(isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted)} 
           currentUser={currentUser} 
           brokers={brokers}
-          onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? c : x))} 
-          onAddActivity={a => setActivities(v => [a, ...v])} 
+          onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))} 
+          onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
         />
       )}
 
@@ -649,8 +649,8 @@ const App: React.FC = () => {
           properties={properties.filter(p => !p.deleted)}
           launches={launches}
           currentUser={currentUser}
-          onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? s : x))}
-          onAddSale={s => setCommissions(v => [s, ...v])}
+          onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? {...s, updatedAt: new Date().toISOString()} : x))}
+          onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])}
           onDeleteSale={id => setCommissions(v => v.filter(x => x.id !== id))}
           preselectedClientId={preselectedClientForFlow}
           preselectedTab={preselectedFlowTab}
@@ -663,7 +663,7 @@ const App: React.FC = () => {
           sales={isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id)} 
           brokers={brokers} 
           currentUser={currentUser}
-          onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? s : x))}
+          onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? {...s, updatedAt: new Date().toISOString()} : x))}
         />
       )}
 
@@ -692,10 +692,10 @@ const App: React.FC = () => {
       {currentView === 'brokers' && (
         <BrokersView 
           brokers={brokers} 
-          onAddBroker={b => setBrokers(v => [...v, b])} 
-          onUpdateBroker={b => setBrokers(v => v.map(x => x.id === b.id ? b : x))} 
+          onAddBroker={b => setBrokers(v => [{...b, updatedAt: new Date().toISOString()}, ...v])} 
+          onUpdateBroker={b => setBrokers(v => v.map(x => x.id === b.id ? {...b, updatedAt: new Date().toISOString()} : x))} 
           onDeleteBroker={handleDeleteBrokerWithLeadSafeguard} 
-          onAddActivity={a => setActivities(v => [a, ...v])}
+          onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])}
           currentUser={currentUser}
         />
       )}
@@ -757,8 +757,8 @@ const App: React.FC = () => {
           clients={clients.filter(c => !c.deleted)}
           brokers={brokers}
           currentUser={currentUser} 
-          onAddLaunch={l => setLaunches(v => [l, ...v])}
-          onUpdateLaunch={l => setLaunches(v => v.map(x => x.id === l.id ? l : x))}
+          onAddLaunch={l => setLaunches(v => [{...l, updatedAt: new Date().toISOString()}, ...v])}
+          onUpdateLaunch={l => setLaunches(v => v.map(x => x.id === l.id ? {...l, updatedAt: new Date().toISOString()} : x))}
         />
       )}
 
@@ -811,8 +811,8 @@ const App: React.FC = () => {
       <NewPropertyModal 
         isOpen={isPropertyModalOpen} 
         onClose={() => setIsPropertyModalOpen(false)} 
-        onAddProperty={p => setProperties(v => [p, ...v])} 
-        onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? p : x))}
+        onAddProperty={p => setProperties(v => [{...p, updatedAt: new Date().toISOString()}, ...v])} 
+        onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? {...p, updatedAt: new Date().toISOString()} : x))}
         propertyToEdit={propertyToEdit}
         currentUser={currentUser}
         brokers={brokers}
