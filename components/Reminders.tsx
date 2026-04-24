@@ -97,26 +97,26 @@ export const ReminderView: React.FC<ReminderViewProps> = ({ reminders, onToggleR
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-4xl mx-auto space-y-6 lg:space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase flex items-center">
-            <BellRing className="w-8 h-8 mr-4 text-[#d4a853]" />
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight uppercase flex items-center">
+            <BellRing className="w-6 h-6 lg:w-8 lg:h-8 mr-3 lg:mr-4 text-[#d4a853]" />
             Minha Fila de Ações
           </h1>
-          <p className="text-slate-500 text-sm mt-1 font-medium italic">Agendamentos, Triagem e Follow-ups da sua Unidade.</p>
+          <p className="text-slate-500 text-[10px] lg:text-sm mt-1 font-medium italic">Agendamentos, Triagem e Follow-ups da sua Unidade.</p>
         </div>
         <div className="flex items-center space-x-3">
-           <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 flex items-center space-x-2">
-              <Zap className="w-4 h-4 text-[#d4a853]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+           <div className="bg-slate-100 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl border border-slate-200 flex items-center space-x-2">
+              <Zap className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-[#d4a853]" />
+              <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {reminders.filter(r => !r.completed).length} Pendências
               </span>
            </div>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 lg:space-y-4">
         {sortedReminders.map((reminder) => {
           const badge = getBadge(reminder);
           const isOverdue = isReminderOverdue(reminder);
@@ -125,12 +125,12 @@ export const ReminderView: React.FC<ReminderViewProps> = ({ reminders, onToggleR
           return (
             <div 
               key={reminder.id} 
-              className={`bg-white p-6 rounded-[2.5rem] border shadow-sm flex items-center space-x-6 hover:shadow-xl transition-all group relative overflow-hidden ${
+              className={`bg-white p-4 lg:p-6 rounded-[1.5rem] lg:rounded-[2.5rem] border shadow-sm flex items-center space-x-4 lg:space-x-6 hover:shadow-xl transition-all group relative overflow-hidden ${
                 reminder.completed ? 'opacity-50 grayscale bg-slate-50/50 border-slate-100' : 
                 isOverdue ? 'border-red-300 bg-red-50/40' : 'border-slate-100'
               }`}
             >
-              <div className={`absolute left-0 top-0 bottom-0 w-2 ${
+              <div className={`absolute left-0 top-0 bottom-0 w-1.5 lg:w-2 ${
                 isOverdue ? 'bg-red-500' : 
                 reminder.type === 'new_lead' ? 'bg-emerald-500' : 'bg-[#d4a853]'
               }`}></div>
@@ -142,12 +142,12 @@ export const ReminderView: React.FC<ReminderViewProps> = ({ reminders, onToggleR
                   isOverdue ? 'text-red-500' : 'text-slate-300 group-hover:text-[#d4a853]'
                 }`}
               >
-                {reminder.completed ? <CheckCircle2 className="w-10 h-10" /> : <Circle className="w-10 h-10" />}
+                {reminder.completed ? <CheckCircle2 className="w-8 h-8 lg:w-10 lg:h-10" /> : <Circle className="w-8 h-8 lg:w-10 lg:h-10" />}
               </button>
 
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-3 mb-1">
-                  <h3 className={`text-base font-black transition-all truncate uppercase tracking-tight ${reminder.completed ? 'text-slate-400 line-through' : isOverdue ? 'text-red-800' : 'text-slate-900'}`}>
+                <div className="flex flex-wrap items-center gap-2 lg:gap-3 mb-1">
+                  <h3 className={`text-sm lg:text-base font-black transition-all truncate uppercase tracking-tight ${reminder.completed ? 'text-slate-400 line-through' : isOverdue ? 'text-red-800' : 'text-slate-900'}`}>
                     {reminder.title}
                   </h3>
                   {badge && !reminder.completed && (

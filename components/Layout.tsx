@@ -328,7 +328,7 @@ export const Layout: React.FC<LayoutProps> = ({
       </aside>
 
       <main className={`flex-1 transition-all duration-300 min-h-screen pt-16 lg:pt-0 print:m-0 print:p-0 print:pt-0 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <div className="p-4 md:p-6 lg:p-10 max-w-[1600px] mx-auto print:p-0 print:max-w-none">
+        <div className="p-4 md:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto print:p-0 print:max-w-none">
           {children}
         </div>
       </main>

@@ -82,7 +82,7 @@ export const PropertyView: React.FC<PropertyViewProps> = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
         {safeProperties.map((property) => {
           const authorizedEdit = canEdit(property);
           const hasGallery = property.gallery && property.gallery.length > 0;
@@ -91,9 +91,9 @@ export const PropertyView: React.FC<PropertyViewProps> = ({
             <div 
               key={property.id} 
               onClick={() => authorizedEdit && onEditProperty(property)}
-              className={`bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-100 group hover:shadow-xl transition-all duration-500 flex flex-col relative ${authorizedEdit ? 'cursor-pointer' : ''}`}
+              className={`bg-white rounded-[1.5rem] lg:rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 group hover:shadow-xl transition-all duration-500 flex flex-col relative ${authorizedEdit ? 'cursor-pointer' : ''}`}
             >
-              <div className="relative h-56 md:h-64 overflow-hidden shrink-0">
+              <div className="relative h-48 md:h-56 lg:h-64 overflow-hidden shrink-0">
                 <img src={property.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={property.title} />
                 
                 {authorizedEdit && (
@@ -105,22 +105,22 @@ export const PropertyView: React.FC<PropertyViewProps> = ({
                   </div>
                 )}
 
-                <div className="absolute top-4 left-4 flex flex-col space-y-2 z-10">
-                  <div className="bg-slate-900 text-[#d4a853] px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border border-[#d4a853]/20">
+                <div className="absolute top-3 left-3 lg:top-4 lg:left-4 flex flex-col space-y-2 z-10">
+                  <div className="bg-slate-900 text-[#d4a853] px-2 py-0.5 lg:px-3 lg:py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border border-[#d4a853]/20">
                     REF: {property.code}
                   </div>
                 </div>
 
-                <div className="absolute top-4 right-4 flex flex-col items-end space-y-2 z-10">
+                <div className="absolute top-3 right-3 lg:top-4 lg:right-4 flex flex-col items-end space-y-2 z-10">
                   {currentUser.role === 'Admin' && (
                     <button 
                       onClick={(e) => handleDelete(e, property)}
-                      className="bg-red-600 text-white p-2.5 rounded-xl shadow-lg hover:scale-110 active:scale-90 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      className="bg-red-600 text-white p-2.5 rounded-xl shadow-lg hover:scale-110 active:scale-90 transition-transform min-h-[36px] min-w-[36px] lg:min-h-[44px] lg:min-w-[44px] flex items-center justify-center"
                     >
                        <Trash2 className="w-4 h-4" />
                     </button>
                   )}
-                  <div className="bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black text-slate-900 uppercase tracking-widest border border-white shadow-sm">
+                  <div className="bg-white/90 backdrop-blur-md px-2 py-0.5 lg:px-3 lg:py-1 rounded-full text-[9px] md:text-[10px] font-black text-slate-900 uppercase tracking-widest border border-white shadow-sm">
                     {property.type}
                   </div>
                   {hasGallery && (
@@ -131,18 +131,18 @@ export const PropertyView: React.FC<PropertyViewProps> = ({
                   )}
                 </div>
                 
-                <div className="absolute bottom-4 left-4 text-white z-10 space-y-1">
+                <div className="absolute bottom-3 left-3 lg:bottom-4 lg:left-4 text-white z-10 space-y-1">
                   {property.price > 0 && (
-                    <div className="bg-emerald-600/90 backdrop-blur-sm px-3 py-1 rounded-lg shadow-lg">
+                    <div className="bg-emerald-600/90 backdrop-blur-sm px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg shadow-lg">
                       <p className="text-[8px] md:text-[9px] uppercase font-bold opacity-80">Valor de Venda</p>
-                      <p className="text-base md:text-lg font-black">{formatCurrency(property.price)}</p>
+                      <p className="text-sm md:text-lg font-black">{formatCurrency(property.price)}</p>
                     </div>
                   )}
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent"></div>
               </div>
 
-              <div className="p-5 md:p-6 flex-1 flex flex-col">
+              <div className="p-4 lg:p-5 flex-1 flex flex-col">
                 <div className="flex items-center space-x-2 mb-2">
                    <MapPin className="w-3 h-3 text-[#d4a853] shrink-0" />
                    <p className="text-slate-400 text-[9px] md:text-[10px] uppercase font-bold tracking-widest truncate">
@@ -150,10 +150,10 @@ export const PropertyView: React.FC<PropertyViewProps> = ({
                    </p>
                 </div>
 
-                <h3 className="text-lg md:text-xl font-bold text-slate-900 truncate group-hover:text-[#d4a853] transition-colors mb-4 uppercase tracking-tighter">{property.title}</h3>
+                <h3 className="text-base md:text-xl font-bold text-slate-900 truncate group-hover:text-[#d4a853] transition-colors mb-3 lg:mb-4 uppercase tracking-tighter">{property.title}</h3>
                 
                 {/* BLINDAGEM DE DADOS DO PROPRIETÁRIO (Regra Solicitada) */}
-                <div className={`p-4 md:p-5 rounded-[2rem] border transition-all mb-4 relative overflow-hidden ${authorizedEdit ? 'bg-slate-50 border-slate-100' : 'bg-red-50 border-red-100/50'}`}>
+                <div className={`p-4 lg:p-5 rounded-[1.25rem] lg:rounded-[2rem] border transition-all mb-4 relative overflow-hidden ${authorizedEdit ? 'bg-slate-50 border-slate-100' : 'bg-red-50 border-red-100/50'}`}>
                   <div className="flex items-center justify-between mb-3 relative z-10">
                     <span className={`text-[9px] font-black uppercase tracking-widest flex items-center ${authorizedEdit ? 'text-slate-400' : 'text-red-400'}`}>
                       {authorizedEdit ? <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-[#d4a853]" /> : <ShieldAlert className="w-3.5 h-3.5 mr-1.5 text-red-500" />}

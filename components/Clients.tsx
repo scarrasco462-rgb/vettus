@@ -862,7 +862,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
               <thead>
                 <tr className="bg-[#0f172a] text-slate-300 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
                   {isAdmin && (
-                    <th className="px-8 py-6 w-10">
+                    <th className="px-4 lg:px-8 py-4 lg:py-6 w-10">
                       <input 
                         type="checkbox" 
                         checked={selectedClientIds.length === sortedClients.length && sortedClients.length > 0}
@@ -871,18 +871,18 @@ export const ClientView: React.FC<ClientViewProps> = ({
                       />
                     </th>
                   )}
-                  <th className="px-8 py-6">Perfil do Lead</th>
-                  <th className="px-8 py-6">Responsável</th>
-                  <th className="px-8 py-6">Status</th>
-                  <th className="px-8 py-6">Próxima Ação</th>
-                  <th className="px-8 py-6 text-right">Ação Necessária</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6">Perfil do Lead</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6">Responsável</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6">Status</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6">Próxima Ação</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6 text-right">Ação Necessária</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedClients.map((client) => (
                   <tr key={client.id} className={`hover:bg-[#d4a853]/5 transition-colors group ${client.blocked ? 'grayscale bg-slate-50 opacity-70' : ''} ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/10' : ''}`}>
                     {isAdmin && (
-                      <td className="px-8 py-7">
+                      <td className="px-4 lg:px-8 py-4 lg:py-5">
                         <input 
                           type="checkbox" 
                           checked={selectedClientIds.includes(client.id)}
@@ -891,10 +891,10 @@ export const ClientView: React.FC<ClientViewProps> = ({
                         />
                       </td>
                     )}
-                    <td className="px-8 py-7">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5">
                       <div className="flex items-center space-x-4">
                         <div className="relative">
-                          <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-lg">{client.name[0]}</div>
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-lg">{client.name[0]}</div>
                           {client.blocked && (
                             <div className="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-1 rounded-full border-2 border-white shadow-sm">
                               <ShieldOff className="w-3 h-3" />
@@ -903,12 +903,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                             <p className="font-black text-slate-900 text-sm uppercase">{client.name}</p>
+                             <p className="font-black text-slate-900 text-xs lg:text-sm uppercase">{client.name}</p>
                              {client.blocked && (
                                 <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm" title={`Motivo: ${client.blockReason}`}>BLOQUEADO</span>
                              )}
                           </div>
-                          <p className="text-sm text-slate-900 font-black uppercase tracking-widest mt-0.5">{client.phone}</p>
+                          <p className="text-sm lg:text-lg text-black font-black uppercase tracking-widest mt-0.5 lg:mt-1">{client.phone}</p>
                           {client.spouseName && (
                             <p className="text-[9px] text-[#d4a853] font-black uppercase tracking-tighter mt-0.5">
                               Esposa: {client.spouseName} {client.spousePhone && `(${client.spousePhone})`}
@@ -917,19 +917,19 @@ export const ClientView: React.FC<ClientViewProps> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-7">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5">
                       <div className="flex items-center space-x-2">
                          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tighter border border-slate-200">
                             {client.assignedAgent || 'Gestão'}
                          </span>
                       </div>
                     </td>
-                    <td className="px-8 py-7">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5">
                       <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center justify-center min-w-[100px] ${client.status === ClientStatus.WON ? 'gold-gradient text-white border-transparent' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
                         {client.status}
                       </span>
                     </td>
-                    <td className="px-8 py-7">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5">
                       {client.nextActivityDate ? (
                          <div className="flex flex-col">
                             <span className="text-[11px] font-black text-slate-900 uppercase">
@@ -943,7 +943,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                          <span className="text-[9px] text-slate-300 font-black uppercase tracking-widest italic">Aguardando Agenda</span>
                       )}
                     </td>
-                    <td className="px-8 py-7 text-right">
+                    <td className="px-4 lg:px-8 py-4 lg:py-5 text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <button 
                           disabled={client.blocked}
@@ -1247,7 +1247,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black text-xs">{client.name[0]}</div>
                                    <div>
                                       <p className="font-black text-slate-900 text-xs uppercase">{client.name}</p>
-                                      <p className="text-sm text-slate-900 font-black uppercase tracking-widest mt-0.5">{client.phone}</p>
+                                      <p className="text-lg text-black font-black uppercase tracking-widest mt-1">{client.phone}</p>
                                    </div>
                                 </div>
                              </td>
@@ -1413,141 +1413,141 @@ export const ClientView: React.FC<ClientViewProps> = ({
       {showHistoryModal && selectedClient && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-[#0f172a]/95 backdrop-blur-md" onClick={() => setShowHistoryModal(false)}></div>
-           <div className="bg-white w-full max-w-4xl rounded-[3rem] p-0 relative z-10 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-hidden flex flex-col max-h-[95vh] border border-white/10">
-              <div className="navy-gradient p-10 text-white shrink-0 border-b border-[#d4a853]/30">
+           <div className="bg-white w-full max-w-6xl rounded-[2rem] lg:rounded-[3rem] p-0 relative z-10 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-hidden flex flex-col max-h-[95vh] border border-white/10">
+              <div className="navy-gradient p-6 lg:p-10 text-white shrink-0 border-b border-[#d4a853]/30">
                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6">
-                       <div className="w-16 h-16 gold-gradient rounded-[2rem] flex items-center justify-center shadow-2xl">
-                          <History className="w-8 h-8 text-[#0a1120]" />
+                    <div className="flex items-center space-x-4 lg:space-x-6">
+                       <div className="w-12 h-12 lg:w-16 lg:h-16 gold-gradient rounded-2xl lg:rounded-[2rem] flex items-center justify-center shadow-2xl">
+                          <History className="w-6 h-6 lg:w-8 lg:h-8 text-[#0a1120]" />
                        </div>
                        <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight">{selectedClient.name}</h2>
-                          <p className="text-[#d4a853] text-[10px] font-black uppercase tracking-[0.3em]">Timeline de Atendimento & Follow-up</p>
+                          <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tight">{selectedClient.name}</h2>
+                          <p className="text-[#d4a853] text-[9px] lg:text-[10px] font-black uppercase tracking-[0.3em]">Timeline de Atendimento</p>
                        </div>
                     </div>
                     <button onClick={() => setShowHistoryModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                       <X className="w-8 h-8" />
+                       <X className="w-6 h-6 lg:w-8 lg:h-8" />
                     </button>
                  </div>
               </div>
 
-              <div className="p-10 overflow-y-auto no-scrollbar bg-slate-50 flex-1 space-y-10">
-                 {/* REGISTRO DE ATENDIMENTO REALIZADO */}
-                 <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 shadow-sm space-y-6">
-                    <div className="flex items-center space-x-3 border-b-2 border-slate-50 pb-4">
-                       <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                       <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-widest">O que foi conversado hoje?</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                       <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Canal de Contato</label>
-                          <select 
-                            value={currentAtendimento.type} 
-                            onChange={e => setCurrentAtendimento({...currentAtendimento, type: e.target.value})} 
-                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853]"
+              <div className="p-6 lg:p-10 overflow-y-auto no-scrollbar bg-slate-50 flex-1">
+                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
+                    {/* COLUNA ESQUERDA: FORMULÁRIOS */}
+                    <div className="lg:col-span-5 space-y-6 lg:y-10">
+                       {/* REGISTRO DE ATENDIMENTO REALIZADO */}
+                       <div className="bg-white p-6 lg:p-8 rounded-[2rem] lg:rounded-[2.5rem] border-2 border-slate-100 shadow-sm space-y-4 lg:space-y-6">
+                          <div className="flex items-center space-x-3 border-b-2 border-slate-50 pb-4">
+                             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                             <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-widest">O que foi conversado hoje?</h4>
+                          </div>
+                          <div className="grid grid-cols-1 gap-6">
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Canal de Contato</label>
+                                <select 
+                                  value={currentAtendimento.type} 
+                                  onChange={e => setCurrentAtendimento({...currentAtendimento, type: e.target.value})} 
+                                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853]"
+                                >
+                                   <option value="Call">📞 Ligação Efetuada</option>
+                                   <option value="WhatsApp">💬 WhatsApp Enviado</option>
+                                   <option value="Meeting">🤝 Reunião Presencial</option>
+                                   <option value="Viewing">🏠 Visita Realizada</option>
+                                </select>
+                             </div>
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Resumo da Interação</label>
+                                <textarea 
+                                  value={currentAtendimento.desc} 
+                                  onChange={e => setCurrentAtendimento({...currentAtendimento, desc: e.target.value})} 
+                                  placeholder="Descreva detalhes importantes da conversa, objeções ou avanços..." 
+                                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold text-slate-900 outline-none focus:border-[#d4a853] resize-none h-32" 
+                                />
+                             </div>
+                          </div>
+                          <button 
+                             onClick={handleSaveAtendimento} 
+                             className="w-full bg-[#0a1120] text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-3 hover:bg-slate-800 transition-all shadow-xl"
                           >
-                             <option value="Call">📞 Ligação Efetuada</option>
-                             <option value="WhatsApp">💬 WhatsApp Enviado</option>
-                             <option value="Meeting">🤝 Reunião Presencial</option>
-                             <option value="Viewing">🏠 Visita Realizada</option>
-                          </select>
+                             <Save className="w-4 h-4" />
+                             <span>Salvar Registro na Timeline Master</span>
+                          </button>
                        </div>
-                       <div className="md:col-span-3 space-y-1">
-                          <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Resumo da Interação</label>
-                          <textarea 
-                            value={currentAtendimento.desc} 
-                            onChange={e => setCurrentAtendimento({...currentAtendimento, desc: e.target.value})} 
-                            placeholder="Descreva detalhes importantes da conversa, objeções ou avanços..." 
-                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold text-slate-900 outline-none focus:border-[#d4a853] resize-none h-32" 
-                          />
-                       </div>
-                    </div>
-                    <button 
-                       onClick={handleSaveAtendimento} 
-                       className="w-full bg-[#0a1120] text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-3 hover:bg-slate-800 transition-all shadow-xl"
-                    >
-                       <Save className="w-4 h-4" />
-                       <span>Salvar Registro na Timeline Master</span>
-                    </button>
-                 </div>
 
-                 {/* AGENDAMENTO DE PRÓXIMA AÇÃO */}
-                 <div className="bg-[#d4a853]/5 p-8 rounded-[2.5rem] border-2 border-[#d4a853]/20 shadow-sm space-y-6">
-                    <div className="flex items-center space-x-3 border-b-2 border-[#d4a853]/10 pb-4">
-                       <CalendarPlus className="w-5 h-5 text-[#d4a853]" />
-                       <h4 className="text-[11px] font-black uppercase text-slate-600 tracking-widest">Próxima Ação (Gera Alerta)</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Data do Follow-up</label>
-                          <input type="date" value={nextStep.date} onChange={e => setNextStep({...nextStep, date: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853]" />
-                       </div>
-                       <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Horário</label>
-                          <input type="time" value={nextStep.time} onChange={e => setNextStep({...nextStep, time: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853]" />
-                       </div>
-                       <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Ação Sugerida</label>
-                          <select value={nextStep.type} onChange={e => setNextStep({...nextStep, type: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none">
-                             <option value="Call">📞 Retornar Ligação</option>
-                             <option value="WhatsApp">💬 Mensagem Direct</option>
-                             <option value="Meeting">🤝 Reunião / Alinhamento</option>
-                             <option value="Viewing">🏠 Mostrar Unidade</option>
-                          </select>
-                       </div>
-                    </div>
-                    <button 
-                       onClick={handleSaveAgendamento} 
-                       className="w-full gold-gradient text-[#0a1120] py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-3 shadow-xl hover:scale-[1.01] transition-all"
-                    >
-                       <Zap className="w-4 h-4" />
-                       <span>Confirmar Agendamento e Criar Lembrete</span>
-                    </button>
-                 </div>
-
-                 {/* LISTA CRONOLÓGICA DE INTERAÇÕES */}
-                 <div className="space-y-8">
-                    <div className="flex items-center justify-between px-2">
-                       <h5 className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em] flex items-center">
-                          <ListOrdered className="w-4 h-4 mr-3" /> 
-                          Histórico de Atividade Consolidado
-                       </h5>
-                       <span className="text-[9px] font-bold text-slate-400 px-4 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm">Registros de Rede Vettus</span>
-                    </div>
-                    
-                    <div className="relative space-y-6 before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-1 before:bg-slate-200">
-                       {activities.filter(a => a.clientName === selectedClient.name).reverse().map(act => (
-                          <div key={act.id} className="relative flex items-start group">
-                             <div className="flex items-center justify-center w-12 h-12 rounded-2xl border-4 border-slate-50 bg-[#0a1120] text-[#d4a853] shadow-lg z-10 group-hover:scale-110 transition-transform">
-                                {getActivityIcon(act.type)}
+                       {/* AGENDAMENTO DE PRÓXIMA AÇÃO */}
+                       <div className="bg-[#d4a853]/5 p-8 rounded-[2.5rem] border-2 border-[#d4a853]/20 shadow-sm space-y-6">
+                          <div className="flex items-center space-x-3 border-b-2 border-[#d4a853]/10 pb-4">
+                             <CalendarPlus className="w-5 h-5 text-[#d4a853]" />
+                             <h4 className="text-[11px] font-black uppercase text-slate-600 tracking-widest">Próxima Ação (Gera Alerta)</h4>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Data do Follow-up</label>
+                                <input type="date" value={nextStep.date} onChange={e => setNextStep({...nextStep, date: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853]" />
                              </div>
-                             <div className="ml-8 flex-1 bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
-                                   {getActivityIcon(act.type)}
-                                </div>
-                                <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 border-b border-slate-50 pb-3 gap-2">
-                                   <div className="flex items-center space-x-3">
-                                      <span className="text-[10px] font-black text-[#d4a853] uppercase bg-[#0a1120] px-3 py-1 rounded-lg">
-                                         {act.type}
-                                      </span>
-                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Efetuado por {act.brokerName || 'Vettus System'}</span>
-                                   </div>
-                                   <div className="flex items-center text-slate-900 font-mono text-[11px] font-black space-x-4">
-                                      <span className="flex items-center bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Calendar className="w-3.5 h-3.5 mr-1.5 text-[#d4a853]" /> {new Date(act.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                                      <span className="flex items-center bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Clock className="w-3.5 h-3.5 mr-1.5 text-[#d4a853]" /> {act.time}</span>
-                                   </div>
-                                </div>
-                                <p className="text-sm font-bold text-slate-700 leading-relaxed italic">
-                                   "{act.description}"
-                                </p>
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Horário</label>
+                                <input type="time" value={nextStep.time} onChange={e => setNextStep({...nextStep, time: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none focus:border-[#d4a853]" />
+                             </div>
+                             <div className="sm:col-span-2 space-y-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Ação Sugerida</label>
+                                <select value={nextStep.type} onChange={e => setNextStep({...nextStep, type: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-2xl py-3.5 px-4 text-xs font-black text-slate-900 outline-none">
+                                   <option value="Call">📞 Retornar Ligação</option>
+                                   <option value="WhatsApp">💬 Mensagem Direct</option>
+                                   <option value="Meeting">🤝 Reunião / Alinhamento</option>
+                                   <option value="Viewing">🏠 Mostrar Unidade</option>
+                                </select>
                              </div>
                           </div>
-                       ))}
-                       {activities.filter(a => a.clientName === selectedClient.name).length === 0 && (
-                          <div className="py-24 text-center text-slate-300 font-black uppercase tracking-[0.2em] ml-12 border-2 border-dashed border-slate-200 rounded-[2rem] bg-white">
-                             Nenhum registro de contato efetuado.
+                          <button 
+                             onClick={handleSaveAgendamento} 
+                             className="w-full gold-gradient text-[#0a1120] py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-3 shadow-xl hover:scale-[1.01] transition-all"
+                          >
+                             <Zap className="w-4 h-4" />
+                             <span>Confirmar Agendamento</span>
+                          </button>
+                       </div>
+                    </div>
+
+                    {/* COLUNA DIREITA: HISTÓRICO */}
+                    <div className="lg:col-span-7 space-y-10">
+                       <div className="space-y-8">
+                          <div className="flex items-center justify-between px-2">
+                             <h5 className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em] flex items-center">
+                                <ListOrdered className="w-4 h-4 mr-3" /> 
+                                Histórico de Atividade Consolidado
+                             </h5>
+                             <span className="text-[9px] font-bold text-slate-400 px-4 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm">Registros Vettus</span>
                           </div>
-                       )}
+                          
+                          <div className="relative space-y-6 before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-1 before:bg-slate-200 h-[600px] overflow-y-auto no-scrollbar pr-4">
+                             {activities.filter(a => a.clientName === selectedClient.name).reverse().map(act => (
+                                <div key={act.id} className="relative flex items-start group">
+                                   <div className="flex items-center justify-center w-12 h-12 rounded-2xl border-4 border-slate-50 bg-[#0a1120] text-[#d4a853] shadow-lg z-10 transition-transform hover:scale-110">
+                                      {getActivityIcon(act.type)}
+                                   </div>
+                                   <div className="ml-8 flex-1 bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm relative overflow-hidden">
+                                      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 border-b border-slate-50 pb-3 gap-2">
+                                         <div className="flex items-center space-x-3">
+                                            <span className="text-[10px] font-black text-[#d4a853] uppercase bg-[#0a1120] px-3 py-1 rounded-lg">{act.type}</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Por {act.brokerName || 'Vettus'}</span>
+                                         </div>
+                                         <div className="flex items-center text-slate-900 font-mono text-[11px] font-black space-x-4">
+                                            <span className="flex items-center bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Calendar className="w-3.5 h-3.5 mr-1.5 text-[#d4a853]" /> {new Date(act.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                            <span className="flex items-center bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Clock className="w-3.5 h-3.5 mr-1.5 text-[#d4a853]" /> {act.time}</span>
+                                         </div>
+                                      </div>
+                                      <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{act.description}"</p>
+                                   </div>
+                                </div>
+                             ))}
+                             {activities.filter(a => a.clientName === selectedClient.name).length === 0 && (
+                                <div className="py-24 text-center text-slate-300 font-black uppercase tracking-[0.2em] ml-12 border-2 border-dashed border-slate-200 rounded-[2rem] bg-white">
+                                   Nenhum registro de contato efetuado.
+                                </div>
+                             )}
+                          </div>
+                       </div>
                     </div>
                  </div>
               </div>

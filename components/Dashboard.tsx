@@ -84,10 +84,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
   const COLORS = ['#d4a853', '#0f172a', '#334155', '#475569', '#64748b'];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Vettus Business Intelligence</h1>
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight uppercase">Vettus Business Intelligence</h1>
           <div className="flex items-center space-x-2 mt-1">
              {isAdmin ? (
                 <div className="flex items-center text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100">
@@ -117,52 +117,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
         </div>
       </div>
 
-      <div className="bg-[#0f172a] rounded-[3rem] p-10 relative overflow-hidden shadow-2xl border-b-8 border-[#d4a853]">
+      <div className="bg-[#0f172a] rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 relative overflow-hidden shadow-2xl border-b-8 border-[#d4a853]">
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#d4a853]/5 rounded-full blur-[100px] -mr-48 -mt-48"></div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
-          <div className="w-16 h-16 rounded-2xl bg-[#d4a853]/10 flex items-center justify-center shrink-0 border border-[#d4a853]/20">
-             <Sparkles className="w-8 h-8 text-[#d4a853]" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6 lg:gap-8">
+          <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-[#d4a853]/10 flex items-center justify-center shrink-0 border border-[#d4a853]/20">
+             <Sparkles className="w-6 h-6 lg:w-8 lg:h-8 text-[#d4a853]" />
           </div>
-          <div className="space-y-2">
-            <span className="text-[#d4a853] font-black text-[10px] uppercase tracking-[0.4em]">Insights de IA & Copilot</span>
-            <p className="text-white text-xl font-medium italic opacity-95 leading-tight">"{aiInsight}"</p>
+          <div className="space-y-1 lg:space-y-2">
+            <span className="text-[#d4a853] font-black text-[9px] lg:text-[10px] uppercase tracking-[0.4em]">Insights de IA & Copilot</span>
+            <p className="text-white text-lg lg:text-xl font-medium italic opacity-95 leading-tight">"{aiInsight}"</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {[
           { label: isAdmin ? 'VGV Global' : 'Meu VGV', value: `R$ ${(totalSales / 1000000).toFixed(1)}M`, icon: Wallet, color: 'emerald', trend: '+12.5%' },
           { label: 'Leads Ativos', value: statsData.clients.length, icon: Users, color: 'blue', trend: '+2.4%' },
           { label: 'Unidades/Lotes', value: statsData.properties.length, icon: Home, color: 'purple', trend: 'Auditado' },
           { label: 'Comissão FEE', value: `R$ ${(totalFee / 1000).toFixed(0)}K`, icon: TrendingUp, color: 'amber', trend: '+5.2%' },
         ].map((stat, idx) => (
-          <div key={idx} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl transition-all duration-500 group">
-            <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-all`}>
-              <stat.icon className="w-7 h-7" />
+          <div key={idx} className="bg-white p-6 lg:p-8 rounded-3xl lg:rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl transition-all duration-500 group">
+            <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-4 lg:mb-6 shadow-sm group-hover:scale-110 transition-all`}>
+              <stat.icon className="w-6 h-6 lg:w-7 lg:h-7" />
             </div>
             <div className="flex items-center justify-between">
-              <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{stat.label}</h3>
-              <div className={`flex items-center space-x-1 text-[10px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-slate-400'}`}>
-                {stat.trend.startsWith('+') && <ArrowUpRight size={12} />}
+              <h3 className="text-slate-400 text-[9px] lg:text-[10px] font-black uppercase tracking-widest">{stat.label}</h3>
+              <div className={`flex items-center space-x-1 text-[9px] lg:text-[10px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-slate-400'}`}>
+                {stat.trend.startsWith('+') && <ArrowUpRight size={10} />}
                 <span>{stat.trend}</span>
               </div>
             </div>
-            <p className="text-3xl font-black text-slate-900 mt-1 tracking-tighter">{stat.value}</p>
+            <p className="text-2xl lg:text-3xl font-black text-slate-900 mt-1 tracking-tighter">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm flex flex-col gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="lg:col-span-2 bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col gap-6 lg:gap-8">
           <div className="flex items-center justify-between">
             <div>
-               <h3 className="text-lg font-black text-slate-900 uppercase">Fluxo de Vendas (VGV)</h3>
-               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Consolidado Mensal</p>
+               <h3 className="text-md lg:text-lg font-black text-slate-900 uppercase">Fluxo de Vendas (VGV)</h3>
+               <p className="text-slate-400 text-[9px] lg:text-[10px] font-bold uppercase tracking-widest">Consolidado Mensal</p>
             </div>
             <button className="p-2 hover:bg-slate-50 rounded-xl transition-all"><Maximize2 size={16} className="text-slate-400" /></button>
           </div>
-          <div className="h-[350px] w-full">
+          <div className="h-[300px] lg:h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={analytics.vgvChartData}>
                 <defs>
@@ -181,9 +181,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
           </div>
         </div>
 
-        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm flex flex-col gap-8">
-          <h3 className="text-lg font-black text-slate-900 uppercase">Qualificação Leads</h3>
-          <div className="h-[250px] w-full relative">
+        <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col gap-6 lg:gap-8">
+          <h3 className="text-md lg:text-lg font-black text-slate-900 uppercase">Qualificação Leads</h3>
+          <div className="h-[200px] lg:h-[250px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={analytics.leadStatusData} innerRadius={60} outerRadius={100} paddingAngle={8} dataKey="value">
@@ -211,10 +211,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm">
-           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-50 pb-4 mb-6">Top Projetos por VGV</h3>
-           <div className="h-[250px] w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+        <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm">
+           <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-50 pb-4 mb-4 lg:mb-6">Top Projetos por VGV</h3>
+           <div className="h-[200px] lg:h-[250px] w-full">
              <ResponsiveContainer width="100%" height="100%">
                <BarChart data={analytics.topProperties} layout="vertical" margin={{left: 20}}>
                  <XAxis type="number" hide />
@@ -225,9 +225,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
              </ResponsiveContainer>
            </div>
         </div>
-        <div className="bg-[#050810] rounded-[3rem] p-10 shadow-xl overflow-hidden relative">
-          <div className="absolute bottom-0 right-0 p-8 opacity-5"><Target size={180} className="text-[#d4a853]" /></div>
-          <h3 className="text-sm font-black text-[#d4a853] uppercase tracking-widest border-b border-white/10 pb-4 mb-8">Cronograma de Recebimento</h3>
+        <div className="bg-[#050810] rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 shadow-xl overflow-hidden relative">
+          <div className="absolute bottom-0 right-0 p-8 opacity-5"><Target size={140} className="text-[#d4a853]" /></div>
+          <h3 className="text-xs lg:text-sm font-black text-[#d4a853] uppercase tracking-widest border-b border-white/10 pb-4 mb-6 lg:mb-8">Cronograma de Recebimento</h3>
           <div className="space-y-5 relative z-10">
              {statsData.commissions.filter(c => c.triggerDate).slice(0, 4).sort((a,b) => new Date(a.triggerDate!).getTime() - new Date(b.triggerDate!).getTime()).map((c, i) => (
                <div key={i} className="flex items-center justify-between p-5 bg-white/5 rounded-[1.5rem] border border-white/10 hover:bg-white/10 transition-all cursor-default">
