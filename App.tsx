@@ -366,9 +366,11 @@ const App: React.FC = () => {
 
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
-    const isMasterCandidate = true; // Todo terminal pode tentar ser master para garantir descoberta rápida
+    
+    // Admins são candidatos prioritários a Master para garantir que a autenticação P2P funcione
+    const isMasterCandidate = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
 
-    const myId = (isMasterCandidate && reconnectAttemptsRef.current < 2)
+    const myId = (isMasterCandidate && reconnectAttemptsRef.current < 3)
       ? masterId 
       : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
@@ -474,20 +476,30 @@ const App: React.FC = () => {
         }
         if (d.type === 'PING') conn.send({ type: 'PONG' });
         
-         if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
+          if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
            const { email, password } = d.payload;
-           console.log(`Auth P2P: Requisição para ${email}`);
-           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === email.toLowerCase().trim());
-           if (broker && (broker.password === password || (!broker.password && !password))) {
-              if (broker.blocked || broker.deleted) {
-                conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Contate o administrador.' });
+           const emailClean = email.toLowerCase().trim();
+           const passwordClean = (password || '').trim();
+           
+           console.log(`[CORE] Auth P2P: Requisição recebida de ${emailClean} via ${conn.peer}`);
+           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean);
+           if (broker) {
+              console.log(`[CORE] Auth P2P: Broker encontrado: ${broker.name}. Validando senha...`);
+              if (broker.password === passwordClean || (!broker.password && !passwordClean)) {
+                 if (broker.blocked || broker.deleted) {
+                    console.warn(`[CORE] Auth P2P: Acesso Recusado para ${emailClean} (Bloqueado/Removido)`);
+                    conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Contate o administrador.' });
+                 } else {
+                    console.log(`[CORE] Auth P2P: SUCESSO para ${emailClean}. Enviando base de dados...`);
+                    conn.send({ type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
+                 }
               } else {
-                console.log(`Auth P2P: SUCESSO para ${email}`);
-                conn.send({ type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
+                 console.warn(`[CORE] Auth P2P: SENHA INCORRETA para ${emailClean}`);
+                 conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'Senha incorreta para este e-mail.' });
               }
            } else {
-              console.warn(`Auth P2P: FALHA - Credenciais incorretas para ${email}`);
-              conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'E-mail ou senha incorretos. Verifique com o administrador se você foi cadastrado.' });
+              console.warn(`[CORE] Auth P2P: E-MAIL NÃO ENCONTRADO localmente: ${emailClean}`);
+              conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'E-mail não cadastrado nesta Unidade. Verifique se o Administrador já incluiu você na Equipe.' });
            }
         }
       });

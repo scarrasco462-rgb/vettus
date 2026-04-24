@@ -18,11 +18,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
   const [statusMsg, setStatusMsg] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const handleNetworkIdChange = (val: string) => {
+    const id = val.toUpperCase().trim();
+    setNetworkId(id);
+    localStorage.setItem('vettus_network_id', id);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
     setError('');
     setStatusMsg('Iniciando protocolos de rede...');
+    localStorage.setItem('vettus_remembered_email', email);
 
     // REGRA MASTER: Sergio Carrasco Jr sempre tem acesso root local
     const isSergio = email.toLowerCase() === 'scarrasco462@gmail.com' || email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
@@ -53,8 +60,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     }
 
     const emailTrim = email.toLowerCase().trim();
+    const passwordTrim = password.trim();
     const localUser = localBrokers.find(b => b.email.toLowerCase().trim() === emailTrim);
-    if (localUser && (localUser.password === password || (!localUser.password && !password))) {
+    if (localUser && (localUser.password === passwordTrim || (!localUser.password && !passwordTrim))) {
        setStatusMsg('Sessão autorizada via cache local.');
        onLogin({ ...localUser, networkId: networkId.toUpperCase() });
        return;
@@ -111,11 +119,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
        peer.on('error', (err) => {
          console.warn('Auth Peer Error:', err.type);
          if (err.type === 'peer-unavailable') {
-            setError('UNIDADE MASTER OFFLINE: O Administrador (Sergio) precisa estar com o sistema aberto para autorizar novos logins.');
+            setError(`UNIDADE MASTER OFFLINE: O Administrador (Sergio) precisa estar com o sistema aberto para autorizar seu primeiro acesso neste notebook. Verifique também se o "Identificador da Unidade" (${networkId}) está correto.`);
             setIsSyncing(false);
             setStatusMsg('');
+         } else if (err.type === 'network') {
+            setError('FALHA DE REDE: Verifique sua conexão com a internet. O sistema não conseguiu alcançar a rede global PeerJS.');
+            setIsSyncing(false);
          } else {
-            setError('Falha na comunicação de rede. Verifique sua internet.');
+            setError(`Erro de Protocolo (${err.type}). Tente atualizar a página ou usar o Google Chrome.`);
             setIsSyncing(false);
          }
        });
@@ -180,7 +191,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
               <label className="text-[10px] font-black text-[#d4a853] uppercase ml-2 tracking-widest block">Identificador da Unidade</label>
               <div className="relative group">
                 <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-[#d4a853]" />
-                <input type="text" required value={networkId} onChange={e => setNetworkId(e.target.value.toUpperCase())} className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 text-white font-black tracking-widest outline-none focus:border-[#d4a853]/50 transition-all" />
+                <input 
+                  type="text" 
+                  required 
+                  value={networkId} 
+                  onChange={e => handleNetworkIdChange(e.target.value)} 
+                  className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 text-white font-black tracking-widest outline-none focus:border-[#d4a853]/50 transition-all uppercase" 
+                />
               </div>
             </div>
 
@@ -220,10 +237,15 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
           </button>
         </form>
 
-        <div className="mt-16 text-center">
+        <div className="mt-16 text-center space-y-4">
            <p className="text-slate-600 text-[9px] font-bold uppercase tracking-[0.3em] flex items-center justify-center">
              Vettus Imóveis CRM • Rede Mesh Ativa <Zap size={10} className="ml-2 text-emerald-500" />
            </p>
+           {isSyncing && (
+             <p className="text-[8px] text-slate-700 font-mono">
+               Handshake: vettus-auth-{Math.random().toString(36).substr(7)} &raquo; vettus-master-{networkId.toLowerCase().trim()}
+             </p>
+           )}
         </div>
       </div>
     </div>
