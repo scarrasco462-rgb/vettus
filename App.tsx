@@ -140,37 +140,40 @@ const App: React.FC = () => {
         localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(v));
       } catch (e) {
         console.warn(`Kernel Storage: Falha ao salvar ${k}:`, e);
-        if (k === 'activities' || k === 'properties') {
-          // Se for atividades ou imóveis (muito grandes), tentamos limpar algo se for erro de cota
-          const isQuotaError = e instanceof Error && (
-            e.name === 'QuotaExceededError' || 
-            e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-            e.message?.includes('quota')
-          );
-          
-          if (isQuotaError && k === 'activities') {
-             console.warn('Kernel Storage: Limpando logs antigos para liberar espaço...');
-             setActivities(prev => prev.slice(0, 50)); // Mantém apenas os 50 mais recentes
-          }
+        if (k === 'activities' || (e instanceof Error && e.name === 'QuotaExceededError')) {
+           const isQuotaError = e instanceof Error && (
+             e.name === 'QuotaExceededError' || 
+             e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+             e.message?.includes('quota')
+           );
+           
+           if (isQuotaError && k === 'activities') {
+              console.warn('Kernel Storage: Limpando logs antigos para liberar espaço...');
+              setActivities(prev => prev.slice(0, 50)); 
+           }
         }
       }
     });
-
     setLastSavedTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    
+  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses]);
+
+  // Auditoria de Sessão (Separada para evitar loops com activities)
+  useEffect(() => {
     if (currentUser) {
       try {
         localStorage.setItem(STORAGE_KEY_PREFIX + 'session_user', JSON.stringify(currentUser));
-      } catch (e) {
-        console.warn('Kernel Storage: Falha ao salvar sessão:', e);
-      }
+      } catch (e) {}
+
       const isSergio = currentUser.email?.toLowerCase() === 'scarrasco462@gmail.com' || currentUser.email?.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
       if (!isSergio) {
          const stillExists = brokers.find(b => b.id === currentUser.id);
-         if (!stillExists || stillExists.blocked || stillExists.deleted) handleLogout();
+         if (!stillExists || stillExists.blocked || stillExists.deleted) {
+            console.warn('Sessão Inválida: Usuário não encontrado ou bloqueado.');
+            handleLogout();
+         }
       }
     }
-  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses, currentUser]);
+  }, [brokers, currentUser]);
 
   const logSystemAction = useCallback((description: string, type: string = 'System') => {
     if (!currentUser) return;
@@ -195,9 +198,13 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
+  const isInternalUpdateRef = useRef(false);
+  const myAppId = useRef(Math.random().toString(36).substr(2, 9));
+
   const mergeData = useCallback((payload: any) => {
     if (!payload) return;
     
+    isInternalUpdateRef.current = true;
     let changed = false;
     const updateCollection = (prev: any[], next: any[]) => {
       if (!next) return prev;
@@ -242,7 +249,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const channel = new BroadcastChannel('vettus_internal_sync');
     channel.onmessage = (event) => {
-      if (event.data.type === 'DATA_UPDATE') {
+      if (event.data.type === 'DATA_UPDATE' && event.data.senderAppId !== myAppId.current) {
         mergeData(event.data.payload);
       }
     };
@@ -274,12 +281,20 @@ const App: React.FC = () => {
     stateRef.current = collections;
 
     if (hasChanges) {
+      if (isInternalUpdateRef.current) {
+        isInternalUpdateRef.current = false;
+        return;
+      }
+
       // Sincroniza abas locais instantaneamente
       try {
-        new BroadcastChannel('vettus_internal_sync').postMessage({ 
+        const channel = new BroadcastChannel('vettus_internal_sync');
+        channel.postMessage({ 
           type: 'DATA_UPDATE', 
-          payload: changedCollections 
+          payload: changedCollections,
+          senderAppId: myAppId.current
         });
+        channel.close();
       } catch (e) {}
 
       if (activeConnections.current.size > 0) {
@@ -287,7 +302,12 @@ const App: React.FC = () => {
           activeConnections.current.forEach(conn => {
             if (conn.open) {
               try {
-                conn.send({ type: 'DATA_UPDATE', payload: changedCollections, senderId: peerRef.current?.id });
+                conn.send({ 
+                  type: 'DATA_UPDATE', 
+                  payload: changedCollections, 
+                  senderId: peerRef.current?.id,
+                  senderAppId: myAppId.current
+                });
               } catch (e) {
                 console.warn('P2P Broadcast Error:', e);
               }
