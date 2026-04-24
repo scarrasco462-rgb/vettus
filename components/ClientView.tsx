@@ -196,7 +196,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                       <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-sm group-hover:scale-110 transition-transform">{client.name[0]}</div>
                       <div>
                         <p className="font-bold text-slate-900 text-sm">{client.name}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">{client.phone}</p>
+                        <p className="text-sm text-slate-900 font-black uppercase tracking-widest mt-0.5">{client.phone}</p>
                       </div>
                     </div>
                   </td>

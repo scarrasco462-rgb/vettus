@@ -908,7 +908,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                                 <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm" title={`Motivo: ${client.blockReason}`}>BLOQUEADO</span>
                              )}
                           </div>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{client.phone}</p>
+                          <p className="text-sm text-slate-900 font-black uppercase tracking-widest mt-0.5">{client.phone}</p>
                           {client.spouseName && (
                             <p className="text-[9px] text-[#d4a853] font-black uppercase tracking-tighter mt-0.5">
                               Esposa: {client.spouseName} {client.spousePhone && `(${client.spousePhone})`}
@@ -1247,7 +1247,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black text-xs">{client.name[0]}</div>
                                    <div>
                                       <p className="font-black text-slate-900 text-xs uppercase">{client.name}</p>
-                                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{client.phone}</p>
+                                      <p className="text-sm text-slate-900 font-black uppercase tracking-widest mt-0.5">{client.phone}</p>
                                    </div>
                                 </div>
                              </td>
