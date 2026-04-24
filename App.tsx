@@ -152,7 +152,7 @@ const App: React.FC = () => {
 
   const isSergioEmail = (email?: string) => {
     if (!email) return false;
-    const e = email.toLowerCase();
+    const e = email.toLowerCase().trim();
     return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
   };
 
@@ -166,7 +166,7 @@ const App: React.FC = () => {
       if (!isSergioEmail(currentUser.email)) {
          // Se temos brokers carregados (mais do que apenas o Sergio inicial), validamos a existência
          if (brokers.length > 2) { 
-           const stillExists = brokers.find(b => b.id === currentUser.id || b.email.toLowerCase() === currentUser.email.toLowerCase());
+           const stillExists = brokers.find(b => b.id === currentUser.id || b.email.toLowerCase().trim() === currentUser.email?.toLowerCase().trim());
            if (!stillExists || stillExists.blocked || stillExists.deleted) {
               console.warn('Sessão Inválida: Usuário não encontrado ou bloqueado.');
               handleLogout();
@@ -320,6 +320,28 @@ const App: React.FC = () => {
     }
   }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses]);
 
+  // Resposta automática para solicitações de login de outras abas (mesmo PC)
+  useEffect(() => {
+    const authChannel = new BroadcastChannel('vettus_internal_sync_auth');
+    authChannel.onmessage = (e) => {
+      if (e.data.type === 'AUTH_REQUEST' && currentUser && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
+        const { email, password } = e.data;
+        const broker = brokers.find(b => b.email.toLowerCase().trim() === email.toLowerCase().trim());
+        if (broker && (broker.password === password || (!broker.password && !password))) {
+          if (!broker.blocked && !broker.deleted) {
+            authChannel.postMessage({ 
+              type: 'AUTH_RESPONSE', 
+              success: true, 
+              user: broker, 
+              fullData: stateRef.current 
+            });
+          }
+        }
+      }
+    };
+    return () => authChannel.close();
+  }, [currentUser, brokers]);
+
   // PeerJS Kernel v7.0 - Ultra-Fast Discovery
   const initPeer = useCallback(() => {
     if (!currentUser || isInitializingRef.current) return;
@@ -455,8 +477,8 @@ const App: React.FC = () => {
          if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
            const { email, password } = d.payload;
            console.log(`Auth P2P: Requisição para ${email}`);
-           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase() === email.toLowerCase());
-           if (broker && (broker.password === password || !broker.password)) {
+           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === email.toLowerCase().trim());
+           if (broker && (broker.password === password || (!broker.password && !password))) {
               if (broker.blocked || broker.deleted) {
                 conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Contate o administrador.' });
               } else {

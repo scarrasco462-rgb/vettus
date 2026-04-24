@@ -52,96 +52,114 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
        } catch (e) {}
     }
 
-    const localUser = localBrokers.find(b => b.email.toLowerCase() === email.toLowerCase());
-    if (localUser && (localUser.password === password || !localUser.password)) {
+    const emailTrim = email.toLowerCase().trim();
+    const localUser = localBrokers.find(b => b.email.toLowerCase().trim() === emailTrim);
+    if (localUser && (localUser.password === password || (!localUser.password && !password))) {
        setStatusMsg('Sessão autorizada via cache local.');
        onLogin({ ...localUser, networkId: networkId.toUpperCase() });
        return;
     }
 
-    // 2. ACESSO REMOTO RESILIENTE (MESH): Consulta Master ou Outros Nós Ativos
-    setStatusMsg(`Localizando Master da Unidade ${networkId.toUpperCase()}...`);
-    const tempId = `vettus-auth-temp-${Math.random().toString(36).substr(7)}`;
-    
-    const peer = (() => {
-      try {
-        return new Peer(tempId, { 
-          secure: true,
-          debug: 0 // Silenciar logs para evitar alertas desnecessários
-        });
-      } catch (e) {
-        console.error('Erro ao instanciar Peer de Autenticação:', e);
-        return null;
-      }
-    })();
+    // 2. CHECK VIA BROADCAST CHANNEL (Outra aba no mesmo PC)
+    setStatusMsg('Consultando sessões locais ativas...');
+    const authChannel = new BroadcastChannel('vettus_internal_sync_auth');
+    let authResponded = false;
 
-    if (!peer) {
-      setError('Falha ao iniciar protocolo de rede. Tente novamente.');
-      setIsSyncing(false);
-      return;
-    }
-    
-    peer.on('error', (err) => {
-      console.warn('Auth Peer Error (Silenced):', err.type);
-      // Não interrompemos o fluxo, o timeout de 8s cuidará disso se não conectar
-    });
+    const authTimeout = setTimeout(() => {
+       if (!authResponded) {
+          authChannel.close();
+          proceedToRemoteAuth();
+       }
+    }, 1500);
 
-    peer.on('open', () => {
-      const masterNodeId = `vettus-master-${networkId.toLowerCase().trim()}`;
-      const conn = peer.connect(masterNodeId, { reliable: true });
-      
-      const timeout = setTimeout(() => {
-        // Se o Master falhar, tentamos o login autônomo se o corretor estiver em um nó ativo (simulação de Mesh)
-        // No contexto atual, se não há cache e o master está off, oferecemos "Entrada de Contingência"
-        setError('UNIDADE OFFLINE: O Administrador Sergio está desconectado. Ative o Modo Autônomo para trabalhar offline e sincronizar depois.');
-        setIsSyncing(false);
-        setStatusMsg('');
-        
-        // NOVO: Permitir login forçado se o ID da Unidade for conhecido (Resiliência)
-        if (confirm("Deseja entrar em MODO AUTÔNOMO? Seus dados serão sincronizados assim que o Sergio conectar.")) {
-           onLogin({
-              id: `temp-${Math.random().toString(36).substr(2, 5)}`,
-              name: 'Corretor (Modo Autônomo)',
-              email,
-              role: 'Broker',
-              joinDate: new Date().toISOString().split('T')[0],
-              performance: 0,
-              networkId: networkId.toUpperCase()
+    authChannel.onmessage = (e) => {
+       if (e.data.type === 'AUTH_RESPONSE' && e.data.success) {
+          authResponded = true;
+          clearTimeout(authTimeout);
+          setStatusMsg('Login autorizado via aba local ativa.');
+          onUpdateInitialData(e.data.fullData);
+          onLogin({ ...e.data.user, networkId: networkId.toUpperCase() });
+          authChannel.close();
+       }
+    };
+
+    authChannel.postMessage({ type: 'AUTH_REQUEST', email, password });
+
+    function proceedToRemoteAuth() {
+       // 3. ACESSO REMOTO RESILIENTE (MESH): Consulta Master ou Outros Nós Ativos
+       setStatusMsg(`Localizando Master da Unidade ${networkId.toUpperCase()}...`);
+       const tempId = `vettus-auth-temp-${Math.random().toString(36).substr(7)}`;
+       
+       const peer = (() => {
+         try {
+           return new Peer(tempId, { 
+             secure: true,
+             debug: 0
            });
-        }
-        peer.destroy();
-      }, 8000);
+         } catch (e) {
+           console.error('Erro ao instanciar Peer de Autenticação:', e);
+           return null;
+         }
+       })();
 
-      conn.on('open', () => {
-        clearTimeout(timeout);
-        setStatusMsg('Conectado ao Master. Validando credenciais...');
-        try {
-          conn.send({ type: 'REMOTE_AUTH_REQUEST', payload: { email, password } });
-        } catch (e) {
-          console.error('Erro ao enviar solicitação de autenticação remota:', e);
-          setError('Falha na comunicação com o servidor. Tente novamente.');
-          setIsSyncing(false);
-        }
-      });
+       if (!peer) {
+         setError('Falha ao iniciar protocolo de rede. Tente novamente.');
+         setIsSyncing(false);
+         return;
+       }
+       
+       peer.on('error', (err) => {
+         console.warn('Auth Peer Error:', err.type);
+         if (err.type === 'peer-unavailable') {
+            setError('UNIDADE MASTER OFFLINE: O Administrador (Sergio) precisa estar com o sistema aberto para autorizar novos logins.');
+            setIsSyncing(false);
+            setStatusMsg('');
+         } else {
+            setError('Falha na comunicação de rede. Verifique sua internet.');
+            setIsSyncing(false);
+         }
+       });
 
-      conn.on('data', (d: any) => {
-        if (d.type === 'REMOTE_AUTH_SUCCESS') {
-          setStatusMsg('Acesso Autorizado! Sincronizando base...');
-          const { user, fullData } = d.payload;
-          onUpdateInitialData(fullData);
-          setTimeout(() => {
-             onLogin({ ...user, networkId: networkId.toUpperCase() });
+       peer.on('open', () => {
+         const masterNodeId = `vettus-master-${networkId.toLowerCase().trim()}`;
+         const conn = peer.connect(masterNodeId, { reliable: true });
+         
+         const timeout = setTimeout(() => {
+           setError('O Administrador está offline. Aguarde ou solicite que ele abra o sistema para você poder entrar.');
+           setIsSyncing(false);
+           setStatusMsg('');
+           peer.destroy();
+         }, 12000);
+
+         conn.on('open', () => {
+           clearTimeout(timeout);
+           setStatusMsg('Conectado ao Master. Validando credenciais...');
+           try {
+             conn.send({ type: 'REMOTE_AUTH_REQUEST', payload: { email: emailTrim, password } });
+           } catch (e) {
+             setError('Falha na comunicação com o Master. Tente novamente.');
+             setIsSyncing(false);
+           }
+         });
+
+         conn.on('data', (d: any) => {
+           if (d.type === 'REMOTE_AUTH_SUCCESS') {
+             setStatusMsg('Acesso Autorizado! Sincronizando base...');
+             const { user, fullData } = d.payload;
+             onUpdateInitialData(fullData);
+             setTimeout(() => {
+                onLogin({ ...user, networkId: networkId.toUpperCase() });
+                peer.destroy();
+             }, 1000);
+           } else if (d.type === 'REMOTE_AUTH_FAILURE') {
+             setError(d.message);
+             setIsSyncing(false);
+             setStatusMsg('');
              peer.destroy();
-          }, 1000);
-        }
-        if (d.type === 'REMOTE_AUTH_FAILURE') {
-          setError(d.message);
-          setIsSyncing(false);
-          setStatusMsg('');
-          peer.destroy();
-        }
-      });
-    });
+           }
+         });
+       });
+    }
   };
 
   return (
