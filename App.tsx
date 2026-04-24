@@ -238,25 +238,68 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  // Broadcast Automático
+  // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
-    const payload = { 
+    const channel = new BroadcastChannel('vettus_internal_sync');
+    channel.onmessage = (event) => {
+      if (event.data.type === 'DATA_UPDATE') {
+        mergeData(event.data.payload);
+      }
+    };
+    return () => channel.close();
+  }, [mergeData]);
+
+  // Sincronização Incremental e Otimizada (v7.0)
+  const prevCollectionsRef = useRef<Record<string, any[]>>({});
+
+  useEffect(() => {
+    const collections = { 
       brokers, properties, clients, activities, reminders, 
       commissions, commissionForecasts, documents, 
       constructionCompanies, launches, campaigns, rentals, expenses 
     };
-    stateRef.current = payload;
 
-    if (activeConnections.current.size > 0) {
-      activeConnections.current.forEach(conn => {
-        if (conn.open) {
-          try { conn.send({ type: 'DATA_UPDATE', payload }); } catch { activeConnections.current.delete(conn.peer); }
-        }
-      });
+    const changedCollections: Record<string, any[]> = {};
+    let hasChanges = false;
+
+    Object.entries(collections).forEach(([key, list]) => {
+      const prevList = prevCollectionsRef.current[key] || [];
+      if (list !== prevList) {
+        changedCollections[key] = list;
+        hasChanges = true;
+      }
+    });
+
+    prevCollectionsRef.current = collections;
+    stateRef.current = collections;
+
+    if (hasChanges) {
+      // Sincroniza abas locais instantaneamente
+      try {
+        new BroadcastChannel('vettus_internal_sync').postMessage({ 
+          type: 'DATA_UPDATE', 
+          payload: changedCollections 
+        });
+      } catch (e) {}
+
+      if (activeConnections.current.size > 0) {
+        const timeout = setTimeout(() => {
+          activeConnections.current.forEach(conn => {
+            if (conn.open) {
+              try {
+                conn.send({ type: 'DATA_UPDATE', payload: changedCollections, senderId: peerRef.current?.id });
+              } catch (e) {
+                console.warn('P2P Broadcast Error:', e);
+              }
+            }
+          });
+        }, 300);
+        return () => clearTimeout(timeout);
+      }
     }
   }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses]);
 
-  // PeerJS Kernel v6.5 - Protocolo de Conectividade Blindada (Ultra-Resiliente)
+  // PeerJS Kernel v7.0 - Ultra-Fast Discovery
   const initPeer = useCallback(() => {
     if (!currentUser || isInitializingRef.current) return;
     
@@ -357,7 +400,7 @@ const App: React.FC = () => {
         reconnectAttemptsRef.current = 0; // Reset ao conectar ao master
         activeConnections.current.set(conn.peer, conn);
         conn.on('data', (d: any) => {
-           if (d.type === 'DATA_UPDATE') mergeData(d.payload);
+           if (d.type === 'DATA_UPDATE' && d.senderId !== peerRef.current?.id) mergeData(d.payload);
            if (d.type === 'PING') conn.send({ type: 'PONG' });
         });
         conn.on('close', () => activeConnections.current.delete(conn.peer));
@@ -382,7 +425,7 @@ const App: React.FC = () => {
       console.log('Nova conexão P2P estabelecida:', conn.peer);
       
       conn.on('data', (d: any) => {
-        if (d.type === 'DATA_UPDATE') {
+        if (d.type === 'DATA_UPDATE' && d.senderId !== peerRef.current?.id) {
            console.log('Dados recebidos via P2P, mesclando...');
            mergeData(d.payload);
         }
@@ -434,11 +477,12 @@ const App: React.FC = () => {
       // Tratamento silencioso para ID ocupado (Master já ativo em outra aba)
       if (errorType === 'unavailable-id' || errorType.includes('taken')) {
          console.warn('Kernel P2P: ID Master ocupado. Alternando para modo Node...');
-         reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1) + 1;
+         // Pula imediatamente para modo Node desativando a tentativa de Master
+         reconnectAttemptsRef.current = 5; 
          if (!peer.destroyed) {
             try { peer.destroy(); } catch (e) {}
          }
-         initTimeoutRef.current = setTimeout(() => initPeer(), 1500);
+         initTimeoutRef.current = setTimeout(() => initPeer(), 100);
          return;
       }
 
@@ -781,7 +825,7 @@ const App: React.FC = () => {
           properties={properties} 
           currentUser={currentUser}
           onDeleteClients={ids => setClients(v => v.map(c => ids.includes(c.id) ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))}
-          onAddActivities={newActivities => setActivities(v => [...newActivities, ...v])}
+          onAddActivities={newActivities => setActivities(v => [...newActivities.map(a => ({...a, updatedAt: new Date().toISOString()})), ...v])}
           onNavigate={setCurrentView}
         />
       )}
