@@ -166,7 +166,7 @@ const App: React.FC = () => {
       if (!isSergioEmail(currentUser.email)) {
          // Se temos brokers carregados (mais do que apenas o Sergio inicial), validamos a existência
          if (brokers.length > 2) { 
-           const stillExists = brokers.find(b => b.id === currentUser.id || b.email.toLowerCase().trim() === currentUser.email?.toLowerCase().trim());
+           const stillExists = brokers.find(b => (b.id === currentUser.id || b.email.toLowerCase().trim() === currentUser.email?.toLowerCase().trim()) && !b.deleted);
            if (!stillExists || stillExists.blocked || stillExists.deleted) {
               console.warn('Sessão Inválida: Usuário não encontrado ou bloqueado.');
               handleLogout();
@@ -326,9 +326,9 @@ const App: React.FC = () => {
     authChannel.onmessage = (e) => {
       if (e.data.type === 'AUTH_REQUEST' && currentUser && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
         const { email, password } = e.data;
-        const broker = brokers.find(b => b.email.toLowerCase().trim() === email.toLowerCase().trim());
+        const broker = brokers.find(b => b.email.toLowerCase().trim() === email.toLowerCase().trim() && !b.deleted);
         if (broker && (broker.password === password || (!broker.password && !password))) {
-          if (!broker.blocked && !broker.deleted) {
+          if (!broker.blocked) {
             authChannel.postMessage({ 
               type: 'AUTH_RESPONSE', 
               success: true, 
@@ -482,7 +482,7 @@ const App: React.FC = () => {
            const passwordClean = (password || '').trim();
            
            console.log(`[CORE] Auth P2P: Requisição recebida de ${emailClean} via ${conn.peer}`);
-           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean);
+           const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
            if (broker) {
               console.log(`[CORE] Auth P2P: Broker encontrado: ${broker.name}. Validando senha...`);
               if (broker.password === passwordClean || (!broker.password && !passwordClean)) {

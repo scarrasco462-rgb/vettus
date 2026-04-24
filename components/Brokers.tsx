@@ -138,7 +138,7 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
 
   const handleToggleBlock = (broker: Broker) => {
     if (!isAdmin) return;
-    const isSergio = broker.email.toLowerCase() === 'scarrasco462@gmail.com';
+    const isSergio = broker.email.toLowerCase().trim() === 'scarrasco462@gmail.com' || broker.email.toLowerCase().trim() === 'sergioconsultorimobiliario01@gmail.com';
     if (isSergio) {
        alert("ERRO DE SEGURANÇA: O Administrador Master não pode ser bloqueado.");
        return;
@@ -150,7 +150,7 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
 
   const handleDelete = (broker: Broker) => {
     if (!isAdmin) return;
-    const isSergio = broker.email.toLowerCase() === 'scarrasco462@gmail.com';
+    const isSergio = broker.email.toLowerCase().trim() === 'scarrasco462@gmail.com' || broker.email.toLowerCase().trim() === 'sergioconsultorimobiliario01@gmail.com';
     if (isSergio) {
        alert("ERRO DE SEGURANÇA: O Administrador Master não pode ser removido.");
        return;
@@ -234,7 +234,7 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
                         <span className="bg-slate-100 text-slate-500 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
                           {broker.role}
                         </span>
-                        <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${broker.blocked ? 'bg-red-50 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${broker.blocked ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
                           {broker.blocked ? 'Suspenso' : 'Ativo'}
                         </span>
                      </div>

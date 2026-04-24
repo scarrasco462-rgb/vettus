@@ -61,7 +61,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
 
     const emailTrim = email.toLowerCase().trim();
     const passwordTrim = password.trim();
-    const localUser = localBrokers.find(b => b.email.toLowerCase().trim() === emailTrim);
+    const localUser = localBrokers.find(b => b.email.toLowerCase().trim() === emailTrim && !b.deleted);
     if (localUser && (localUser.password === passwordTrim || (!localUser.password && !passwordTrim))) {
        setStatusMsg('Sessão autorizada via cache local.');
        onLogin({ ...localUser, networkId: networkId.toUpperCase() });
