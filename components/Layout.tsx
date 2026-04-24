@@ -180,24 +180,23 @@ export const Layout: React.FC<LayoutProps> = ({
         )}
       </button>
 
-      {syncStatus !== 'synced' && (
-        <button 
-          onClick={() => onForceReconnect?.()}
-          className={`p-2.5 rounded-xl flex flex-col items-center justify-center transition-all duration-700 border shadow-xl cursor-pointer active:scale-95 min-w-[80px] ${
-            syncStatus === 'syncing' ? 'bg-[#d4a853]/10 border-[#d4a853]/30 text-[#d4a853] animate-pulse' : 
-            'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20'
-          }`} title={syncStatus === 'syncing' ? 'Retomando Conexão...' : 'Sinal Instável - Clique para Resetar'}>
-          <div className="flex items-center space-x-2">
-            {syncStatus === 'syncing' ? <RefreshCw size={14} className="animate-spin" /> : <WifiOff size={14} />}
-            <span className="text-[8px] font-black uppercase tracking-widest">
-              {syncStatus === 'syncing' ? 'Sync' : 'Offline'}
-            </span>
-          </div>
-          {lastSaved && (
-            <span className="text-[7px] font-bold opacity-70 mt-0.5">Salvo: {lastSaved}</span>
-          )}
-        </button>
-      )}
+      <button 
+        onClick={() => onForceReconnect?.()}
+        className={`p-2.5 rounded-xl flex flex-col items-center justify-center transition-all duration-700 border shadow-xl cursor-pointer active:scale-95 min-w-[80px] ${
+          syncStatus === 'synced' ? 'gold-gradient text-[#0a1120] border-[#d4a853]/50' : 
+          syncStatus === 'syncing' ? 'bg-[#d4a853]/10 border-[#d4a853]/30 text-[#d4a853] animate-pulse' : 
+          'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20'
+        }`} title={syncStatus === 'synced' ? 'Rede Estável - Clique para Forçar Sincronia' : syncStatus === 'syncing' ? 'Retomando Conexão...' : 'Sinal Instável - Clique para Resetar'}>
+        <div className="flex items-center space-x-2">
+          {syncStatus === 'synced' ? <Wifi size={14} /> : syncStatus === 'syncing' ? <RefreshCw size={14} className="animate-spin" /> : <WifiOff size={14} />}
+          <span className="text-[8px] font-black uppercase tracking-widest">
+            {syncStatus === 'synced' ? 'Online' : syncStatus === 'syncing' ? 'Sync' : 'Offline'}
+          </span>
+        </div>
+        {lastSaved && (
+          <span className="text-[7px] font-bold opacity-70 mt-0.5">Salvo: {lastSaved}</span>
+        )}
+      </button>
     </div>
   );
 

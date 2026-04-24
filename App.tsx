@@ -280,12 +280,9 @@ const App: React.FC = () => {
 
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
-    const isMasterCandidate = currentUser.role === 'Admin' && 
-                             (currentUser.email?.toLowerCase() === 'scarrasco462@gmail.com' || 
-                              currentUser.email?.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com');
+    const isMasterCandidate = true; // Todo terminal pode tentar ser master para garantir descoberta rápida
 
-    // Só tenta ser Master se for o Sergio e for a primeira tentativa absoluta
-    const myId = (isMasterCandidate && reconnectAttemptsRef.current === 0)
+    const myId = (isMasterCandidate && reconnectAttemptsRef.current < 2)
       ? masterId 
       : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
@@ -618,9 +615,9 @@ const App: React.FC = () => {
       {currentView === 'monthly_financial' && (
         <MonthlyFinancialView 
           expenses={expenses}
-          onAddExpense={e => setExpenses(v => [e, ...v])}
-          onUpdateExpense={e => setExpenses(v => v.map(x => x.id === e.id ? e : x))}
-          onDeleteExpense={id => setExpenses(v => v.filter(x => x.id !== id))}
+          onAddExpense={e => setExpenses(v => [{...e, updatedAt: new Date().toISOString()}, ...v])}
+          onUpdateExpense={e => setExpenses(v => v.map(x => x.id === e.id ? {...e, updatedAt: new Date().toISOString()} : x))}
+          onDeleteExpense={id => setExpenses(v => v.map(e => e.id === id ? {...e, deleted: true, updatedAt: new Date().toISOString()} : e))}
           currentUser={currentUser}
         />
       )}
@@ -651,7 +648,7 @@ const App: React.FC = () => {
           currentUser={currentUser}
           onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? {...s, updatedAt: new Date().toISOString()} : x))}
           onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])}
-          onDeleteSale={id => setCommissions(v => v.filter(x => x.id !== id))}
+          onDeleteSale={id => setCommissions(v => v.map(c => c.id === id ? {...c, deleted: true, updatedAt: new Date().toISOString()} : c))}
           preselectedClientId={preselectedClientForFlow}
           preselectedTab={preselectedFlowTab}
           onClearPreselection={() => setPreselectedClientForFlow(null)}
@@ -673,17 +670,17 @@ const App: React.FC = () => {
           clients={(isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted)} 
           currentUser={currentUser} 
           brokers={brokers}
-          onAddCampaign={c => setCampaigns(v => [c, ...v])}
-          onUpdateCampaign={c => setCampaigns(v => v.map(x => x.id === c.id ? c : x))}
-          onDeleteCampaign={id => setCampaigns(v => v.filter(x => x.id !== id))}
+          onAddCampaign={c => setCampaigns(v => [{...c, updatedAt: new Date().toISOString()}, ...v])}
+          onUpdateCampaign={c => setCampaigns(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))}
+          onDeleteCampaign={id => setCampaigns(v => v.map(c => c.id === id ? {...c, deleted: true, updatedAt: new Date().toISOString()} : c))}
         />
       )}
 
       {currentView === 'activities' && (
         <ActivityView 
           activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id)} 
-          onAddActivity={a => setActivities(v => [a, ...v])} 
-          onAddReminder={r => setReminders(v => [r, ...v])} 
+          onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
+          onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
           currentUser={currentUser}
           clients={(isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id)).filter(c => !c.deleted)}
         />
@@ -703,7 +700,7 @@ const App: React.FC = () => {
       {currentView === 'password_update' && (
         <PasswordUpdateView 
           currentUser={currentUser}
-          onUpdateBroker={b => setBrokers(v => v.map(x => x.id === b.id ? b : x))}
+          onUpdateBroker={b => setBrokers(v => v.map(x => x.id === b.id ? {...b, updatedAt: new Date().toISOString()} : x))}
         />
       )}
 
@@ -712,8 +709,9 @@ const App: React.FC = () => {
           unassignedLeads={clients.filter(c => c.brokerId === 'unassigned' && !c.deleted)}
           brokers={brokers}
           currentUser={currentUser}
-          onImportLeads={ls => setClients(v => [...v, ...ls])}
+          onImportLeads={ls => setClients(v => [...v, ...ls.map(l => ({...l, updatedAt: new Date().toISOString()}))])}
           onUpdateLead={l => {
+             const updatedAt = new Date().toISOString();
              if (l.brokerId !== 'unassigned') {
                 const newReminder: Reminder = {
                    id: Math.random().toString(36).substr(2, 9),
@@ -723,11 +721,11 @@ const App: React.FC = () => {
                    priority: 'High',
                    completed: false,
                    type: 'new_lead',
-                   updatedAt: new Date().toISOString()
+                   updatedAt
                 };
                 setReminders(prev => [newReminder, ...prev]);
              }
-             setClients(v => v.map(x => x.id === l.id ? l : x));
+             setClients(v => v.map(x => x.id === l.id ? {...l, updatedAt} : x));
           }}
         />
       )}
@@ -735,8 +733,8 @@ const App: React.FC = () => {
       {currentView === 'documents' && (
         <DocumentsView 
           documents={documents} 
-          onUpload={d => setDocuments(v => [d, ...v])} 
-          onDelete={id => setDocuments(v => v.filter(x => x.id !== id))} 
+          onUpload={d => setDocuments(v => [{...d, updatedAt: new Date().toISOString()}, ...v])} 
+          onDelete={id => setDocuments(v => v.map(d => d.id === id ? { ...d, deleted: true, updatedAt: new Date().toISOString() } : d))} 
           currentUser={currentUser}
         />
       )}
@@ -745,8 +743,8 @@ const App: React.FC = () => {
         <ConstructionCompaniesView 
           companies={constructionCompanies} 
           forecasts={commissionForecasts} 
-          onAddCompany={c => setConstructionCompanies(v => [...v, c])} 
-          onAddForecasts={f => setCommissionForecasts(v => [...v, ...f])}
+          onAddCompany={c => setConstructionCompanies(v => [{...c, updatedAt: new Date().toISOString()}, ...v])} 
+          onAddForecasts={f => setCommissionForecasts(v => [...f.map(item => ({...item, updatedAt: new Date().toISOString()})), ...v])}
           currentUser={currentUser}
         />
       )}
@@ -767,7 +765,7 @@ const App: React.FC = () => {
           rentals={rentals} 
           properties={properties} 
           currentUser={currentUser} 
-          onAddRental={r => setRentals(v => [r, ...v])} 
+          onAddRental={r => setRentals(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
         />
       )}
 
