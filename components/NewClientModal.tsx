@@ -196,7 +196,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Corretor Vettus</label>
                 <select value={formData.brokerId} onChange={e => setFormData({...formData, brokerId: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none">
-                  {brokers.filter(b => !b.deleted).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  {brokers.filter(b => !b.deleted && !b.blocked).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

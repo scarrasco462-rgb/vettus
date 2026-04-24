@@ -1248,7 +1248,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                        className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 px-6 text-sm font-black text-slate-900 outline-none focus:border-[#d4a853] shadow-sm"
                     >
                        <option value="">Selecione o destino estratégico...</option>
-                       {brokers.filter(b => b.id !== selectedClient.brokerId).map(b => (
+                       {brokers.filter(b => b.id !== selectedClient.brokerId && !b.deleted && !b.blocked).map(b => (
                          <option key={b.id} value={b.id}>{b.name} ({b.role})</option>
                        ))}
                     </select>
