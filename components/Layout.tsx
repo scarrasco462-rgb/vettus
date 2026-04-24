@@ -162,19 +162,20 @@ export const Layout: React.FC<LayoutProps> = ({
     onViewChange(viewId);
   };
 
-  const SyncIndicator = () => (
-    <div className="flex items-center space-x-3">
+  const statusIcons = (
+    <div className={`flex items-center ${isCollapsed ? 'flex-col space-y-2' : 'space-x-2'}`}>
       <button 
         onClick={() => onViewChange('reminders')}
-        className={`relative p-2.5 rounded-xl border transition-all hover:scale-105 active:scale-95 group ${
+        className={`relative p-2 rounded-xl transition-all hover:bg-white/10 border border-white/5 group ${
           pendingRemindersCount > 0 
-          ? 'bg-red-500/10 border-red-500/30 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
-          : 'bg-white/5 border-white/10 text-slate-400'
+          ? 'text-red-500 bg-red-500/5' 
+          : 'text-slate-500'
         }`}
+        title="Lembretes"
       >
-        <Bell className={`w-5 h-5 ${pendingRemindersCount > 0 ? 'animate-swing group-hover:animate-none' : ''}`} />
+        <Bell size={16} className={pendingRemindersCount > 0 ? 'animate-swing group-hover:animate-none' : ''} />
         {pendingRemindersCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#020617] shadow-lg animate-in zoom-in duration-300">
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-[#020617] shadow-lg">
             {pendingRemindersCount}
           </span>
         )}
@@ -182,20 +183,14 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <button 
         onClick={() => onForceReconnect?.()}
-        className={`p-2.5 rounded-xl flex flex-col items-center justify-center transition-all duration-700 border shadow-xl cursor-pointer active:scale-95 min-w-[80px] ${
-          syncStatus === 'synced' ? 'gold-gradient text-[#0a1120] border-[#d4a853]/50' : 
-          syncStatus === 'syncing' ? 'bg-[#d4a853]/10 border-[#d4a853]/30 text-[#d4a853] animate-pulse' : 
-          'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20'
-        }`} title={syncStatus === 'synced' ? 'Rede Estável - Clique para Forçar Sincronia' : syncStatus === 'syncing' ? 'Retomando Conexão...' : 'Sinal Instável - Clique para Resetar'}>
-        <div className="flex items-center space-x-2">
-          {syncStatus === 'synced' ? <Wifi size={14} /> : syncStatus === 'syncing' ? <RefreshCw size={14} className="animate-spin" /> : <WifiOff size={14} />}
-          <span className="text-[8px] font-black uppercase tracking-widest">
-            {syncStatus === 'synced' ? 'Online' : syncStatus === 'syncing' ? 'Sync' : 'Offline'}
-          </span>
-        </div>
-        {lastSaved && (
-          <span className="text-[7px] font-bold opacity-70 mt-0.5">Salvo: {lastSaved}</span>
-        )}
+        className={`p-2 rounded-xl transition-all border border-white/5 flex items-center justify-center ${
+          syncStatus === 'synced' ? 'text-[#d4a853] bg-[#d4a853]/5' : 
+          syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 
+          'text-red-500 bg-red-500/5'
+        }`}
+        title={syncStatus === 'synced' ? 'Conexão Estável' : syncStatus === 'syncing' ? 'Sincronizando...' : 'Offline - Clique para Resetar'}
+      >
+        {syncStatus === 'synced' ? <Wifi size={16} /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> : <WifiOff size={16} />}
       </button>
     </div>
   );
@@ -203,9 +198,31 @@ export const Layout: React.FC<LayoutProps> = ({
   return (
     <div className="flex min-h-screen bg-[#f8fafc] overflow-x-hidden print:bg-white print:block">
       <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#020617] text-white flex items-center justify-between px-4 z-[60] border-b border-white/5 shadow-xl print:hidden">
-        <div className="flex items-center space-x-3">
-          <VettusSymbol className="w-10 h-10" />
-          <h1 className="text-sm font-black tracking-[0.2em] text-[#d4a853]">VETTUS</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <VettusSymbol className="w-10 h-10" />
+            <h1 className="text-sm font-black tracking-[0.2em] text-[#d4a853]">VETTUS</h1>
+          </div>
+          <div className="h-6 w-px bg-white/10 mx-1" />
+          <div className="flex items-center space-x-2">
+             <button 
+                onClick={() => onViewChange('reminders')}
+                className={`relative p-2 rounded-xl transition-all ${pendingRemindersCount > 0 ? 'text-red-500' : 'text-slate-500'}`}
+             >
+                <Bell size={18} className={pendingRemindersCount > 0 ? 'animate-swing' : ''} />
+                {pendingRemindersCount > 0 && (
+                   <span className="absolute top-1 right-1 w-4 h-4 bg-red-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-[#020617]">
+                      {pendingRemindersCount}
+                   </span>
+                )}
+             </button>
+             <button 
+                onClick={() => onForceReconnect?.()}
+                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-[#d4a853]' : syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 'text-red-500'}`}
+             >
+                {syncStatus === 'synced' ? <Wifi size={18} /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin" /> : <WifiOff size={18} />}
+             </button>
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-white hover:bg-white/5 rounded-xl transition-all">
@@ -213,10 +230,6 @@ export const Layout: React.FC<LayoutProps> = ({
           </button>
         </div>
       </header>
-
-      <div className="fixed top-6 right-8 z-[999] flex items-center space-x-4 no-print">
-          <SyncIndicator />
-      </div>
 
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] lg:hidden" onClick={() => setIsSidebarOpen(false)} />
@@ -234,8 +247,19 @@ export const Layout: React.FC<LayoutProps> = ({
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
-        <div className={`flex flex-col items-center border-b border-white/5 relative transition-all duration-300 ${isCollapsed ? 'p-4' : 'p-8'}`}>
-          {isCollapsed ? <VettusSymbol className="w-12 h-12" /> : <VettusLogoReduced />}
+        <div className={`flex flex-col border-b border-white/5 relative transition-all duration-300 ${isCollapsed ? 'p-4 items-center' : 'p-6 items-stretch'}`}>
+          <div className={`flex items-center w-full ${isCollapsed ? 'flex-col space-y-4' : 'justify-between'}`}>
+            <div className="flex items-center space-x-3">
+              <VettusSymbol className={isCollapsed ? "w-10 h-10" : "w-11 h-11"} />
+              {!isCollapsed && (
+                <div className="animate-in fade-in slide-in-from-left-2 duration-500">
+                  <h1 className="text-lg font-black tracking-[0.2em] text-[#d4a853] uppercase" style={{ fontFamily: "'Playfair Display', serif" }}>VETTUS</h1>
+                  <p className="text-[7px] font-bold text-slate-500 tracking-[0.3em] uppercase">IMÓVEIS PRO</p>
+                </div>
+              )}
+            </div>
+            {statusIcons}
+          </div>
         </div>
 
         <div className="px-3 py-6 space-y-1 flex-1 overflow-y-auto no-scrollbar">
