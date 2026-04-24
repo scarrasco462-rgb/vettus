@@ -52,14 +52,7 @@ const App: React.FC = () => {
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
 
   // Estados Gerenciados (Rede Vettus)
-  const [brokers, setBrokers] = useState<Broker[]>(() => {
-    const local = loadLocal('brokers', MOCK_BROKERS);
-    // Reset automático se detectar dados mock antigos para "zerar" a equipe conforme solicitado
-    if (local.some(b => b.id === 'broker-amanda' || b.id === 'broker-roberto' || b.id === 'admin-luciana')) {
-      return MOCK_BROKERS;
-    }
-    return local;
-  });
+  const [brokers, setBrokers] = useState<Broker[]>(() => loadLocal('brokers', MOCK_BROKERS));
   const [properties, setProperties] = useState<Property[]>(() => loadLocal('properties', []));
   const [clients, setClients] = useState<Client[]>(() => loadLocal('clients', []));
   const [activities, setActivities] = useState<Activity[]>(() => loadLocal('activities', []));
@@ -157,6 +150,12 @@ const App: React.FC = () => {
     setLastSavedTime(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses]);
 
+  const isSergioEmail = (email?: string) => {
+    if (!email) return false;
+    const e = email.toLowerCase();
+    return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
+  };
+
   // Auditoria de Sessão (Separada para evitar loops com activities)
   useEffect(() => {
     if (currentUser) {
@@ -164,12 +163,14 @@ const App: React.FC = () => {
         localStorage.setItem(STORAGE_KEY_PREFIX + 'session_user', JSON.stringify(currentUser));
       } catch (e) {}
 
-      const isSergio = currentUser.email?.toLowerCase() === 'scarrasco462@gmail.com' || currentUser.email?.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
-      if (!isSergio) {
-         const stillExists = brokers.find(b => b.id === currentUser.id);
-         if (!stillExists || stillExists.blocked || stillExists.deleted) {
-            console.warn('Sessão Inválida: Usuário não encontrado ou bloqueado.');
-            handleLogout();
+      if (!isSergioEmail(currentUser.email)) {
+         // Se temos brokers carregados (mais do que apenas o Sergio inicial), validamos a existência
+         if (brokers.length > 2) { 
+           const stillExists = brokers.find(b => b.id === currentUser.id || b.email.toLowerCase() === currentUser.email.toLowerCase());
+           if (!stillExists || stillExists.blocked || stillExists.deleted) {
+              console.warn('Sessão Inválida: Usuário não encontrado ou bloqueado.');
+              handleLogout();
+           }
          }
       }
     }
@@ -451,17 +452,20 @@ const App: React.FC = () => {
         }
         if (d.type === 'PING') conn.send({ type: 'PONG' });
         
-        if (d.type === 'REMOTE_AUTH_REQUEST' && currentUser.role === 'Admin') {
+         if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
            const { email, password } = d.payload;
+           console.log(`Auth P2P: Requisição para ${email}`);
            const broker = stateRef.current.brokers.find(b => b.email.toLowerCase() === email.toLowerCase());
            if (broker && (broker.password === password || !broker.password)) {
               if (broker.blocked || broker.deleted) {
-                conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO.' });
+                conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Contate o administrador.' });
               } else {
+                console.log(`Auth P2P: SUCESSO para ${email}`);
                 conn.send({ type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
               }
            } else {
-              conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'Credenciais inválidas.' });
+              console.warn(`Auth P2P: FALHA - Credenciais incorretas para ${email}`);
+              conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'E-mail ou senha incorretos. Verifique com o administrador se você foi cadastrado.' });
            }
         }
       });

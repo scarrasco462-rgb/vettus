@@ -40,8 +40,19 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
        return;
     }
 
-    // 1. TENTA LOGIN LOCAL (Cache persistente)
-    const localUser = existingBrokers.find(b => b.email.toLowerCase() === email.toLowerCase());
+    // 1. TENTA LOGIN LOCAL (Cache persistente em memória e storage)
+    let localBrokers = [...existingBrokers];
+    if (localBrokers.length <= 2) {
+       try {
+          const stored = localStorage.getItem('vettus_v3_core_brokers');
+          if (stored) {
+             const parsed = JSON.parse(stored);
+             if (Array.isArray(parsed)) localBrokers = parsed;
+          }
+       } catch (e) {}
+    }
+
+    const localUser = localBrokers.find(b => b.email.toLowerCase() === email.toLowerCase());
     if (localUser && (localUser.password === password || !localUser.password)) {
        setStatusMsg('Sessão autorizada via cache local.');
        onLogin({ ...localUser, networkId: networkId.toUpperCase() });
@@ -49,7 +60,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     }
 
     // 2. ACESSO REMOTO RESILIENTE (MESH): Consulta Master ou Outros Nós Ativos
-    setStatusMsg(`Localizando Rede ${networkId.toUpperCase()}...`);
+    setStatusMsg(`Localizando Master da Unidade ${networkId.toUpperCase()}...`);
     const tempId = `vettus-auth-temp-${Math.random().toString(36).substr(7)}`;
     
     const peer = (() => {
