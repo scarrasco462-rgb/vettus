@@ -213,12 +213,21 @@ const App: React.FC = () => {
 
   const isInternalUpdateRef = useRef(false);
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
+  const seenMessages = useRef<Set<string>>(new Set());
 
-  const mergeData = useCallback((payload: any) => {
+  const mergeData = useCallback((payload: any, messageId?: string) => {
     if (!payload) return;
     
-    isInternalUpdateRef.current = true;
-    let changed = false;
+    // Evita processar a mesma mensagem múltiplas vezes
+    if (messageId) {
+      if (seenMessages.current.has(messageId)) return;
+      seenMessages.current.add(messageId);
+      // Limpeza periódica do set de mensagens vistas
+      if (seenMessages.current.size > 1000) {
+        const arr = Array.from(seenMessages.current);
+        seenMessages.current = new Set(arr.slice(500));
+      }
+    }
     const updateCollection = (prev: any[], next: any[]) => {
       if (!next) return prev;
       const map = new Map(prev.map(item => [item.id, item]));
@@ -248,6 +257,23 @@ const App: React.FC = () => {
     if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
     if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
     if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
+
+    // Propaga para outras conexões (GOSSIP protocol simplificado)
+    if (changed && messageId && activeConnections.current.size > 0) {
+      activeConnections.current.forEach(conn => {
+        if (conn.open) {
+          try {
+            conn.send({ 
+              type: 'DATA_UPDATE', 
+              payload, 
+              messageId,
+              senderId: peerRef.current?.id, 
+              senderAppId: myAppId.current 
+            });
+          } catch (e) {}
+        }
+      });
+    }
 
     if (changed && currentUser?.role === 'Admin') {
       try {
@@ -300,11 +326,13 @@ const App: React.FC = () => {
       }
 
       // Sincroniza abas locais instantaneamente
+      const messageId = `${myAppId.current}-${Date.now()}`;
       try {
         const channel = new BroadcastChannel('vettus_internal_sync');
         channel.postMessage({ 
           type: 'DATA_UPDATE', 
           payload: changedCollections,
+          messageId,
           senderAppId: myAppId.current
         });
         channel.close();
@@ -318,6 +346,7 @@ const App: React.FC = () => {
                 conn.send({ 
                   type: 'DATA_UPDATE', 
                   payload: changedCollections, 
+                  messageId,
                   senderId: peerRef.current?.id,
                   senderAppId: myAppId.current
                 });
@@ -326,7 +355,7 @@ const App: React.FC = () => {
               }
             }
           });
-        }, 300);
+        }, 100);
         return () => clearTimeout(timeout);
       }
     }
@@ -457,13 +486,18 @@ const App: React.FC = () => {
         reconnectAttemptsRef.current = 0; // Reset ao conectar ao master
         activeConnections.current.set(conn.peer, conn);
         conn.on('data', (d: any) => {
-           if (d.type === 'DATA_UPDATE' && d.senderId !== peerRef.current?.id) mergeData(d.payload);
+           if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
            if (d.type === 'PING') conn.send({ type: 'PONG' });
         });
         conn.on('close', () => activeConnections.current.delete(conn.peer));
         conn.on('error', () => activeConnections.current.delete(conn.peer));
         try {
-          conn.send({ type: 'DATA_UPDATE', payload: stateRef.current });
+          conn.send({ 
+            type: 'DATA_UPDATE', 
+            payload: stateRef.current,
+            messageId: `initial-${myAppId.current}-${Date.now()}`,
+            senderAppId: myAppId.current
+          });
         } catch (e) {
           console.warn('Erro ao enviar dados iniciais via P2P:', e);
         }
@@ -482,9 +516,9 @@ const App: React.FC = () => {
       console.log('Nova conexão P2P estabelecida:', conn.peer);
       
       conn.on('data', (d: any) => {
-        if (d.type === 'DATA_UPDATE' && d.senderId !== peerRef.current?.id) {
+        if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) {
            console.log('Dados recebidos via P2P, mesclando...');
-           mergeData(d.payload);
+           mergeData(d.payload, d.messageId);
         }
         if (d.type === 'PING') conn.send({ type: 'PONG' });
         
@@ -520,7 +554,14 @@ const App: React.FC = () => {
         }
       });
       
-      conn.on('open', () => conn.send({ type: 'DATA_UPDATE', payload: stateRef.current }));
+      conn.on('open', () => {
+        conn.send({ 
+          type: 'DATA_UPDATE', 
+          payload: stateRef.current,
+          messageId: `welcome-${myAppId.current}-${Date.now()}`,
+          senderAppId: myAppId.current
+        });
+      });
       conn.on('close', () => activeConnections.current.delete(conn.peer));
       conn.on('error', () => activeConnections.current.delete(conn.peer));
     });
