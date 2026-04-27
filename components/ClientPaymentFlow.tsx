@@ -61,7 +61,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
   commissions, brokers, clients, properties, launches, currentUser, onUpdateSale, onAddSale, onDeleteSale,
   preselectedClientId, preselectedTab, onClearPreselection
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry' | 'won'>('spreadsheet');
+  const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry'>('spreadsheet');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [selectedInstallmentIndices, setSelectedInstallmentIndices] = useState<number[]>([]);
@@ -119,17 +119,14 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     return commissions.filter(c => {
       const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.propertyTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (activeSubTab === 'won') return matchesSearch && c.isGanho;
-      if (activeSubTab === 'spreadsheet') return matchesSearch && !c.isGanho;
-      
       return matchesSearch;
     });
-  }, [commissions, searchTerm, activeSubTab]);
+  }, [commissions, searchTerm]);
 
   const stats = useMemo(() => {
-    const totalVgv = paymentData.reduce((acc, c) => acc + (c.salePrice || 0), 0);
-    const totalDuringConstruction = paymentData.reduce((acc, sale) => {
+    const wonData = paymentData.filter(c => c.isGanho);
+    const totalVgv = wonData.reduce((acc, c) => acc + (c.salePrice || 0), 0);
+    const totalDuringConstruction = wonData.reduce((acc, sale) => {
       const prop = sale.structuredProposal;
       const mensais = prop?.monthlyInstallments?.reduce((sum, m) => sum + m.value, 0) || 0;
       const baloes = prop?.balloons?.reduce((sum, b) => sum + b.value, 0) || 0;
@@ -137,7 +134,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       return acc + total;
     }, 0);
 
-    return { totalVgv, totalDuringConstruction, activeContracts: paymentData.length };
+    return { totalVgv, totalDuringConstruction, activeContracts: wonData.length };
   }, [paymentData]);
 
   const projectOptions = useMemo(() => {
@@ -570,9 +567,6 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
              <button onClick={() => setActiveSubTab('spreadsheet')} className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'spreadsheet' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
                 <FileSpreadsheet className="w-4 h-4 mr-2 inline" /> Ativos
              </button>
-             <button onClick={() => setActiveSubTab('won')} className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'won' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
-                <CheckCircle className="w-4 h-4 mr-2 inline" /> Ganhos
-             </button>
              <button onClick={() => setActiveSubTab('entry')} className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'entry' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
                 <PlusCircle className="w-4 h-4 mr-2 inline" /> Inclusão
              </button>
@@ -621,7 +615,6 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                   <tr>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#d4a853]">Contrato / Corretor</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em]">Empreendimento</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Status VGV</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">VGV Total</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/5">Durante Obra</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/10 text-emerald-400">Pós Obra</th>
@@ -649,6 +642,13 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 >
                                    {isExpanded ? <ChevronUp size={18} /> : <Edit3 size={18} />}
                                 </button>
+                                <button 
+                                  onClick={() => onUpdateSale?.({...sale, isGanho: !sale.isGanho, updatedAt: new Date().toISOString()})}
+                                  className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center shadow-sm border ${sale.isGanho ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500'}`}
+                                  title={sale.isGanho ? "Remover de Ganhos" : "Marcar como Ganho (Computar no VGV)"}
+                                >
+                                   <CheckCircle size={16} />
+                                </button>
                                 {currentUser?.role === 'Admin' && (
                                   <button 
                                     onClick={(e) => {
@@ -674,14 +674,6 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 <span className="text-xs font-black text-slate-700 uppercase tracking-tighter">{sale.propertyTitle}</span>
                                 <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">UND: {sale.unitNumber || 'TBD'}</span>
                              </div>
-                          </td>
-                          <td className="px-8 py-6 text-center">
-                             <button 
-                               onClick={() => onUpdateSale?.({...sale, isGanho: !sale.isGanho, updatedAt: new Date().toISOString()})}
-                               className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${sale.isGanho ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
-                             >
-                                {sale.isGanho ? 'Ganho' : 'Ativo'}
-                             </button>
                           </td>
                           <td className="px-8 py-6 text-right">
                              <div className="inline-block relative group/cell">
