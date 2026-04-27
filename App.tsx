@@ -505,7 +505,7 @@ const App: React.FC = () => {
 
       conn.on('error', (err) => {
         console.warn('Erro na conexão com Master:', err);
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+        const delay = Math.min(500 * Math.pow(1.5, reconnectAttemptsRef.current), 10000); // Recuperação acelerada
         setTimeout(connectToMaster, delay);
         reconnectAttemptsRef.current++;
       });
@@ -570,9 +570,10 @@ const App: React.FC = () => {
       if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
       statusDebounceRef.current = setTimeout(() => {
         if (peer && !peer.destroyed && peer.disconnected) {
+          console.log('Kernel P2P: Detectada desconexão. Tentando restabelecer sinal...');
           peer.reconnect();
         }
-      }, 5000);
+      }, 1500); // Reconexão imediata (reduzido de 5s para 1.5s)
     });
 
     peer.on('error', (err) => {
@@ -581,10 +582,10 @@ const App: React.FC = () => {
       
       // Tratamento para erro de rede (falha de conexão com o servidor de sinalização)
       if (errorType === 'network') {
-         console.warn('Kernel P2P: Falha de rede detectada. Reescalonando tentativa...');
+         console.warn('Kernel P2P: Falha de rede detectada. Reescalonando tentativa imediata...');
          setSyncStatus('disconnected');
          reconnectAttemptsRef.current++;
-         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 60000);
+         const delay = Math.min(500 * Math.pow(1.5, reconnectAttemptsRef.current), 15000);
          initTimeoutRef.current = setTimeout(() => initPeer(), delay);
          return;
       }
@@ -630,7 +631,7 @@ const App: React.FC = () => {
         activeConnections.current.forEach(conn => {
           if (conn.open) conn.send({ type: 'PING' });
         });
-      }, 25000);
+      }, 7000); // Heartbeat reduzido de 25s para 7s para maior estabilidade
 
       // Visibility Handler: Apenas recriar se estiver desconectado e voltar a ficar visível
       const handleVisibility = () => {
