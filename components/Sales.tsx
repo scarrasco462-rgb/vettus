@@ -26,9 +26,9 @@ const getMonthName = (dateString: string) => {
 export const SalesView: React.FC<SalesViewProps> = ({ sales, brokers, onUpdateSale, currentUser }) => {
   const [selectedSale, setSelectedSale] = useState<Commission | null>(null);
   
-  const totalVolume = sales.reduce((acc, curr) => acc + (curr.salePrice || 0), 0);
-  const totalCommissions = sales.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalPaidCommissions = sales.filter(c => c.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalVolume = sales.reduce((acc, curr) => acc + (curr.isGanho ? (curr.salePrice || 0) : 0), 0);
+  const totalCommissions = sales.reduce((acc, curr) => acc + (curr.isGanho ? curr.amount : 0), 0);
+  const totalPaidCommissions = sales.filter(c => c.isGanho && c.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
 
   const getBrokerName = (id: string) => {
     return brokers.find(b => b.id === id)?.name || 'Corretor Externo';
@@ -118,6 +118,7 @@ export const SalesView: React.FC<SalesViewProps> = ({ sales, brokers, onUpdateSa
                       <th className="px-6 md:px-8 py-4 md:py-5">Data</th>
                       <th className="px-6 md:px-8 py-4 md:py-5">Empreendimento</th>
                       <th className="px-6 md:px-8 py-4 md:py-5">Corretor</th>
+                      <th className="px-6 md:px-8 py-4 md:py-5 text-center">Status VGV</th>
                       <th className="px-6 md:px-8 py-4 md:py-5 text-right">Valor FEE</th>
                     </tr>
                   </thead>
@@ -138,6 +139,11 @@ export const SalesView: React.FC<SalesViewProps> = ({ sales, brokers, onUpdateSa
                               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-slate-900 text-[#d4a853] flex items-center justify-center text-[8px] md:text-[10px] font-black shadow-sm shrink-0">{getBrokerName(sale.brokerId)[0]}</div>
                               <span className="text-[11px] md:text-xs font-bold text-slate-700 truncate">{getBrokerName(sale.brokerId)}</span>
                            </div>
+                        </td>
+                        <td className="px-6 md:px-8 py-5 md:py-6 text-center">
+                           <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border ${sale.isGanho ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                              {sale.isGanho ? 'Ganho' : 'Ativo'}
+                           </span>
                         </td>
                         <td className="px-6 md:px-8 py-5 md:py-6 text-right">
                            <div className="flex flex-col items-end shrink-0">

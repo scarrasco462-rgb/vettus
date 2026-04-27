@@ -46,7 +46,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
     // VGV Mensal
     const monthlyVGV: { [key: string]: number } = {};
     statsData.commissions.forEach(c => {
-      if (!c.date) return;
+      if (!c.date || !c.isGanho) return;
       const date = new Date(c.date);
       const key = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       monthlyVGV[key] = (monthlyVGV[key] || 0) + (c.salePrice || 0);
@@ -67,7 +67,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
     })).filter(d => d.value > 0);
 
     // Top Imóveis
-    const propMap = statsData.commissions.reduce((acc: any, c) => {
+    const propMap = statsData.commissions.filter(c => c.isGanho).reduce((acc: any, c) => {
       acc[c.propertyTitle] = (acc[c.propertyTitle] || 0) + (c.salePrice || 0);
       return acc;
     }, {});
@@ -79,7 +79,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
     return { vgvChartData, leadStatusData, topProperties };
   }, [statsData]);
 
-  const totalSales = statsData.commissions.reduce((acc, c) => acc + (c.salePrice || 0), 0);
+  const totalSales = statsData.commissions.reduce((acc, c) => acc + (c.isGanho ? (c.salePrice || 0) : 0), 0);
   const totalFee = statsData.commissionForecasts.reduce((a, f) => a + (f.commissionAmount || 0), 0);
   const COLORS = ['#d4a853', '#0f172a', '#334155', '#475569', '#64748b'];
 

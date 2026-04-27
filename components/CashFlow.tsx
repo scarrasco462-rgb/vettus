@@ -21,14 +21,20 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({ commissions, forecas
   const chartData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     return months.map((m, i) => {
-      const comms = commissions.filter(c => new Date(c.date).getMonth() === i).reduce((acc, curr) => acc + curr.amount, 0);
-      const fcs = forecasts.filter(f => new Date(f.forecastDate).getMonth() === i).reduce((acc, curr) => acc + curr.commissionAmount, 0);
+      const comms = commissions.filter(c => c.isGanho && new Date(c.date).getMonth() === i).reduce((acc, curr) => acc + curr.amount, 0);
+      const fcs = forecasts.filter(f => {
+        const sale = commissions.find(c => c.id === f.saleId);
+        return (!sale || sale.isGanho) && new Date(f.forecastDate).getMonth() === i;
+      }).reduce((acc, curr) => acc + curr.commissionAmount, 0);
       return { name: m, realizado: comms, previsto: fcs };
     });
   }, [commissions, forecasts]);
 
-  const totalRealizado = commissions.filter(c => c.status === 'Paid').reduce((acc, c) => acc + c.amount, 0);
-  const totalPrevisto = forecasts.filter(f => f.status !== 'Recebido').reduce((acc, f) => acc + f.commissionAmount, 0);
+  const totalRealizado = commissions.filter(c => c.isGanho && c.status === 'Paid').reduce((acc, c) => acc + c.amount, 0);
+  const totalPrevisto = forecasts.filter(f => {
+    const sale = commissions.find(c => c.id === f.saleId);
+    return (!sale || sale.isGanho) && f.status !== 'Recebido';
+  }).reduce((acc, f) => acc + f.commissionAmount, 0);
   const healthScore = totalRealizado > 0 ? (totalRealizado / (totalRealizado + totalPrevisto)) * 100 : 0;
 
   return (

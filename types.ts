@@ -238,6 +238,7 @@ export interface Commission {
   commissionReceiptDate?: string;
   proposalDetails?: string;
   structuredProposal?: PaymentProposal;
+  isGanho?: boolean;
   updatedAt: string;
 }
 

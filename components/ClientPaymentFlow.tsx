@@ -61,7 +61,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
   commissions, brokers, clients, properties, launches, currentUser, onUpdateSale, onAddSale, onDeleteSale,
   preselectedClientId, preselectedTab, onClearPreselection
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry'>('spreadsheet');
+  const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry' | 'won'>('spreadsheet');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [selectedInstallmentIndices, setSelectedInstallmentIndices] = useState<number[]>([]);
@@ -119,9 +119,13 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     return commissions.filter(c => {
       const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.propertyTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (activeSubTab === 'won') return matchesSearch && c.isGanho;
+      if (activeSubTab === 'spreadsheet') return matchesSearch && !c.isGanho;
+      
       return matchesSearch;
     });
-  }, [commissions, searchTerm]);
+  }, [commissions, searchTerm, activeSubTab]);
 
   const stats = useMemo(() => {
     const totalVgv = paymentData.reduce((acc, c) => acc + (c.salePrice || 0), 0);
@@ -563,11 +567,14 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
         </div>
         <div className="flex items-center space-x-3">
           <div className="bg-slate-100 p-1.5 rounded-2xl flex border border-slate-200 shadow-inner">
-             <button onClick={() => setActiveSubTab('spreadsheet')} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'spreadsheet' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
-                <FileSpreadsheet className="w-4 h-4 mr-2 inline" /> Planilha de Ativos
+             <button onClick={() => setActiveSubTab('spreadsheet')} className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'spreadsheet' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 inline" /> Ativos
              </button>
-             <button onClick={() => setActiveSubTab('entry')} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'entry' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
-                <PlusCircle className="w-4 h-4 mr-2 inline" /> Inclusão Manual
+             <button onClick={() => setActiveSubTab('won')} className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'won' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
+                <CheckCircle className="w-4 h-4 mr-2 inline" /> Ganhos
+             </button>
+             <button onClick={() => setActiveSubTab('entry')} className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'entry' ? 'bg-[#050810] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}>
+                <PlusCircle className="w-4 h-4 mr-2 inline" /> Inclusão
              </button>
           </div>
         </div>
@@ -614,6 +621,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                   <tr>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#d4a853]">Contrato / Corretor</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em]">Empreendimento</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Status VGV</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">VGV Total</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/5">Durante Obra</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/10 text-emerald-400">Pós Obra</th>
@@ -666,6 +674,14 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 <span className="text-xs font-black text-slate-700 uppercase tracking-tighter">{sale.propertyTitle}</span>
                                 <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">UND: {sale.unitNumber || 'TBD'}</span>
                              </div>
+                          </td>
+                          <td className="px-8 py-6 text-center">
+                             <button 
+                               onClick={() => onUpdateSale?.({...sale, isGanho: !sale.isGanho, updatedAt: new Date().toISOString()})}
+                               className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${sale.isGanho ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
+                             >
+                                {sale.isGanho ? 'Ganho' : 'Ativo'}
+                             </button>
                           </td>
                           <td className="px-8 py-6 text-right">
                              <div className="inline-block relative group/cell">
