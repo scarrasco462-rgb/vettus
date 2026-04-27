@@ -95,6 +95,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia'>('carteira');
+  const [spreadsheetSubTab, setSpreadsheetSubTab] = useState<'active' | 'blocked'>('active');
+  const [spreadsheetBrokerFilter, setSpreadsheetBrokerFilter] = useState<string>('all');
   
   // Estados para Registro de Atendimento
   const [currentAtendimento, setCurrentAtendimento] = useState({ type: 'Call', desc: '' });
@@ -715,7 +717,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   const spreadsheetGroups = useMemo(() => {
     const groups: Record<string, { id: string, name: string, count: number, date: string }> = {};
-    clients.filter(c => !c.deleted && c.importId).forEach(c => {
+    clients.filter(c => 
+      !c.deleted && 
+      c.importId && 
+      (spreadsheetSubTab === 'active' ? !c.blocked : c.blocked) &&
+      (spreadsheetBrokerFilter === 'all' || c.brokerId === spreadsheetBrokerFilter)
+    ).forEach(c => {
       if (!groups[c.importId!]) {
         groups[c.importId!] = {
           id: c.importId!,
@@ -727,7 +734,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       groups[c.importId!].count++;
     });
     return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [clients]);
+  }, [clients, spreadsheetSubTab, spreadsheetBrokerFilter]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -854,7 +861,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         )}
       </div>
 
-      {activeTab === 'carteira' ? (
+      {activeTab === 'carteira' && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -1022,7 +1029,9 @@ export const ClientView: React.FC<ClientViewProps> = ({
             </table>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'planilhas' && (
         <div className="space-y-6">
           {/* Nova Seção: Leads Bloqueados ou Excluídos */}
           <div className="bg-[#0f172a] rounded-[2.5rem] p-8 border border-[#d4a853]/20 relative overflow-hidden mb-8">
@@ -1107,6 +1116,47 @@ export const ClientView: React.FC<ClientViewProps> = ({
                    <p className="text-xs font-bold text-slate-400">Log de Exclusões</p>
                  </div>
                </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-[1.5rem] w-fit border border-slate-200 shadow-inner">
+                 <button 
+                   onClick={() => setSpreadsheetSubTab('active')}
+                   className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${spreadsheetSubTab === 'active' ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}
+                 >
+                   <UserCheck2 className="w-4 h-4 inline-block mr-2" /> Leads Ativos
+                 </button>
+                 <button 
+                   onClick={() => setSpreadsheetSubTab('blocked')}
+                   className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${spreadsheetSubTab === 'blocked' ? 'bg-red-600 text-white shadow-lg scale-105' : 'text-slate-500'}`}
+                 >
+                   <ShieldOff className="w-4 h-4 inline-block mr-2" /> Leads Bloqueados
+                 </button>
+              </div>
+
+              {isAdmin && (
+                <div className="flex items-center bg-white border-2 border-slate-200 rounded-2xl px-5 py-2.5 shadow-sm transition-all focus-within:border-[#d4a853]">
+                   <Filter className="w-4 h-4 text-slate-400 mr-3" />
+                   <select 
+                     value={spreadsheetBrokerFilter} 
+                     onChange={e => setSpreadsheetBrokerFilter(e.target.value)}
+                     className="bg-transparent text-[11px] font-black text-slate-700 uppercase outline-none cursor-pointer pr-4"
+                   >
+                     <option value="all">Toda a Equipe</option>
+                     {brokers.filter(b => !b.deleted).map(b => (
+                       <option key={b.id} value={b.id}>{b.name}</option>
+                     ))}
+                   </select>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-4">
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
+                 {spreadsheetGroups.length} Planilhas Encontradas
+               </span>
             </div>
           </div>
 
