@@ -48,7 +48,7 @@ const loadLocal = <T,>(key: string, def: T): T => {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Broker | null>(() => loadLocal('session_user', null));
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected'>('disconnected');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected' | 'connecting'>('disconnected');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const loginTimeRef = useRef<number>(Date.now());
 
@@ -238,8 +238,8 @@ const App: React.FC = () => {
       
       next.forEach(item => {
         const existing = map.get(item.id);
-        const itemDate = new Date(item.updatedAt || 0).getTime();
-        const existingDate = existing ? new Date(existing.updatedAt || 0).getTime() : -1;
+        const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
+        const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
 
         // Critérios de atualização:
         // 1. Item não existe localmente
@@ -459,7 +459,8 @@ const App: React.FC = () => {
       try {
         return new Peer(myId, { 
           secure: true, 
-          debug: 0, 
+          debug: 1, 
+          pingInterval: 3000,
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
@@ -473,7 +474,7 @@ const App: React.FC = () => {
           }
         });
       } catch (e) {
-        console.error('Falha crítica ao instanciar PeerJS:', e);
+        console.error('Kernel P2P: Falha crítica ao instanciar Peer:', e);
         return null;
       }
     })();
@@ -520,11 +521,27 @@ const App: React.FC = () => {
         clearTimeout(connTimeout);
         reconnectAttemptsRef.current = 0; 
         activeConnections.current.set(conn.peer, conn);
+        setSyncStatus('synced');
+        
+        // PUSH imediato para garantir redundância
+        conn.send({ 
+          type: 'DATA_UPDATE', 
+          payload: stateRef.current,
+          messageId: `init-push-${myAppId.current}-${Date.now()}`,
+          senderAppId: myAppId.current
+        });
+
+        // Identificação
+        conn.send({ 
+          type: 'GREETING', 
+          payload: { name: currentUser.name, role: currentUser.role } 
+        });
         
         // Sincronização Bi-Direcional imediata na abertura
         conn.send({ type: 'SYNC_REQUEST' });
         
         conn.on('data', (d: any) => {
+           if (d.type === 'GREETING') console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
            if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
            if (d.type === 'SYNC_REQUEST') {
               conn.send({ 
@@ -563,6 +580,7 @@ const App: React.FC = () => {
       console.log('Nova conexão P2P estabelecida:', conn.peer);
       
       conn.on('data', (d: any) => {
+        if (d.type === 'GREETING') console.log(`Kernel P2P: Nova conexão identificada -> ${d.payload.name} (${d.payload.role}) [${conn.peer}]`);
         if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) {
            console.log('Dados recebidos via P2P, mesclando...');
            mergeData(d.payload, d.messageId);
@@ -701,8 +719,14 @@ const App: React.FC = () => {
 
       // Visibility Handler: Apenas recriar se estiver desconectado e voltar a ficar visível
       const handleVisibility = () => {
-        if (document.visibilityState === 'visible' && (!peerRef.current || peerRef.current.disconnected || peerRef.current.destroyed)) {
-          initPeer();
+        if (document.visibilityState === 'visible') {
+          if (!peerRef.current || peerRef.current.disconnected || peerRef.current.destroyed) {
+            initPeer();
+          } else {
+            activeConnections.current.forEach(conn => {
+              if (conn.open) try { conn.send({ type: 'PING' }); } catch(e) {}
+            });
+          }
         }
       };
 
