@@ -725,7 +725,7 @@ const App: React.FC = () => {
 
       {currentView === 'tasks' && (
         <TasksView 
-          clients={(isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted)} 
+          clients={(isAdmin ? clients.filter(c => c.brokerId !== 'unassigned') : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted && !c.blocked)} 
           currentUser={currentUser} 
           brokers={brokers}
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))} 
@@ -747,6 +747,19 @@ const App: React.FC = () => {
         <ReminderView 
           reminders={reminders.filter(r => r.brokerId === currentUser.id)} 
           onToggleReminder={id => setReminders(v => v.map(r => r.id === id ? { ...r, completed: !r.completed, updatedAt: new Date().toISOString() } : r))} 
+          onMarkAllAsRead={() => {
+            const now = new Date().toISOString();
+            setReminders(prev => prev.map(r => 
+              r.brokerId === currentUser.id && !r.completed 
+                ? { ...r, completed: true, updatedAt: now } 
+                : r
+            ));
+          }}
+          onDeleteRead={() => {
+            setReminders(prev => prev.filter(r => 
+              !(r.brokerId === currentUser.id && r.completed)
+            ));
+          }}
         />
       )}
 

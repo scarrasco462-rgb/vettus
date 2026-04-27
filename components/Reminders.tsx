@@ -11,16 +11,20 @@ import {
   Zap,
   Tag,
   Calendar,
-  BellRing
+  BellRing,
+  CheckCheck,
+  Trash2
 } from 'lucide-react';
 import { Reminder } from '../types';
 
 interface ReminderViewProps {
   reminders: Reminder[];
   onToggleReminder: (id: string) => void;
+  onMarkAllAsRead: () => void;
+  onDeleteRead: () => void;
 }
 
-export const ReminderView: React.FC<ReminderViewProps> = ({ reminders, onToggleReminder }) => {
+export const ReminderView: React.FC<ReminderViewProps> = ({ reminders, onToggleReminder, onMarkAllAsRead, onDeleteRead }) => {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -106,13 +110,33 @@ export const ReminderView: React.FC<ReminderViewProps> = ({ reminders, onToggleR
           </h1>
           <p className="text-slate-500 text-[10px] lg:text-sm mt-1 font-medium italic">Agendamentos, Triagem e Follow-ups da sua Unidade.</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
            <div className="bg-slate-100 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl border border-slate-200 flex items-center space-x-2">
               <Zap className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-[#d4a853]" />
               <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-slate-500">
                 {reminders.filter(r => !r.completed).length} Pendências
               </span>
            </div>
+           
+           {reminders.some(r => !r.completed) && (
+             <button 
+               onClick={onMarkAllAsRead}
+               className="bg-emerald-50 text-emerald-600 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl border border-emerald-100 flex items-center space-x-2 hover:bg-emerald-600 hover:text-white transition-all text-[9px] lg:text-[10px] font-black uppercase tracking-widest"
+             >
+                <CheckCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span>Marcar tudo como lido</span>
+             </button>
+           )}
+
+           {reminders.some(r => r.completed) && (
+             <button 
+               onClick={onDeleteRead}
+               className="bg-red-50 text-red-600 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl border border-red-100 flex items-center space-x-2 hover:bg-red-600 hover:text-white transition-all text-[9px] lg:text-[10px] font-black uppercase tracking-widest"
+             >
+                <Trash2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span>Excluir Mensagens Lidas</span>
+             </button>
+           )}
         </div>
       </div>
 
