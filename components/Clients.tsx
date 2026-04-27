@@ -234,7 +234,6 @@ export const ClientView: React.FC<ClientViewProps> = ({
   };
 
   const handleOpenBlock = (client: Client) => {
-    if (!isAdmin) return;
     setSelectedClient(client);
     setBlockReason(client.blockReason || '');
     setShowBlockModal(true);
@@ -373,7 +372,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   };
 
   const handleConfirmBlock = () => {
-    if (!selectedClient || !isAdmin) return;
+    if (!selectedClient) return;
     
     const isBlocking = !selectedClient.blocked;
     const now = new Date().toISOString();
@@ -970,24 +969,22 @@ export const ClientView: React.FC<ClientViewProps> = ({
                           <LayoutList className="w-4 h-4" />
                         </button>
                         
+                        <button 
+                          onClick={() => handleOpenBlock(client)}
+                          className={`p-2.5 border transition-all shadow-sm rounded-xl ${client.blocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white' : 'bg-slate-900 text-[#d4a853] border-slate-800 hover:bg-red-600 hover:text-white'}`}
+                          title={client.blocked ? "Desbloquear Lead" : "Bloquear Lead"}
+                        >
+                          {client.blocked ? <Unlock className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                        </button>
+                        
                         {isAdmin && (
-                          <>
-                            <button 
-                              onClick={() => handleOpenTransfer(client)}
-                              className="p-2.5 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl border border-amber-200 transition-all shadow-sm"
-                              title="Transferir Custódia do Lead"
-                            >
-                              <Repeat className="w-4 h-4" />
-                            </button>
-                            
-                            <button 
-                              onClick={() => handleOpenBlock(client)}
-                              className={`p-2.5 border transition-all shadow-sm rounded-xl ${client.blocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white' : 'bg-slate-900 text-[#d4a853] border-slate-800 hover:bg-red-600 hover:text-white'}`}
-                              title={client.blocked ? "Desbloquear Lead" : "Bloquear Lead"}
-                            >
-                              {client.blocked ? <Unlock className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
-                            </button>
-                          </>
+                          <button 
+                            onClick={() => handleOpenTransfer(client)}
+                            className="p-2.5 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl border border-amber-200 transition-all shadow-sm"
+                            title="Transferir Custódia do Lead"
+                          >
+                            <Repeat className="w-4 h-4" />
+                          </button>
                         )}
 
                         <button 
@@ -1027,6 +1024,92 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Nova Seção: Leads Bloqueados ou Excluídos */}
+          <div className="bg-[#0f172a] rounded-[2.5rem] p-8 border border-[#d4a853]/20 relative overflow-hidden mb-8">
+            <div className="absolute top-0 right-0 p-12 opacity-5">
+              <ShieldAlert className="w-48 h-48 text-[#d4a853]" />
+            </div>
+            <div className="relative z-10">
+              <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center">
+                <ShieldIcon className="w-6 h-6 mr-3 text-[#d4a853]" />
+                Auditoria de Leads Bloqueados / Excluídos
+              </h2>
+              <p className="text-[#d4a853] text-[10px] font-black uppercase tracking-[0.3em] mt-1">Relatórios de leads removidos do fluxo comercial</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+               <button 
+                 onClick={() => {
+                   const blockedLeads = clients.filter(c => c.blocked);
+                   if (blockedLeads.length === 0) {
+                     setConfirmModal({
+                       show: true,
+                       title: 'Aviso',
+                       message: 'Nenhum lead bloqueado no momento.',
+                       type: 'warning'
+                     });
+                     return;
+                   }
+                   const ws = XLSX.utils.json_to_sheet(blockedLeads.map(c => ({
+                     Nome: c.name,
+                     Telefone: c.phone,
+                     Email: c.email,
+                     Corretor: c.assignedAgent || 'Não Atribuído',
+                     Status: c.status,
+                     'Motivo do Bloqueio': c.blockReason || 'Não Informado',
+                     'Data do Bloqueio': new Date(c.updatedAt).toLocaleDateString('pt-BR')
+                   })));
+                   const wb = XLSX.utils.book_new();
+                   XLSX.utils.book_append_sheet(wb, ws, 'Leads Bloqueados');
+                   XLSX.writeFile(wb, `Leads_Bloqueados_${new Date().toISOString().split('T')[0]}.xlsx`);
+                 }}
+                 className="bg-white/5 hover:bg-white/10 border border-white/10 p-6 rounded-2xl flex items-center space-x-4 transition-all group"
+               >
+                 <div className="w-12 h-12 bg-red-600/20 text-red-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <ShieldOff className="w-6 h-6" />
+                 </div>
+                 <div className="text-left">
+                   <p className="text-[10px] font-black text-white uppercase">Exportar Planilha</p>
+                   <p className="text-xs font-bold text-slate-400">Leads Bloqueados</p>
+                 </div>
+               </button>
+
+               <button 
+                 onClick={() => {
+                   // Filtrar atividades que registram exclusão
+                   const exclusionActivities = activities.filter(a => a.description.includes('[AUDITORIA] EXCLUSÃO'));
+                   if (exclusionActivities.length === 0) {
+                     setConfirmModal({
+                       show: true,
+                       title: 'Aviso',
+                       message: 'Nenhum registro de exclusão encontrado nos arquivos de auditoria.',
+                       type: 'warning'
+                     });
+                     return;
+                   }
+                   const ws = XLSX.utils.json_to_sheet(exclusionActivities.map(a => ({
+                     'Data Exclusão': `${a.date} ${a.time}`,
+                     'Lead Removido': a.clientName,
+                     'Executado Por': a.brokerName,
+                     Detalhes: a.description
+                   })));
+                   const wb = XLSX.utils.book_new();
+                   XLSX.utils.book_append_sheet(wb, ws, 'Log de Exclusões');
+                   XLSX.writeFile(wb, `Auditoria_Exclusoes_${new Date().toISOString().split('T')[0]}.xlsx`);
+                 }}
+                 className="bg-white/5 hover:bg-white/10 border border-white/10 p-6 rounded-2xl flex items-center space-x-4 transition-all group"
+               >
+                 <div className="w-12 h-12 bg-amber-600/20 text-amber-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <Trash2 className="w-6 h-6" />
+                 </div>
+                 <div className="text-left">
+                   <p className="text-[10px] font-black text-white uppercase">Exportar Planilha</p>
+                   <p className="text-xs font-bold text-slate-400">Log de Exclusões</p>
+                 </div>
+               </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {spreadsheetGroups.map(group => (
               <div key={group.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-xl hover:shadow-2xl transition-all group relative overflow-hidden">
@@ -1298,17 +1381,55 @@ export const ClientView: React.FC<ClientViewProps> = ({
                  </div>
 
                  {!selectedClient.blocked ? (
-                   <div className="space-y-4">
-                      <label className="text-[11px] font-black text-slate-500 uppercase ml-2 flex items-center">
-                         <ShieldIcon className="w-4 h-4 mr-2 text-red-600" /> Motivo da Suspensão *
-                      </label>
-                      <textarea 
-                        required
-                        value={blockReason}
-                        onChange={e => setBlockReason(e.target.value)}
-                        placeholder="Informe o motivo do bloqueio (ex: cliente duplicado, comportamento inadequado, lead inválido)..."
-                        className="w-full bg-white border-2 border-slate-200 rounded-3xl p-6 text-sm font-bold text-slate-900 outline-none focus:border-red-600 shadow-sm min-h-[150px] resize-none"
-                      />
+                   <div className="space-y-6">
+                      <div className="space-y-2">
+                         <label className="text-[11px] font-black text-slate-500 uppercase ml-2 flex items-center">
+                            <ShieldIcon className="w-4 h-4 mr-2 text-red-600" /> Selecione o Motivo *
+                         </label>
+                         <select 
+                           value={blockReason}
+                           onChange={e => setBlockReason(e.target.value)}
+                           className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 px-6 text-sm font-black text-slate-900 outline-none focus:border-red-600 shadow-sm"
+                         >
+                            <option value="">Selecione o motivo do bloqueio...</option>
+                            <option value="Telefone não existe">Telefone não existe</option>
+                            <option value="Mudou do país">Mudou do país</option>
+                            <option value="Não tem interesse">Não tem interesse</option>
+                            <option value="Já comprou">Já comprou</option>
+                            <option value="Número de telefone errado">Número de telefone errado</option>
+                            <option value="Interesse futuro">Interesse futuro</option>
+                            <option value="Telefone errado">Telefone errado</option>
+                            <option value="Outros">Outros</option>
+                         </select>
+                      </div>
+
+                      {blockReason === 'Outros' && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                           <label className="text-[11px] font-black text-slate-500 uppercase ml-2">Descreva o motivo *</label>
+                           <textarea 
+                             required
+                             value={blockReason === 'Outros' ? '' : blockReason}
+                             onChange={e => setBlockReason(e.target.value)}
+                             placeholder="Descreva detalhadamente o motivo..."
+                             className="w-full bg-white border-2 border-slate-200 rounded-3xl p-6 text-sm font-bold text-slate-900 outline-none focus:border-red-600 shadow-sm min-h-[100px] resize-none"
+                           />
+                        </div>
+                      )}
+                      
+                      {blockReason && blockReason !== 'Outros' && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                           <label className="text-[11px] font-black text-slate-500 uppercase ml-2">Complemento (Opcional)</label>
+                           <textarea 
+                             value={blockReason.includes(': ') ? blockReason.split(': ')[1] : ''}
+                             onChange={e => {
+                               const baseReason = blockReason.includes(': ') ? blockReason.split(': ')[0] : blockReason;
+                               setBlockReason(e.target.value ? `${baseReason}: ${e.target.value}` : baseReason);
+                             }}
+                             placeholder="Adicione observações extras se necessário..."
+                             className="w-full bg-white border-2 border-slate-200 rounded-3xl p-6 text-sm font-bold text-slate-900 outline-none focus:border-red-600 shadow-sm min-h-[100px] resize-none"
+                           />
+                        </div>
+                      )}
                    </div>
                  ) : (
                    <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 space-y-3">
