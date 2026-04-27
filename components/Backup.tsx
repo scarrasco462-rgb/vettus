@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import CryptoJS from 'crypto-js';
 import { 
   Database, 
   Download, 
@@ -19,7 +20,10 @@ import {
   Wifi,
   Monitor,
   RefreshCw,
-  Save
+  Save,
+  ClipboardPaste,
+  ShieldQuestion,
+  Lock
 } from 'lucide-react';
 import { Broker } from '../types';
 
@@ -34,6 +38,10 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
   const [lastBackup, setLastBackup] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [pasteData, setPasteData] = useState('');
+  const [decryptionKey, setDecryptionKey] = useState('');
+  const [showPasteMode, setShowPasteMode] = useState(false);
+  const [backupKeyInput, setBackupKeyInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -68,6 +76,60 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
     }
   };
 
+  const performActualRestore = (data: any) => {
+    // Limpar base atual
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(STORAGE_KEY_PREFIX)) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Injetar nova base
+    const injectData = (dataToInject: any) => {
+      Object.keys(dataToInject).forEach(key => {
+        try {
+          let value = dataToInject[key];
+          
+          // Se a chave parecer criptografada (padrão AES SALT)
+          if (typeof value === 'string' && value.startsWith('U2FsdGVkX1')) {
+            if (decryptionKey) {
+              try {
+                const bytes = CryptoJS.AES.decrypt(value, decryptionKey);
+                const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+                if (decrypted) {
+                   const decryptedVal = JSON.parse(decrypted);
+                   // Se o valor descriptografado for um objeto com chaves da base, fazemos merge recursivo
+                   if (typeof decryptedVal === 'object' && decryptedVal !== null && !Array.isArray(decryptedVal)) {
+                      injectData(decryptedVal);
+                      return; // Não salva o contêiner encriptado, salva os filhos
+                   }
+                   value = decryptedVal;
+                }
+              } catch (e) {
+                console.warn(`Kernel Crypto: Falha ao descriptografar ${key}. Mantendo original.`);
+              }
+            }
+          }
+
+          const storageKey = key.startsWith(STORAGE_KEY_PREFIX) ? key : STORAGE_KEY_PREFIX + key;
+          
+          if (typeof value === 'object' && value !== null) {
+            localStorage.setItem(storageKey, JSON.stringify(value));
+          } else {
+            localStorage.setItem(storageKey, String(value));
+          }
+        } catch (e) {
+          console.warn(`Kernel Storage: Falha ao restaurar chave ${key}:`, e);
+        }
+      });
+    };
+
+    injectData(data);
+
+    alert('BANCO DE DADOS RESTAURADO COM SUCESSO!\n\nO sistema será reiniciado agora para carregar as novas informações.');
+    window.location.reload();
+  };
+
   const handleRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -86,30 +148,7 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        
-        // Limpar base atual
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith(STORAGE_KEY_PREFIX)) {
-            localStorage.removeItem(key);
-          }
-        });
-
-        // Injetar nova base
-        Object.keys(data).forEach(key => {
-          try {
-            const storageKey = key.startsWith(STORAGE_KEY_PREFIX) ? key : STORAGE_KEY_PREFIX + key;
-            if (typeof data[key] === 'object') {
-              localStorage.setItem(storageKey, JSON.stringify(data[key]));
-            } else {
-              localStorage.setItem(storageKey, data[key]);
-            }
-          } catch (e) {
-            console.warn(`Kernel Storage: Falha ao restaurar chave ${key}:`, e);
-          }
-        });
-
-        alert('BANCO DE DADOS RESTAURADO COM SUCESSO!\n\nO sistema será reiniciado agora para carregar as novas informações.');
-        window.location.reload();
+        performActualRestore(data);
       } catch (err) {
         console.error(err);
         alert('ERRO CRÍTICO: O arquivo de backup selecionado é inválido ou está corrompido.');
@@ -118,6 +157,23 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
       }
     };
     reader.readAsText(file);
+  };
+
+  const handlePasteRestore = () => {
+    if (!pasteData.trim()) return;
+    
+    try {
+      const data = JSON.parse(pasteData.trim());
+      const confirmRestore = confirm(
+        "Deseja restaurar o sistema a partir do texto colado?\n\nIsso irá sobrepor os dados atuais."
+      );
+      if (confirmRestore) {
+        setIsRestoring(true);
+        performActualRestore(data);
+      }
+    } catch (e) {
+      alert("Erro ao processar o texto colado. Certifique-se de que é um JSON válido.");
+    }
   };
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -227,44 +283,126 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-xl flex flex-col justify-between group">
+          <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-xl flex flex-col justify-between group relative overflow-hidden">
             <div>
-              <div className="flex items-center space-x-4 mb-8">
-                <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center shadow-xl group-hover:rotate-12 transition-transform duration-500">
-                  <RotateCcw className="w-8 h-8 text-[#d4a853]" />
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center shadow-xl group-hover:rotate-12 transition-transform duration-500">
+                    <RotateCcw className="w-8 h-8 text-[#d4a853]" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Migração de Notebook</h3>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Recuperação de Base de Dados</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">Migração de Notebook</h3>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Injeção de Base via Arquivo (.vettus)</p>
-                </div>
+                <button 
+                  onClick={() => setShowPasteMode(!showPasteMode)}
+                  className={`p-3 rounded-2xl transition-all ${showPasteMode ? 'bg-[#d4a853] text-[#0a1120]' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  title={showPasteMode ? 'Voltar para Arquivo' : 'Restaurar via Texto/JSON'}
+                >
+                  {showPasteMode ? <FileCheck className="w-5 h-5" /> : <ClipboardPaste className="w-5 h-5" />}
+                </button>
               </div>
 
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className={`h-56 border-4 border-dashed rounded-[2.5rem] transition-all flex flex-col items-center justify-center cursor-pointer mb-6 group/restore ${
-                  isRestoring ? 'bg-slate-50 border-slate-200' : 'bg-slate-50/50 border-slate-100 hover:border-[#d4a853]/40 hover:bg-slate-50'
-                }`}
-              >
-                <input type="file" ref={fileInputRef} className="hidden" accept=".vettus,.json" onChange={handleRestore} />
-                {isRestoring ? (
-                  <div className="flex flex-col items-center animate-pulse">
-                    <RotateCcw className="w-10 h-10 text-[#d4a853] animate-spin mb-3" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Restaurando Consolidação...</span>
+              {!showPasteMode ? (
+                <div className="space-y-6">
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`h-40 border-4 border-dashed rounded-[2.5rem] transition-all flex flex-col items-center justify-center cursor-pointer group/restore ${
+                      isRestoring ? 'bg-slate-50 border-slate-200' : 'bg-slate-50/50 border-slate-100 hover:border-[#d4a853]/40 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".vettus,.json" onChange={handleRestore} />
+                    {isRestoring ? (
+                      <div className="flex flex-col items-center animate-pulse">
+                        <RotateCcw className="w-10 h-10 text-[#d4a853] animate-spin mb-3" />
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">Restaurando...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-2 group-hover/restore:scale-110 transition-transform">
+                          <UploadCloud className="w-6 h-6 text-[#d4a853]" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-900 text-center px-6">Escolha o arquivo .vettus</p>
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover/restore:scale-110 transition-transform border border-slate-100">
-                      <UploadCloud className="w-8 h-8 text-[#d4a853]" />
+
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                       <ShieldQuestion className="w-5 h-5 text-slate-400" />
+                       <div>
+                          <p className="text-[10px] font-black uppercase text-slate-500">Backup Criptografado?</p>
+                          <p className="text-[9px] text-slate-400">Insira a chave se necessário antes de restaurar.</p>
+                       </div>
                     </div>
-                    <p className="text-sm font-bold text-slate-900 text-center px-6">Clique para selecionar o arquivo de backup (.vettus)</p>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Injeção de Base Central</p>
-                    
-                    <button className="mt-6 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors">
-                      Selecionar Arquivo
+                    <button 
+                      onClick={() => setBackupKeyInput(!backupKeyInput)}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${backupKeyInput ? 'bg-[#d4a853] text-[#0a1120]' : 'bg-slate-200 text-slate-600'}`}
+                    >
+                      {backupKeyInput ? 'Ocultar Chave' : 'Inserir Chave'}
                     </button>
-                  </>
-                )}
-              </div>
+                  </div>
+
+                  {backupKeyInput && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 animate-in slide-in-from-top-2 duration-300">
+                      <input 
+                        type="password"
+                        value={decryptionKey}
+                        onChange={(e) => setDecryptionKey(e.target.value)}
+                        placeholder="Chave de segurança master..."
+                        className="w-full bg-white border border-amber-200 rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4 mb-6">
+                  <div className="relative">
+                    <textarea 
+                      value={pasteData}
+                      onChange={(e) => setPasteData(e.target.value)}
+                      placeholder="Cole aqui o conteúdo do backup (JSON)..."
+                      className="w-full h-40 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-[11px] font-mono focus:ring-2 focus:ring-[#d4a853] focus:border-transparent outline-none transition-all"
+                    />
+                    <div className="absolute top-2 right-2 flex space-x-2">
+                       <button 
+                        onClick={() => setPasteData('')}
+                        className="p-2 bg-white/80 backdrop-blur rounded-lg shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 transition-colors"
+                        title="Limpar"
+                       >
+                         <Trash2 className="w-3.5 h-3.5" />
+                       </button>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
+                    <Lock className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black text-amber-900 uppercase tracking-wider mb-1">Chave de Descriptografia</p>
+                      <input 
+                        type="password"
+                        value={decryptionKey}
+                        onChange={(e) => setDecryptionKey(e.target.value)}
+                        placeholder="Insira a chave caso o backup esteja protegido..."
+                        className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+                      />
+                      <p className="text-[9px] text-amber-700/70 mt-2 italic font-medium">
+                        * Necessário se o backup vier do sistema Master criptografado.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handlePasteRestore}
+                    disabled={!pasteData}
+                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.15em] shadow-lg hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                  >
+                    <RotateCcw className={`w-4 h-4 ${isRestoring ? 'animate-spin' : ''}`} />
+                    <span>Processar e Restaurar Base</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

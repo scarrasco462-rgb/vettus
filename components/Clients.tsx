@@ -94,6 +94,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockSelectMotive, setBlockSelectMotive] = useState('');
+  const [blockDescriptionText, setBlockDescriptionText] = useState('');
   const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia'>('carteira');
   const [spreadsheetSubTab, setSpreadsheetSubTab] = useState<'active' | 'blocked'>('active');
   const [spreadsheetMode, setSpreadsheetMode] = useState<'groups' | 'leads'>('groups');
@@ -116,8 +118,6 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
 
-  // Estado para Bloqueio
-  const [blockReason, setBlockReason] = useState('');
   const [selectedBrokerFilter, setSelectedBrokerFilter] = useState<string>('all');
   const [selectedImportFilter, setSelectedImportFilter] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -238,7 +238,21 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   const handleOpenBlock = (client: Client) => {
     setSelectedClient(client);
-    setBlockReason(client.blockReason || '');
+    const fullReason = client.blockReason || '';
+    if (fullReason.includes(': ')) {
+      const [motive, ...rest] = fullReason.split(': ');
+      setBlockSelectMotive(motive);
+      setBlockDescriptionText(rest.join(': '));
+    } else {
+      const predefined = ["Telefone não existe", "Mudou do país", "Não tem interesse", "Já comprou", "Número de telefone errado", "Interesse futuro", "Telefone errado"];
+      if (predefined.includes(fullReason)) {
+        setBlockSelectMotive(fullReason);
+        setBlockDescriptionText('');
+      } else {
+        setBlockSelectMotive('Outros');
+        setBlockDescriptionText(fullReason);
+      }
+    }
     setShowBlockModal(true);
   };
 
@@ -380,7 +394,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const isBlocking = !selectedClient.blocked;
     const now = new Date().toISOString();
 
-    if (isBlocking && !blockReason.trim()) {
+    const finalReason = blockSelectMotive === 'Outros' 
+      ? blockDescriptionText 
+      : (blockDescriptionText ? `${blockSelectMotive}: ${blockDescriptionText}` : blockSelectMotive);
+
+    if (isBlocking && !finalReason.trim()) {
       setConfirmModal({
         show: true,
         title: 'Atenção',
@@ -393,7 +411,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const updatedClient: Client = {
       ...selectedClient,
       blocked: isBlocking,
-      blockReason: isBlocking ? blockReason : '',
+      blockReason: isBlocking ? finalReason : '',
       updatedAt: now
     };
 
@@ -406,7 +424,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       type: 'Meeting',
       clientName: selectedClient.name,
       description: isBlocking 
-        ? `[SEGURANÇA] LEAD BLOQUEADO: Suspensão de atendimento autorizada por ${currentUser.name}. Motivo: ${blockReason.toUpperCase()}`
+        ? `[SEGURANÇA] LEAD BLOQUEADO: Suspensão de atendimento autorizada por ${currentUser.name}. Motivo: ${finalReason.toUpperCase()}`
         : `[SEGURANÇA] LEAD DESBLOQUEADO: Acesso reestabelecido por ${currentUser.name}.`,
       date: now.split('T')[0],
       time: new Date().toLocaleTimeString('pt-BR'),
@@ -421,6 +439,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
     });
     setShowBlockModal(false);
     setSelectedClient(null);
+    setBlockSelectMotive('');
+    setBlockDescriptionText('');
   };
 
   const handleSaleValueInput = (val: string) => {
@@ -1507,6 +1527,19 @@ export const ClientView: React.FC<ClientViewProps> = ({
                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Lead Selecionado</p>
                     <h4 className="text-lg font-black text-slate-900 uppercase">{selectedClient.name}</h4>
+                    {!selectedClient.blocked && (
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                         <label className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center">
+                            <MessageSquare className="w-4 h-4 mr-2 text-[#d4a853]" /> Descrição do Motivo
+                         </label>
+                         <textarea 
+                           value={blockDescriptionText}
+                           onChange={e => setBlockDescriptionText(e.target.value)}
+                           placeholder="Descreva detalhadamente o motivo..."
+                           className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold text-slate-900 outline-none focus:border-red-600 shadow-inner min-h-[100px] resize-none"
+                         />
+                      </div>
+                    )}
                     <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Status Atual: {selectedClient.blocked ? 'SUSPENSO' : 'ATIVO'}</p>
                  </div>
 
@@ -1517,8 +1550,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
                             <ShieldIcon className="w-4 h-4 mr-2 text-red-600" /> Selecione o Motivo *
                          </label>
                          <select 
-                           value={blockReason}
-                           onChange={e => setBlockReason(e.target.value)}
+                           value={blockSelectMotive}
+                           onChange={e => setBlockSelectMotive(e.target.value)}
                            className="w-full bg-white border-2 border-slate-200 rounded-2xl py-4 px-6 text-sm font-black text-slate-900 outline-none focus:border-red-600 shadow-sm"
                          >
                             <option value="">Selecione o motivo do bloqueio...</option>
@@ -1532,36 +1565,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
                             <option value="Outros">Outros</option>
                          </select>
                       </div>
-
-                      {blockReason === 'Outros' && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                           <label className="text-[11px] font-black text-slate-500 uppercase ml-2">Descreva o motivo *</label>
-                           <textarea 
-                             required
-                             value={blockReason === 'Outros' ? '' : blockReason}
-                             onChange={e => setBlockReason(e.target.value)}
-                             placeholder="Descreva detalhadamente o motivo..."
-                             className="w-full bg-white border-2 border-slate-200 rounded-3xl p-6 text-sm font-bold text-slate-900 outline-none focus:border-red-600 shadow-sm min-h-[100px] resize-none"
-                           />
-                        </div>
-                      )}
-                      
-                      {blockReason && blockReason !== 'Outros' && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                           <label className="text-[11px] font-black text-slate-500 uppercase ml-2">Complemento (Opcional)</label>
-                           <textarea 
-                             value={blockReason.includes(': ') ? blockReason.split(': ')[1] : ''}
-                             onChange={e => {
-                               const baseReason = blockReason.includes(': ') ? blockReason.split(': ')[0] : blockReason;
-                               setBlockReason(e.target.value ? `${baseReason}: ${e.target.value}` : baseReason);
-                             }}
-                             placeholder="Adicione observações extras se necessário..."
-                             className="w-full bg-white border-2 border-slate-200 rounded-3xl p-6 text-sm font-bold text-slate-900 outline-none focus:border-red-600 shadow-sm min-h-[100px] resize-none"
-                           />
-                        </div>
-                      )}
                    </div>
-                 ) : (
+                ) : (
                    <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 space-y-3">
                       <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Motivo do Bloqueio Anterior:</p>
                       <p className="text-sm font-bold text-emerald-900 italic">"{selectedClient.blockReason}"</p>
@@ -1579,7 +1584,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
                  <button 
                     onClick={handleConfirmBlock} 
-                    disabled={!selectedClient.blocked && !blockReason.trim()}
+                    disabled={!selectedClient.blocked && (!blockSelectMotive || !blockDescriptionText.trim())}
                     className={`w-full py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center space-x-4 disabled:opacity-50 ${selectedClient.blocked ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}
                  >
                     <CheckCircle2 className="w-6 h-6" />
