@@ -401,8 +401,10 @@ const App: React.FC = () => {
   const initPeer = useCallback(() => {
     if (!currentUser || isInitializingRef.current) return;
     
-    // Verificação de conectividade básica do navegador
-    if (!window.navigator.onLine) {
+    // Verificação de conectividade básica do navegador - Bypass para redes instáveis
+    if (!window.navigator.onLine && reconnectAttemptsRef.current < 5) {
+      console.log('Kernel P2P: Navegador reporta offline, mas tentando forçar sinalização...');
+    } else if (!window.navigator.onLine) {
       setSyncStatus('disconnected');
       if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
       initTimeoutRef.current = setTimeout(initPeer, 5000);
@@ -457,10 +459,17 @@ const App: React.FC = () => {
       try {
         return new Peer(myId, { 
           secure: true, 
-          debug: 0, // Silenciar logs internos para evitar alertas desnecessários
+          debug: 0, 
           config: {
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-            sdpSemantics: 'unified-plan'
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              { urls: 'stun:stun3.l.google.com:19302' },
+              { urls: 'stun:stun4.l.google.com:19302' }
+            ],
+            sdpSemantics: 'unified-plan',
+            bundlePolicy: 'max-bundle'
           }
         });
       } catch (e) {
@@ -494,13 +503,37 @@ const App: React.FC = () => {
     const connectToMaster = () => {
       if (!peer || peer.destroyed || peer.disconnected) return;
       
-      const conn = peer.connect(masterId, { reliable: true });
+      const conn = peer.connect(masterId, { 
+        reliable: true,
+        serialization: 'json'
+      });
+
+      // Timeout forçado para conexão em redes lentas (2G)
+      const connTimeout = setTimeout(() => {
+        if (!conn.open) {
+          console.warn('Kernel P2P: Timeout na conexão com Master. Tentando via túnel secundário...');
+          conn.close();
+        }
+      }, 15000);
       
       conn.on('open', () => {
-        reconnectAttemptsRef.current = 0; // Reset ao conectar ao master
+        clearTimeout(connTimeout);
+        reconnectAttemptsRef.current = 0; 
         activeConnections.current.set(conn.peer, conn);
+        
+        // Sincronização Bi-Direcional imediata na abertura
+        conn.send({ type: 'SYNC_REQUEST' });
+        
         conn.on('data', (d: any) => {
            if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
+           if (d.type === 'SYNC_REQUEST') {
+              conn.send({ 
+                type: 'DATA_UPDATE', 
+                payload: stateRef.current, 
+                messageId: `sync-resp-${myAppId.current}-${Date.now()}`,
+                senderAppId: myAppId.current 
+              });
+           }
            if (d.type === 'PING') conn.send({ type: 'PONG' });
         });
         conn.on('close', () => activeConnections.current.delete(conn.peer));
@@ -533,6 +566,14 @@ const App: React.FC = () => {
         if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) {
            console.log('Dados recebidos via P2P, mesclando...');
            mergeData(d.payload, d.messageId);
+        }
+        if (d.type === 'SYNC_REQUEST') {
+          conn.send({ 
+            type: 'DATA_UPDATE', 
+            payload: stateRef.current, 
+            messageId: `sync-resp-master-${myAppId.current}-${Date.now()}`,
+            senderAppId: myAppId.current 
+          });
         }
         if (d.type === 'PING') conn.send({ type: 'PONG' });
         
@@ -642,10 +683,21 @@ const App: React.FC = () => {
       }, 500);
       
       const heartbeat = setInterval(() => {
-        activeConnections.current.forEach(conn => {
-          if (conn.open) conn.send({ type: 'PING' });
-        });
-      }, 7000); // Heartbeat reduzido de 25s para 7s para maior estabilidade
+        if (activeConnections.current.size > 0) {
+          activeConnections.current.forEach(conn => {
+            if (conn.open) {
+              conn.send({ type: 'PING' });
+              
+              // Periodic Consistency Check: Força sincronização parcial aleatoriamente para garantir convergência
+              if (Math.random() > 0.8) {
+                try {
+                  conn.send({ type: 'SYNC_REQUEST' });
+                } catch (e) {}
+              }
+            }
+          });
+        }
+      }, 7000); 
 
       // Visibility Handler: Apenas recriar se estiver desconectado e voltar a ficar visível
       const handleVisibility = () => {
