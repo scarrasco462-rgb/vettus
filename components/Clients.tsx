@@ -96,6 +96,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia'>('carteira');
   const [spreadsheetSubTab, setSpreadsheetSubTab] = useState<'active' | 'blocked'>('active');
+  const [spreadsheetMode, setSpreadsheetMode] = useState<'groups' | 'leads'>('groups');
   const [spreadsheetBrokerFilter, setSpreadsheetBrokerFilter] = useState<string>('all');
   
   // Estados para Registro de Atendimento
@@ -715,14 +716,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   const sortedClients = useMemo(() => [...filteredClients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [filteredClients]);
 
-  const spreadsheetGroups = useMemo(() => {
-    const groups: Record<string, { id: string, name: string, count: number, date: string }> = {};
-    clients.filter(c => 
+  const spreadsheetLeads = useMemo(() => {
+    return clients.filter(c => 
       !c.deleted && 
-      c.importId && 
       (spreadsheetSubTab === 'active' ? !c.blocked : c.blocked) &&
       (spreadsheetBrokerFilter === 'all' || c.brokerId === spreadsheetBrokerFilter)
-    ).forEach(c => {
+    ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [clients, spreadsheetSubTab, spreadsheetBrokerFilter]);
+
+  const spreadsheetGroups = useMemo(() => {
+    const groups: Record<string, { id: string, name: string, count: number, date: string }> = {};
+    spreadsheetLeads.filter(c => c.importId).forEach(c => {
       if (!groups[c.importId!]) {
         groups[c.importId!] = {
           id: c.importId!,
@@ -734,7 +738,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       groups[c.importId!].count++;
     });
     return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [clients, spreadsheetSubTab, spreadsheetBrokerFilter]);
+  }, [spreadsheetLeads]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -1123,16 +1127,31 @@ export const ClientView: React.FC<ClientViewProps> = ({
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-[1.5rem] w-fit border border-slate-200 shadow-inner">
                  <button 
+                   onClick={() => setSpreadsheetMode('groups')}
+                   className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${spreadsheetMode === 'groups' ? 'bg-white text-slate-900 border border-slate-200' : 'text-slate-500'}`}
+                 >
+                   Planilhas
+                 </button>
+                 <button 
+                   onClick={() => setSpreadsheetMode('leads')}
+                   className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${spreadsheetMode === 'leads' ? 'bg-white text-slate-900 border border-slate-200' : 'text-slate-500'}`}
+                 >
+                   Lista de Leads
+                 </button>
+              </div>
+
+              <div className="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-[1.5rem] w-fit border border-slate-200 shadow-inner">
+                 <button 
                    onClick={() => setSpreadsheetSubTab('active')}
                    className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${spreadsheetSubTab === 'active' ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' : 'text-slate-500'}`}
                  >
-                   <UserCheck2 className="w-4 h-4 inline-block mr-2" /> Leads Ativos
+                   <UserCheck2 className="w-4 h-4 inline-block mr-2" /> Ativos
                  </button>
                  <button 
                    onClick={() => setSpreadsheetSubTab('blocked')}
                    className={`px-6 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${spreadsheetSubTab === 'blocked' ? 'bg-red-600 text-white shadow-lg scale-105' : 'text-slate-500'}`}
                  >
-                   <ShieldOff className="w-4 h-4 inline-block mr-2" /> Leads Bloqueados
+                   <ShieldOff className="w-4 h-4 inline-block mr-2" /> Bloqueados
                  </button>
               </div>
 
@@ -1153,74 +1172,135 @@ export const ClientView: React.FC<ClientViewProps> = ({
               )}
             </div>
             
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
-                 {spreadsheetGroups.length} Planilhas Encontradas
+                 {spreadsheetMode === 'groups' ? `${spreadsheetGroups.length} Planilhas` : `${spreadsheetLeads.length} Leads`} Encontrados
                </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {spreadsheetGroups.map(group => (
-              <div key={group.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-xl hover:shadow-2xl transition-all group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:rotate-12 transition-transform">
-                   <FileSpreadsheet className="w-24 h-24" />
-                </div>
-                
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="w-14 h-14 bg-[#0f172a] rounded-2xl flex items-center justify-center shadow-lg">
-                    <Table2 className="w-7 h-7 text-[#d4a853]" />
+          {spreadsheetMode === 'groups' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {spreadsheetGroups.map(group => (
+                <div key={group.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-xl hover:shadow-2xl transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:rotate-12 transition-transform">
+                     <FileSpreadsheet className="w-24 h-24" />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight truncate max-w-[180px]" title={group.name}>
-                      {group.name}
-                    </h3>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                      {new Date(group.date).toLocaleDateString('pt-BR')} às {new Date(group.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                  
+                  <div className="flex items-center space-x-4 mb-6">
+                    <div className="w-14 h-14 bg-[#0f172a] rounded-2xl flex items-center justify-center shadow-lg">
+                      <Table2 className="w-7 h-7 text-[#d4a853]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight truncate max-w-[180px]" title={group.name}>
+                        {group.name}
+                      </h3>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                        {new Date(group.date).toLocaleDateString('pt-BR')} às {new Date(group.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4 text-[#d4a853]" />
-                    <span className="text-xs font-black text-slate-700">{group.count} Leads</span>
+                  <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4 text-[#d4a853]" />
+                      <span className="text-xs font-black text-slate-700">{group.count} Leads</span>
+                    </div>
+                    <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded-lg">Importado</span>
                   </div>
-                  <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded-lg">Importado</span>
-                </div>
 
-                <div className="flex items-center space-x-3">
-                  <button 
-                    onClick={() => {
-                      setSelectedImportFilter(group.id);
-                      setActiveTab('carteira');
-                    }}
-                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center"
-                  >
-                    <UserSearch className="w-3.5 h-3.5 mr-2" />
-                    Ver Leads
-                  </button>
-                  {isAdmin && (
+                  <div className="flex items-center space-x-3">
                     <button 
-                      onClick={() => handleDeleteImport(group.id, group.name)}
-                      className="p-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl border border-red-100 transition-all"
-                      title="Excluir Planilha e Leads"
+                      onClick={() => {
+                        setSelectedImportFilter(group.id);
+                        setActiveTab('carteira');
+                      }}
+                      className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <UserSearch className="w-3.5 h-3.5 mr-2" />
+                      Ver Leads
                     </button>
-                  )}
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleDeleteImport(group.id, group.name)}
+                        className="p-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl border border-red-100 transition-all"
+                        title="Excluir Planilha e Leads"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {spreadsheetGroups.length === 0 && (
-              <div className="col-span-full py-32 text-center border-2 border-dashed border-slate-200 rounded-[3rem] bg-slate-50/50">
-                 <FileSpreadsheet className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-                 <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Nenhuma planilha importada recentemente</p>
-                 <button onClick={onOpenImport} className="mt-4 text-[#d4a853] text-[10px] font-black uppercase underline tracking-widest">Fazer primeira importação</button>
-              </div>
-            )}
-          </div>
+              {spreadsheetGroups.length === 0 && (
+                <div className="col-span-full py-32 text-center border-2 border-dashed border-slate-200 rounded-[3rem] bg-slate-50/50">
+                   <FileSpreadsheet className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                   <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Nenhuma planilha importada recentemente</p>
+                   <button onClick={onOpenImport} className="mt-4 text-[#d4a853] text-[10px] font-black uppercase underline tracking-widest">Fazer primeira importação</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                   <thead>
+                     <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100">
+                        <th className="px-8 py-6">Lead</th>
+                        <th className="px-8 py-6">Corretor</th>
+                        <th className="px-8 py-6">Origem / Planilha</th>
+                        <th className="px-8 py-6">Motivo Bloqueio</th>
+                        <th className="px-8 py-6 text-right">Data Auditoria</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                     {spreadsheetLeads.map(client => (
+                       <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-8 py-6">
+                             <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-400">{client.name[0]}</div>
+                                <div>
+                                   <p className="text-[11px] font-black text-slate-900 uppercase">{client.name}</p>
+                                   <p className="text-[10px] font-bold text-slate-400">{client.phone}</p>
+                                </div>
+                             </div>
+                          </td>
+                          <td className="px-8 py-6">
+                             <span className="text-[10px] font-black text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg">
+                                {client.assignedAgent || 'Não Atribuído'}
+                             </span>
+                          </td>
+                          <td className="px-8 py-6">
+                             <div className="flex items-center space-x-2">
+                                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-300" />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">{client.importName || 'Direto / Manual'}</span>
+                             </div>
+                          </td>
+                          <td className="px-8 py-6">
+                             <p className="text-[10px] font-bold text-slate-500 italic max-w-[200px] truncate">
+                                {client.blockReason || '-'}
+                             </p>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                             <span className="text-[10px] font-black text-slate-400 uppercase">
+                                {new Date(client.updatedAt).toLocaleDateString('pt-BR')}
+                             </span>
+                          </td>
+                       </tr>
+                     ))}
+                     {spreadsheetLeads.length === 0 && (
+                       <tr>
+                         <td colSpan={5} className="py-20 text-center">
+                            <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Nenhum lead encontrado com estes filtros</p>
+                         </td>
+                       </tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          )}
         </div>
       )}
 
