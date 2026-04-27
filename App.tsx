@@ -228,6 +228,9 @@ const App: React.FC = () => {
         seenMessages.current = new Set(arr.slice(500));
       }
     }
+
+    let dataChanged = false;
+
     const updateCollection = (prev: any[], next: any[]) => {
       if (!next) return prev;
       const map = new Map(prev.map(item => [item.id, item]));
@@ -235,10 +238,21 @@ const App: React.FC = () => {
       
       next.forEach(item => {
         const existing = map.get(item.id);
-        if (!existing || new Date(item.updatedAt || 0) > new Date(existing.updatedAt || 0)) {
+        const itemDate = new Date(item.updatedAt || 0).getTime();
+        const existingDate = existing ? new Date(existing.updatedAt || 0).getTime() : -1;
+
+        // Critérios de atualização:
+        // 1. Item não existe localmente
+        // 2. Item recebido é mais recente (Timestamp superior)
+        // 3. Timestamps iguais mas conteúdo diferente (Garante convergência em updates rápidos)
+        const isNewer = itemDate > existingDate;
+        const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
+
+        if (!existing || isNewer || isDifferentEqualDate) {
            map.set(item.id, item);
            collectionChanged = true;
-           changed = true;
+           dataChanged = true;
+           isInternalUpdateRef.current = true;
         }
       });
       return collectionChanged ? Array.from(map.values()) : prev;
@@ -259,7 +273,7 @@ const App: React.FC = () => {
     if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
 
     // Propaga para outras conexões (GOSSIP protocol simplificado)
-    if (changed && messageId && activeConnections.current.size > 0) {
+    if (dataChanged && messageId && activeConnections.current.size > 0) {
       activeConnections.current.forEach(conn => {
         if (conn.open) {
           try {
@@ -275,7 +289,7 @@ const App: React.FC = () => {
       });
     }
 
-    if (changed && currentUser?.role === 'Admin') {
+    if (dataChanged && currentUser?.role === 'Admin') {
       try {
         localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
       } catch (e) {
@@ -326,7 +340,7 @@ const App: React.FC = () => {
       }
 
       // Sincroniza abas locais instantaneamente
-      const messageId = `${myAppId.current}-${Date.now()}`;
+      const messageId = `${myAppId.current}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
       try {
         const channel = new BroadcastChannel('vettus_internal_sync');
         channel.postMessage({ 
