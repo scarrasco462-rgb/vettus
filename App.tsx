@@ -158,7 +158,7 @@ const App: React.FC = () => {
   const isSergioEmail = (email?: string) => {
     if (!email) return false;
     const e = email.toLowerCase().trim();
-    return e === 'sergioconsultorimobiliario01@gmail.com';
+    return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
   };
 
   // Auditoria de Sessão (Separada para evitar loops com activities)
@@ -192,14 +192,14 @@ const App: React.FC = () => {
     // logSystemAction é chamado via useCallback, precisamos definir logSystemAction ANTES ou usar uma referência
   };
 
-  const logSystemAction = useCallback((description: string, type: string = 'System') => {
+  const logSystemAction = useCallback((description: string, targetName?: string, type: string = 'System') => {
     if (!currentUser) return;
     const newActivity: Activity = {
       id: Math.random().toString(36).substr(2, 9),
       brokerId: currentUser.id,
       brokerName: currentUser.name,
       type: type as any,
-      clientName: 'SISTEMA',
+      clientName: targetName || 'SISTEMA',
       description: `[LOG] ${description}`,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('pt-BR'),
@@ -419,7 +419,7 @@ const App: React.FC = () => {
       }
     }
 
-    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) await mergeData(d.payload, d.messageId);
+    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
 
     if (d.type === 'SYNC_REQUEST') {
       const identity = peerIdentities.current.get(conn.peer);
@@ -914,7 +914,7 @@ const App: React.FC = () => {
 
   if (!currentUser) return <Auth onLogin={handleLogin} existingBrokers={brokers} onUpdateInitialData={mergeData} />;
 
-  const isAdmin = currentUser.role === 'Admin';
+  const isAdmin = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
   const pendingRemindersCount = reminders.filter(r => !r.completed && r.brokerId === currentUser.id).length;
 
   return (
@@ -1258,7 +1258,7 @@ const App: React.FC = () => {
         onClose={() => setIsClientModalOpen(false)} 
         onAddClient={c => {
           setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v]);
-          logSystemAction(`Novo cliente cadastrado: ${c.name}`);
+          logSystemAction(`Novo cliente cadastrado: ${c.name}`, c.name);
         }} 
         onUpdateClient={c => {
           const updatedAt = new Date().toISOString();
@@ -1267,7 +1267,7 @@ const App: React.FC = () => {
              setActivities(prev => prev.map(a => a.clientName === c.name ? { ...a, brokerId: newBroker.id, brokerName: newBroker.name, updatedAt } : a));
           }
           setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt} : x));
-          logSystemAction(`Cliente atualizado: ${c.name}`);
+          logSystemAction(`Cliente atualizado: ${c.name}`, c.name);
         }}
         clientToEdit={clientToEdit}
         currentUser={currentUser}

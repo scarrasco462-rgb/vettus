@@ -200,6 +200,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                 <option value="WhatsApp">💬 WhatsApp</option>
                 <option value="Meeting">🤝 Reuniões</option>
                 <option value="Viewing">🏠 Visitas</option>
+                <option value="System">🛡 Logs do Sistema</option>
              </select>
           </div>
 

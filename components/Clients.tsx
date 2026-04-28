@@ -1010,7 +1010,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                     <td className="px-4 lg:px-8 py-4 lg:py-5 text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <button 
-                          disabled={client.blocked}
+                          disabled={client.blocked && !isAdmin}
                           onClick={() => handleOpenHistory(client)}
                           className="p-2.5 bg-blue-50 text-blue-600 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-blue-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Histórico & Próxima Ação"
@@ -1018,7 +1018,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                           <History className="w-4 h-4" />
                         </button>
                         <button 
-                          disabled={client.blocked}
+                          disabled={client.blocked && !isAdmin}
                           onClick={() => onOpenFlow?.(client.id, 'entry')}
                           className="p-2.5 bg-slate-50 text-slate-400 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-slate-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Montar Fluxo de Obra"
@@ -1026,7 +1026,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                           <Layers className="w-4 h-4" />
                         </button>
                         <button 
-                          disabled={client.blocked}
+                          disabled={client.blocked && !isAdmin}
                           onClick={() => onOpenFlow?.(client.id, 'spreadsheet')}
                           className="p-2.5 bg-slate-50 text-slate-400 hover:bg-[#0a1120] hover:text-[#d4a853] rounded-xl border border-slate-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Ver Fluxo de Obra"
@@ -1053,7 +1053,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                         )}
 
                         <button 
-                          disabled={client.blocked}
+                          disabled={client.blocked && !isAdmin}
                           onClick={() => handleOpenGanhos(client)} 
                           className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl border border-emerald-200 transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed" 
                           title="Ganho"
