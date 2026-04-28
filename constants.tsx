@@ -5,17 +5,6 @@ export const MOCK_BROKERS: Broker[] = [
   {
     id: 'admin-sergio',
     name: 'Sergio Carrasco Junior',
-    email: 'scarrasco462@gmail.com',
-    password: '123456',
-    role: 'Admin',
-    joinDate: '2024-01-01',
-    performance: 100,
-    permissions: ALL_PERMISSIONS,
-    networkId: 'VETTUS-PRO'
-  },
-  {
-    id: 'admin-sergio-2',
-    name: 'Sergio Carrasco Junior',
     email: 'sergioconsultorimobiliario01@gmail.com',
     password: '123456',
     role: 'Admin',
