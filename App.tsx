@@ -86,6 +86,7 @@ const App: React.FC = () => {
   const initTimeoutRef = useRef<any>(null);
   const statusDebounceRef = useRef<any>(null);
   const reconnectAttemptsRef = useRef(0);
+  const conflictDetectedRef = useRef(false);
   const stateRef = useRef({ 
     brokers, properties, clients, activities, reminders, 
     commissions, commissionForecasts, documents, 
@@ -158,7 +159,7 @@ const App: React.FC = () => {
   const isSergioEmail = (email?: string) => {
     if (!email) return false;
     const e = email.toLowerCase().trim();
-    return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
+    return e === 'scarrasco462@gmail.com';
   };
 
   // Auditoria de Sessão (Separada para evitar loops com activities)
@@ -628,8 +629,8 @@ const App: React.FC = () => {
     
     const isMasterCandidate = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
 
-    // Tenta ser Master apenas na primeira tentativa. Se falhar, o próximo initPeer (via error handler) será um node.
-    const myId = (isMasterCandidate && reconnectAttemptsRef.current === 0)
+    // Tenta ser Master sempre que for candidato, a menos que um conflito real de ID tenha sido detectado (duas abas do Admin)
+    const myId = (isMasterCandidate && !conflictDetectedRef.current)
       ? masterId 
       : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 50000)}`;
 
@@ -637,12 +638,15 @@ const App: React.FC = () => {
       try {
         return new Peer(myId, { 
           secure: true, 
-          debug: 0, // Silencia logs de erro internos no console que assustam o usuário
+          debug: 0, 
           pingInterval: 5000,
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' }
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              { urls: 'stun:stun3.l.google.com:19302' },
+              { urls: 'stun:stun4.l.google.com:19302' }
             ],
             iceCandidatePoolSize: 2,
             sdpSemantics: 'unified-plan'
@@ -810,8 +814,8 @@ const App: React.FC = () => {
       }
 
       if (errorType === 'unavailable-id' || errorType.includes('taken')) {
-         console.warn('Kernel P2P: Conflito de ID Master. Alternando para modo Node secundário...');
-         reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 1); 
+         console.warn('Kernel P2P: Conflito de ID Master detectado.');
+         conflictDetectedRef.current = true; 
          isInitializingRef.current = false;
          if (peerRef.current === peer) peerRef.current = null;
          if (!peer.destroyed) try { peer.destroy(); } catch (e) {}
@@ -927,6 +931,7 @@ const App: React.FC = () => {
       syncStatus={syncStatus}
       onForceReconnect={() => {
         reconnectAttemptsRef.current = 0;
+        conflictDetectedRef.current = false;
         initPeer();
       }}
       lastSaved={lastSavedTime}

@@ -138,7 +138,7 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
 
   const handleToggleBlock = (broker: Broker) => {
     if (!isAdmin) return;
-    const isSergio = broker.email.toLowerCase().trim() === 'scarrasco462@gmail.com' || broker.email.toLowerCase().trim() === 'sergioconsultorimobiliario01@gmail.com';
+    const isSergio = broker.email.toLowerCase().trim() === 'scarrasco462@gmail.com';
     if (isSergio) {
        alert("ERRO DE SEGURANÇA: O Administrador Master não pode ser bloqueado.");
        return;
@@ -150,7 +150,7 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
 
   const handleDelete = (broker: Broker) => {
     if (!isAdmin) return;
-    const isSergio = broker.email.toLowerCase().trim() === 'scarrasco462@gmail.com' || broker.email.toLowerCase().trim() === 'sergioconsultorimobiliario01@gmail.com';
+    const isSergio = broker.email.toLowerCase().trim() === 'scarrasco462@gmail.com';
     if (isSergio) {
        alert("ERRO DE SEGURANÇA: O Administrador Master não pode ser removido.");
        return;
