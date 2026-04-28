@@ -78,6 +78,7 @@ const App: React.FC = () => {
 
   const activeConnections = useRef<Map<string, DataConnection>>(new Map());
   const peerIdentities = useRef<Map<string, { id: string, name: string, role: string }>>(new Map());
+  const pendingChunks = useRef<Map<string, { total: number, chunks: string[] }>>(new Map());
   const peerRef = useRef<Peer | null>(null);
   const isInitializingRef = useRef(false);
   const initTimeoutRef = useRef<any>(null);
@@ -283,7 +284,7 @@ const App: React.FC = () => {
               ? filterPayloadForPeer(payload, identity)
               : payload;
 
-            conn.send({ 
+            safeSend(conn, { 
               type: 'DATA_UPDATE', 
               payload: filteredPayload, 
               messageId,
@@ -339,6 +340,118 @@ const App: React.FC = () => {
     return filtered;
   };
 
+  const safeSend = (conn: DataConnection, data: any) => {
+    if (!conn || !conn.open) return;
+    try {
+      const stringified = JSON.stringify(data);
+      const CHUNK_SIZE = 15000; 
+      
+      if (stringified.length <= CHUNK_SIZE) {
+        conn.send(data);
+        return;
+      }
+
+      const chunkId = `chunk-${myAppId.current}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+      const total = Math.ceil(stringified.length / CHUNK_SIZE);
+      
+      console.log(`Kernel P2P: Enviando mensagem grande em ${total} partes (Total: ${Math.round(stringified.length/1024)}KB)`);
+      
+      for (let i = 0; i < total; i++) {
+        conn.send({
+          type: 'DATA_CHUNK',
+          chunkId,
+          index: i,
+          total,
+          data: stringified.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+        });
+      }
+    } catch (e) {
+      console.error('Kernel P2P: Erro ao enviar dados (safeSend):', e);
+    }
+  };
+
+  const handleIncomingData = (conn: DataConnection, d: any) => {
+    if (!d) return;
+
+    if (d.type === 'DATA_CHUNK') {
+      const { chunkId, index, total, data } = d;
+      let record = pendingChunks.current.get(chunkId);
+      if (!record) {
+        record = { total, chunks: new Array(total).fill(null) };
+        pendingChunks.current.set(chunkId, record);
+      }
+      
+      record.chunks[index] = data;
+      
+      const receivedCount = record.chunks.filter(c => c !== null).length;
+      if (receivedCount === total) {
+        try {
+          const completeData = JSON.parse(record.chunks.join(''));
+          pendingChunks.current.delete(chunkId);
+          handleIncomingData(conn, completeData);
+        } catch (e) {
+          console.error('Kernel P2P: Erro ao reconstruir chunk:', e);
+          pendingChunks.current.delete(chunkId);
+        }
+      }
+      return;
+    }
+
+    if (d.type === 'GREETING') {
+      console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
+      peerIdentities.current.set(conn.peer, d.payload);
+      
+      if (currentUser?.role === 'Admin') {
+        const filtered = filterPayloadForPeer(stateRef.current, d.payload);
+        safeSend(conn, { 
+          type: 'DATA_UPDATE', 
+          payload: filtered,
+          messageId: `welcome-back-${myAppId.current}-${Date.now()}`,
+          senderAppId: myAppId.current
+        });
+      }
+    }
+
+    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
+
+    if (d.type === 'SYNC_REQUEST') {
+      const identity = peerIdentities.current.get(conn.peer);
+      const payload = (currentUser?.role === 'Admin' && identity)
+        ? filterPayloadForPeer(stateRef.current, identity)
+        : stateRef.current;
+
+      safeSend(conn, { 
+        type: 'DATA_UPDATE', 
+        payload, 
+        messageId: `sync-resp-${myAppId.current}-${Date.now()}`,
+        senderAppId: myAppId.current 
+      });
+    }
+
+    if (d.type === 'PING') safeSend(conn, { type: 'PONG' });
+
+    if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email))) {
+      const { email, password } = d.payload;
+      const emailClean = email.toLowerCase().trim();
+      const passwordClean = (password || '').trim();
+      const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
+      
+      if (broker) {
+        if (broker.password === passwordClean || (!broker.password && !passwordClean)) {
+          if (broker.blocked) {
+            safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema.' });
+          } else {
+            safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
+          }
+        } else {
+          safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'Senha incorreta para este e-mail.' });
+        }
+      } else {
+        safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'E-mail não cadastrado nesta Unidade.' });
+      }
+    }
+  };
+
   // Sincronização Incremental e Otimizada (v7.0)
   const prevCollectionsRef = useRef<Record<string, any[]>>({});
 
@@ -392,7 +505,7 @@ const App: React.FC = () => {
                   ? filterPayloadForPeer(changedCollections, identity)
                   : changedCollections;
 
-                conn.send({ 
+                safeSend(conn, { 
                   type: 'DATA_UPDATE', 
                   payload: filteredPayload, 
                   messageId,
@@ -558,39 +671,24 @@ const App: React.FC = () => {
         activeConnections.current.set(conn.peer, conn);
         setSyncStatus('synced');
         
-        // PUSH imediato para garantir redundância
-        conn.send({ 
-          type: 'DATA_UPDATE', 
-          payload: stateRef.current,
-          messageId: `init-push-${myAppId.current}-${Date.now()}`,
-          senderAppId: myAppId.current
-        });
+      // PUSH imediato para garantir redundância
+      safeSend(conn, { 
+        type: 'DATA_UPDATE', 
+        payload: stateRef.current,
+        messageId: `init-push-${myAppId.current}-${Date.now()}`,
+        senderAppId: myAppId.current
+      });
 
-        // Identificação
-        conn.send({ 
-          type: 'GREETING', 
-          payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
-        });
-        
-        // Sincronização Bi-Direcional imediata na abertura
-        conn.send({ type: 'SYNC_REQUEST' });
-        
-        conn.on('data', (d: any) => {
-           if (d.type === 'GREETING') {
-              console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
-              peerIdentities.current.set(conn.peer, d.payload);
-           }
-           if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
-           if (d.type === 'SYNC_REQUEST') {
-              conn.send({ 
-                type: 'DATA_UPDATE', 
-                payload: stateRef.current, 
-                messageId: `sync-resp-${myAppId.current}-${Date.now()}`,
-                senderAppId: myAppId.current 
-              });
-           }
-           if (d.type === 'PING') conn.send({ type: 'PONG' });
-        });
+      // Identificação
+      safeSend(conn, { 
+        type: 'GREETING', 
+        payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
+      });
+      
+      // Sincronização Bi-Direcional imediata na abertura
+      safeSend(conn, { type: 'SYNC_REQUEST' });
+      
+      conn.on('data', (d: any) => handleIncomingData(conn, d));
         conn.on('close', () => activeConnections.current.delete(conn.peer));
         conn.on('error', () => activeConnections.current.delete(conn.peer));
         try {
@@ -617,7 +715,8 @@ const App: React.FC = () => {
       activeConnections.current.set(conn.peer, conn);
       console.log('Nova conexão P2P estabelecida:', conn.peer);
       
-      conn.on('data', (d: any) => {
+      conn.on('data', (d: any) => { handleIncomingData(conn, d);
+      if (false) {
         if (d.type === 'GREETING') {
           console.log(`Kernel P2P: Nova conexão identificada -> ${d.payload.name} (${d.payload.role}) [${conn.peer}]`);
           peerIdentities.current.set(conn.peer, d.payload);
@@ -677,10 +776,11 @@ const App: React.FC = () => {
               conn.send({ type: 'REMOTE_AUTH_FAILURE', message: 'E-mail não cadastrado nesta Unidade. Verifique se o Administrador já incluiu você na Equipe.' });
            }
         }
+      }
       });
       
       conn.on('open', () => {
-        conn.send({ 
+        safeSend(conn, { 
           type: 'DATA_UPDATE', 
           payload: stateRef.current,
           messageId: `welcome-${myAppId.current}-${Date.now()}`,
@@ -710,44 +810,36 @@ const App: React.FC = () => {
     peer.on('error', (err) => {
       isInitializingRef.current = false;
       const errorType = err.type || (err as any).message || 'unknown';
+      setSyncStatus('disconnected');
       
-      // Tratamento para erro de rede (falha de conexão com o servidor de sinalização)
-      if (errorType === 'network') {
-         console.warn('Kernel P2P: Falha de rede detectada. Reescalonando tentativa imediata...');
-         setSyncStatus('disconnected');
+      console.warn('Peer Protocol Alert:', errorType);
+
+      if (errorType === 'network' || errorType === 'lost-connection' || errorType === 'server-error' || errorType === 'socket-error') {
          reconnectAttemptsRef.current++;
-         const delay = Math.min(500 * Math.pow(1.5, reconnectAttemptsRef.current), 15000);
+         const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 30000);
+         console.log(`Kernel P2P: Erro de sinalização/rede. Tentando reconectar em ${Math.round(delay/1000)}s...`);
          initTimeoutRef.current = setTimeout(() => initPeer(), delay);
          return;
       }
 
-      // Tratamento silencioso para ID ocupado (Master já ativo em outra aba)
       if (errorType === 'unavailable-id' || errorType.includes('taken')) {
-         console.warn('Kernel P2P: ID Master ocupado. Alternando para modo Node...');
-         // Pula imediatamente para modo Node desativando a tentativa de Master
-         reconnectAttemptsRef.current = 5; 
-         if (!peer.destroyed) {
-            try { peer.destroy(); } catch (e) {}
-         }
-         initTimeoutRef.current = setTimeout(() => initPeer(), 100);
+         console.warn('Kernel P2P: ID Ocupado/Indisponível. Alternando modo...');
+         reconnectAttemptsRef.current = Math.max(reconnectAttemptsRef.current, 5); 
+         if (!peer.destroyed) try { peer.destroy(); } catch (e) {}
+         initTimeoutRef.current = setTimeout(() => initPeer(), 2000);
          return;
       }
 
       if (errorType.includes('Aborting')) {
-         console.warn('Kernel P2P: Abortado. Reiniciando...');
-         if (!peer.destroyed) {
-            try { peer.destroy(); } catch (e) {}
-         }
-         initTimeoutRef.current = setTimeout(() => initPeer(), 3000);
+         if (!peer.destroyed) try { peer.destroy(); } catch (e) {}
+         initTimeoutRef.current = setTimeout(() => initPeer(), 5000);
          return;
       }
 
-      console.error('Peer Protocol Alert:', errorType);
-
+      // Outros erros
       reconnectAttemptsRef.current++;
-      if (reconnectAttemptsRef.current < 15) {
-        initTimeoutRef.current = setTimeout(() => initPeer(), 10000);
-      }
+      const nextDelay = Math.min(5000 * reconnectAttemptsRef.current, 60000);
+      initTimeoutRef.current = setTimeout(() => initPeer(), nextDelay);
     });
 
   }, [currentUser, mergeData]);
@@ -762,12 +854,12 @@ const App: React.FC = () => {
         if (activeConnections.current.size > 0) {
           activeConnections.current.forEach(conn => {
             if (conn.open) {
-              conn.send({ type: 'PING' });
+              safeSend(conn, { type: 'PING' });
               
               // Periodic Consistency Check: Força sincronização parcial aleatoriamente para garantir convergência
               if (Math.random() > 0.8) {
                 try {
-                  conn.send({ type: 'SYNC_REQUEST' });
+                  safeSend(conn, { type: 'SYNC_REQUEST' });
                 } catch (e) {}
               }
             }
@@ -782,7 +874,7 @@ const App: React.FC = () => {
             initPeer();
           } else {
             activeConnections.current.forEach(conn => {
-              if (conn.open) try { conn.send({ type: 'PING' }); } catch(e) {}
+              if (conn.open) try { safeSend(conn, { type: 'PING' }); } catch(e) {}
             });
           }
         }
