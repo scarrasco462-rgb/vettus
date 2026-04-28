@@ -34,6 +34,7 @@ interface ActivityViewProps {
   onAddReminder: (reminder: Reminder) => void;
   currentUser: Broker;
   clients: Client[];
+  brokers: Broker[];
 }
 
 export const ActivityView: React.FC<ActivityViewProps> = ({ 
@@ -41,7 +42,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   onAddActivity, 
   onAddReminder, 
   currentUser,
-  clients 
+  clients,
+  brokers
 }) => {
   const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('timeline');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -49,6 +51,9 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [brokerFilter, setBrokerFilter] = useState<string>('all');
+
+  const isAdmin = currentUser.role === 'Admin';
 
   const [formData, setFormData] = useState({
     type: 'Call' as const,
@@ -60,9 +65,18 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   });
 
   const filteredActivities = useMemo(() => {
-    if (typeFilter === 'all') return activities;
-    return activities.filter(a => a.type === typeFilter);
-  }, [activities, typeFilter]);
+    let list = activities;
+    
+    if (typeFilter !== 'all') {
+      list = list.filter(a => a.type === typeFilter);
+    }
+    
+    if (isAdmin && brokerFilter !== 'all') {
+      list = list.filter(a => a.brokerId === brokerFilter);
+    }
+    
+    return list;
+  }, [activities, typeFilter, brokerFilter, isAdmin]);
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -158,6 +172,22 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
         </div>
         
         <div className="flex items-center space-x-3">
+          {isAdmin && (
+            <div className="bg-white border border-slate-200 p-1.5 rounded-xl flex items-center shadow-sm">
+               <UserIcon className="w-3.5 h-3.5 text-[#d4a853] ml-2" />
+               <select 
+                 value={brokerFilter} 
+                 onChange={e => setBrokerFilter(e.target.value)}
+                 className="text-[10px] font-black uppercase bg-transparent outline-none text-slate-600 cursor-pointer px-2"
+               >
+                  <option value="all">Todos Corretores</option>
+                  {brokers.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+               </select>
+            </div>
+          )}
+
           <div className="bg-white border border-slate-200 p-1.5 rounded-xl flex items-center shadow-sm">
              <Filter className="w-3.5 h-3.5 text-[#d4a853] ml-2" />
              <select 

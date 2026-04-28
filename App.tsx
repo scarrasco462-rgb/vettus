@@ -324,7 +324,13 @@ const App: React.FC = () => {
 
     if (filtered.clients) filtered.clients = filtered.clients.filter((c: any) => c.brokerId === uid || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr));
     if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
-    if (filtered.activities) filtered.activities = filtered.activities.filter((a: any) => a.brokerId === uid);
+    if (filtered.activities) {
+      filtered.activities = filtered.activities.filter((a: any) => {
+        if (a.brokerId === uid) return true;
+        // Permitir que o corretor receba histórico de clientes que ele possui na base filtrada
+        return filtered.clients?.some((c: any) => c.name === a.clientName);
+      });
+    }
     if (filtered.reminders) filtered.reminders = filtered.reminders.filter((r: any) => r.brokerId === uid);
     if (filtered.commissions) filtered.commissions = filtered.commissions.filter((c: any) => c.brokerId === uid);
     if (filtered.expenses) filtered.expenses = filtered.expenses.filter((e: any) => e.brokerId === uid);
@@ -880,7 +886,14 @@ const App: React.FC = () => {
             const isUnassigned = c.brokerId === 'unassigned';
             return isAssignedById || (isAssignedByName && !isUnassigned);
           }))} 
-          activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id)} 
+          activities={isAdmin ? activities : activities.filter(a => {
+            if (a.brokerId === currentUser.id) return true;
+            return clients.some(c => 
+              c.name === a.clientName && 
+              !c.deleted && 
+              (c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))
+            );
+          })} 
           properties={properties.filter(p => !p.deleted)} 
           commissions={commissions} 
           constructionCompanies={constructionCompanies} 
@@ -894,8 +907,9 @@ const App: React.FC = () => {
           onEditClient={c => { setClientToEdit(c); setIsClientModalOpen(true); }} 
           onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
           onAddActivities={newActivities => setActivities(v => [...newActivities.map(a => ({...a, updatedAt: new Date().toISOString()})), ...v])}
-          onUpdateActivitiesByClient={(clientName, newBrokerId, newBrokerName) => {
-            setActivities(prev => prev.map(a => a.clientName === clientName ? { ...a, brokerId: newBrokerId, brokerName: newBrokerName, updatedAt: new Date().toISOString() } : a));
+          onUpdateActivitiesByClient={() => {
+            // Histórico preservado com autor original.
+            // A visibilidade agora é garantida pelo filtro dinâmico no App.tsx
           }}
           onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
           onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])} 
@@ -996,11 +1010,19 @@ const App: React.FC = () => {
 
       {currentView === 'activities' && (
         <ActivityView 
-          activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id)} 
+          activities={isAdmin ? activities : activities.filter(a => {
+            if (a.brokerId === currentUser.id) return true;
+            return clients.some(c => 
+              c.name === a.clientName && 
+              !c.deleted && 
+              (c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))
+            );
+          })} 
           onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
           onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
           currentUser={currentUser}
           clients={(isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id)).filter(c => !c.deleted)}
+          brokers={brokers}
         />
       )}
 
