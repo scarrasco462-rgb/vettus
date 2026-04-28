@@ -216,11 +216,13 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {activeBrokers.map(broker => {
-          const isMe = broker.id === currentUser.id;
-          const hasPendingPassword = !!broker.pendingPassword;
-          
-          return (
-            <div key={broker.id} className={`bg-white rounded-[3rem] border shadow-sm p-8 transition-all group relative overflow-hidden ${broker.blocked ? 'grayscale bg-slate-50' : 'border-slate-100 hover:shadow-2xl'} ${isMe ? 'ring-4 ring-[#d4a853]/10' : ''}`}>
+    const isMe = broker.id === currentUser.id;
+    const hasPendingPassword = !!broker.pendingPassword;
+    
+    if (!isAdmin && !isMe && broker.role !== 'Admin') return null;
+    
+    return (
+      <div key={broker.id} className={`bg-white rounded-[3rem] border shadow-sm p-8 transition-all group relative overflow-hidden ${broker.blocked ? 'grayscale bg-slate-50' : 'border-slate-100 hover:shadow-2xl'} ${isMe ? 'ring-4 ring-[#d4a853]/10' : ''}`}>
                <div className="flex items-center space-x-5 mb-6">
                   <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center font-black text-xl shadow-lg ${broker.role === 'Admin' ? 'gold-gradient text-white' : 'bg-slate-900 text-[#d4a853]'}`}>
                     {broker.name[0]}

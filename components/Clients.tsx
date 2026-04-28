@@ -119,6 +119,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
 
   const [selectedBrokerFilter, setSelectedBrokerFilter] = useState<string>('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedImportFilter, setSelectedImportFilter] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmModal, setConfirmModal] = useState<{
@@ -711,6 +712,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   const filteredClients = useMemo(() => {
     let filtered = clients;
+    
+    // Filtro de Corretor
     if (isAdmin && selectedBrokerFilter !== 'all') {
       const selectedBroker = brokers.find(b => b.id === selectedBrokerFilter);
       const brokerName = selectedBroker?.name.toLowerCase().trim();
@@ -720,6 +723,18 @@ export const ClientView: React.FC<ClientViewProps> = ({
         (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName)
       );
     }
+
+    // Filtro de Status
+    if (selectedStatusFilter === 'all') {
+      filtered = filtered.filter(c => !c.deleted);
+    } else if (selectedStatusFilter === 'Bloqueado') {
+      filtered = filtered.filter(c => c.blocked && !c.deleted);
+    } else if (selectedStatusFilter === 'Excluído') {
+      filtered = filtered.filter(c => c.deleted);
+    } else {
+      filtered = filtered.filter(c => c.status === selectedStatusFilter && !c.blocked && !c.deleted);
+    }
+
     if (selectedImportFilter) {
       filtered = filtered.filter(c => c.importId === selectedImportFilter);
     }
@@ -732,7 +747,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       );
     }
     return filtered;
-  }, [clients, isAdmin, selectedBrokerFilter, selectedImportFilter, searchTerm, brokers]);
+  }, [clients, isAdmin, selectedBrokerFilter, selectedStatusFilter, selectedImportFilter, searchTerm, brokers]);
 
   const sortedClients = useMemo(() => [...filteredClients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [filteredClients]);
 
@@ -782,6 +797,25 @@ export const ClientView: React.FC<ClientViewProps> = ({
               </button>
             </div>
           )}
+          
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+            <Sparkles className="w-4 h-4 text-slate-400 mr-2" />
+            <select 
+              value={selectedStatusFilter} 
+              onChange={e => setSelectedStatusFilter(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer pr-4"
+            >
+              <option value="all">Todos os Status</option>
+              <option value={ClientStatus.LEAD}>LEAD</option>
+              <option value={ClientStatus.COLD}>Frio</option>
+              <option value={ClientStatus.WARM}>Morno</option>
+              <option value={ClientStatus.HOT}>Quente</option>
+              <option value={ClientStatus.WON}>Ganho</option>
+              <option value="Bloqueado">Bloqueado</option>
+              {isAdmin && <option value="Excluído">Excluído</option>}
+            </select>
+          </div>
+          
           {isAdmin && (
             <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
               <Filter className="w-4 h-4 text-slate-400 mr-2" />

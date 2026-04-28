@@ -77,6 +77,7 @@ const App: React.FC = () => {
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
   const activeConnections = useRef<Map<string, DataConnection>>(new Map());
+  const peerIdentities = useRef<Map<string, { id: string, name: string, role: string }>>(new Map());
   const peerRef = useRef<Peer | null>(null);
   const isInitializingRef = useRef(false);
   const initTimeoutRef = useRef<any>(null);
@@ -277,9 +278,14 @@ const App: React.FC = () => {
       activeConnections.current.forEach(conn => {
         if (conn.open) {
           try {
+            const identity = peerIdentities.current.get(conn.peer);
+            const filteredPayload = (currentUser?.role === 'Admin' && identity) 
+              ? filterPayloadForPeer(payload, identity)
+              : payload;
+
             conn.send({ 
               type: 'DATA_UPDATE', 
-              payload, 
+              payload: filteredPayload, 
               messageId,
               senderId: peerRef.current?.id, 
               senderAppId: myAppId.current 
@@ -308,6 +314,24 @@ const App: React.FC = () => {
     };
     return () => channel.close();
   }, [mergeData]);
+
+  const filterPayloadForPeer = (payload: any, identity: { id: string, name: string, role: string }) => {
+    if (!payload || identity.role === 'Admin') return payload;
+
+    const filtered: any = { ...payload };
+    const uid = identity.id;
+    const nameStr = identity.name?.toLowerCase().trim() || '';
+
+    if (filtered.clients) filtered.clients = filtered.clients.filter((c: any) => c.brokerId === uid || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr));
+    if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
+    if (filtered.activities) filtered.activities = filtered.activities.filter((a: any) => a.brokerId === uid);
+    if (filtered.reminders) filtered.reminders = filtered.reminders.filter((r: any) => r.brokerId === uid);
+    if (filtered.commissions) filtered.commissions = filtered.commissions.filter((c: any) => c.brokerId === uid);
+    if (filtered.expenses) filtered.expenses = filtered.expenses.filter((e: any) => e.brokerId === uid);
+    if (filtered.brokers) filtered.brokers = filtered.brokers.filter((b: any) => b.id === uid || b.role === 'Admin');
+
+    return filtered;
+  };
 
   // Sincronização Incremental e Otimizada (v7.0)
   const prevCollectionsRef = useRef<Record<string, any[]>>({});
@@ -357,9 +381,14 @@ const App: React.FC = () => {
           activeConnections.current.forEach(conn => {
             if (conn.open) {
               try {
+                const identity = peerIdentities.current.get(conn.peer);
+                const filteredPayload = (currentUser?.role === 'Admin' && identity)
+                  ? filterPayloadForPeer(changedCollections, identity)
+                  : changedCollections;
+
                 conn.send({ 
                   type: 'DATA_UPDATE', 
-                  payload: changedCollections, 
+                  payload: filteredPayload, 
                   messageId,
                   senderId: peerRef.current?.id,
                   senderAppId: myAppId.current
@@ -534,14 +563,17 @@ const App: React.FC = () => {
         // Identificação
         conn.send({ 
           type: 'GREETING', 
-          payload: { name: currentUser.name, role: currentUser.role } 
+          payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
         });
         
         // Sincronização Bi-Direcional imediata na abertura
         conn.send({ type: 'SYNC_REQUEST' });
         
         conn.on('data', (d: any) => {
-           if (d.type === 'GREETING') console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
+           if (d.type === 'GREETING') {
+              console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
+              peerIdentities.current.set(conn.peer, d.payload);
+           }
            if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
            if (d.type === 'SYNC_REQUEST') {
               conn.send({ 
@@ -580,7 +612,21 @@ const App: React.FC = () => {
       console.log('Nova conexão P2P estabelecida:', conn.peer);
       
       conn.on('data', (d: any) => {
-        if (d.type === 'GREETING') console.log(`Kernel P2P: Nova conexão identificada -> ${d.payload.name} (${d.payload.role}) [${conn.peer}]`);
+        if (d.type === 'GREETING') {
+          console.log(`Kernel P2P: Nova conexão identificada -> ${d.payload.name} (${d.payload.role}) [${conn.peer}]`);
+          peerIdentities.current.set(conn.peer, d.payload);
+          
+          // Re-enviar dados filtrados agora que sabemos quem é
+          if (currentUser.role === 'Admin') {
+            const filtered = filterPayloadForPeer(stateRef.current, d.payload);
+            conn.send({ 
+              type: 'DATA_UPDATE', 
+              payload: filtered,
+              messageId: `id-welcome-${myAppId.current}-${Date.now()}`,
+              senderAppId: myAppId.current
+            });
+          }
+        }
         if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) {
            console.log('Dados recebidos via P2P, mesclando...');
            mergeData(d.payload, d.messageId);
@@ -635,8 +681,14 @@ const App: React.FC = () => {
           senderAppId: myAppId.current
         });
       });
-      conn.on('close', () => activeConnections.current.delete(conn.peer));
-      conn.on('error', () => activeConnections.current.delete(conn.peer));
+      conn.on('close', () => {
+        activeConnections.current.delete(conn.peer);
+        peerIdentities.current.delete(conn.peer);
+      });
+      conn.on('error', () => {
+        activeConnections.current.delete(conn.peer);
+        peerIdentities.current.delete(conn.peer);
+      });
     });
 
     peer.on('disconnected', () => {
@@ -827,7 +879,7 @@ const App: React.FC = () => {
             const isAssignedByName = c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim();
             const isUnassigned = c.brokerId === 'unassigned';
             return isAssignedById || (isAssignedByName && !isUnassigned);
-          })).filter(c => !c.deleted)} 
+          }))} 
           activities={isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id)} 
           properties={properties.filter(p => !p.deleted)} 
           commissions={commissions} 
