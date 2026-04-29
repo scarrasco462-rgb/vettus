@@ -102,7 +102,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
          try {
            return new Peer(tempId, { 
              secure: true,
-             debug: 0
+             debug: 1,
+             config: {
+               iceServers: [
+                 { urls: 'stun:stun.l.google.com:19302' },
+                 { urls: 'stun:stun1.l.google.com:19302' },
+                 { urls: 'stun:stun2.l.google.com:19302' },
+                 { urls: 'stun:stun3.l.google.com:19302' },
+                 { urls: 'stun:stun4.l.google.com:19302' },
+                 { urls: 'stun:global.stun.twilio.com:3478' },
+                 { urls: 'stun:stun.voiparound.com:3478' },
+                 { urls: 'stun:stun.voxgratia.org:3478' }
+               ],
+               iceCandidatePoolSize: 10,
+               sdpSemantics: 'unified-plan'
+             }
            });
          } catch (e) {
            console.error('Erro ao instanciar Peer de Autenticação:', e);
@@ -136,11 +150,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
          const conn = peer.connect(masterNodeId, { reliable: true });
          
          const timeout = setTimeout(() => {
-           setError(`CONEXÃO P2P: O Administrador Sergio (Master) precisa estar com o sistema aberto para autorizar seu acesso agora.`);
+           setError(`CONEXÃO P2P: Timeout ao conectar com a Unidade Sergio (${networkId}). Verifique se ele está online.`);
            setIsSyncing(false);
            setStatusMsg('');
            peer.destroy();
-         }, 15000);
+         }, 25000);
 
          conn.on('open', () => {
            clearTimeout(timeout);

@@ -648,9 +648,11 @@ const App: React.FC = () => {
               { urls: 'stun:stun2.l.google.com:19302' },
               { urls: 'stun:stun3.l.google.com:19302' },
               { urls: 'stun:stun4.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
+              { urls: 'stun:global.stun.twilio.com:3478' },
+              { urls: 'stun:stun.voiparound.com:3478' },
+              { urls: 'stun:stun.voxgratia.org:3478' }
             ],
-            iceCandidatePoolSize: 10, // Increased candidate pool for better connectivity
+            iceCandidatePoolSize: 10, 
             sdpSemantics: 'unified-plan'
           }
         });
