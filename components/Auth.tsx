@@ -24,6 +24,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     localStorage.setItem('vettus_network_id', id);
   };
 
+  const pendingChunksAuth = React.useRef<Map<string, { total: number, chunks: string[] }>>(new Map());
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
@@ -156,18 +158,35 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
            peer.destroy();
          }, 25000);
 
-         conn.on('open', () => {
-           clearTimeout(timeout);
-           setStatusMsg('Conectado ao Master. Validando credenciais...');
-           try {
-             conn.send({ type: 'REMOTE_AUTH_REQUEST', payload: { email: emailTrim, password } });
-           } catch (e) {
-             setError('Falha na comunicação com o Master. Tente novamente.');
-             setIsSyncing(false);
-           }
-         });
+         const handleAuthData = (d: any) => {
+           if (!d) return;
 
-         conn.on('data', (d: any) => {
+           // REASSEMBLY DE CHUNKS
+           if (d.type === 'DATA_CHUNK') {
+             const { chunkId, index, total, data } = d;
+             let record = pendingChunksAuth.current.get(chunkId);
+             if (!record) {
+               record = { total, chunks: new Array(total).fill('') };
+               pendingChunksAuth.current.set(chunkId, record);
+             }
+             
+             record.chunks[index] = data;
+             const receivedCount = record.chunks.filter(c => c !== '').length;
+             
+             setStatusMsg(`Sincronizando: ${Math.round((receivedCount / total) * 100)}%...`);
+
+             if (receivedCount === total) {
+               try {
+                 const completeData = JSON.parse(record.chunks.join(''));
+                 pendingChunksAuth.current.delete(chunkId);
+                 handleAuthData(completeData);
+               } catch (e) {
+                 console.error('Auth: Erro ao reconstruir chunk de dados:', e);
+               }
+             }
+             return;
+           }
+
            if (d.type === 'REMOTE_AUTH_SUCCESS') {
              setStatusMsg('Acesso Autorizado! Sincronizando base...');
              const { user, fullData } = d.payload;
@@ -182,7 +201,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
              setStatusMsg('');
              peer.destroy();
            }
+         };
+
+         conn.on('open', () => {
+           clearTimeout(timeout);
+           setStatusMsg('Conectado ao Master. Validando credenciais...');
+           try {
+             conn.send({ type: 'REMOTE_AUTH_REQUEST', payload: { email: emailTrim, password } });
+           } catch (e) {
+             setError('Falha na comunicação com o Master. Tente novamente.');
+             setIsSyncing(false);
+           }
          });
+
+         conn.on('data', (d: any) => handleAuthData(d));
        });
     }
   };

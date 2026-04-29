@@ -450,12 +450,15 @@ const App: React.FC = () => {
           if (broker.blocked) {
             await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema.' });
           } else {
-            await safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: stateRef.current } });
+            // Filtrar os dados para o corretor antes de enviar
+            const filteredData = filterPayloadForPeer(stateRef.current, broker);
+            await safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: filteredData } });
           }
         } else {
           await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'Senha incorreta para este e-mail.' });
         }
       } else {
+        console.warn(`Kernel Auth: E-mail ${email} não encontrado na base ativa.`);
         await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'E-mail não cadastrado nesta Unidade.' });
       }
     }
