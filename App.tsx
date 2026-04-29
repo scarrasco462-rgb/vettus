@@ -159,7 +159,7 @@ const App: React.FC = () => {
   const isSergioEmail = (email?: string) => {
     if (!email) return false;
     const e = email.toLowerCase().trim();
-    return e === 'scarrasco462@gmail.com';
+    return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
   };
 
   // Auditoria de Sessão (Separada para evitar loops com activities)
@@ -440,6 +440,7 @@ const App: React.FC = () => {
 
     if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email))) {
       const { email, password } = d.payload;
+      console.log(`Kernel Auth: Recebida solicitação de login remoto para ${email}`);
       const emailClean = email.toLowerCase().trim();
       const passwordClean = (password || '').trim();
       const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
@@ -638,7 +639,7 @@ const App: React.FC = () => {
       try {
         return new Peer(myId, { 
           secure: true, 
-          debug: 0, 
+          debug: 1, // Increased debug level for better diagnostics
           pingInterval: 5000,
           config: {
             iceServers: [
@@ -646,9 +647,10 @@ const App: React.FC = () => {
               { urls: 'stun:stun1.l.google.com:19302' },
               { urls: 'stun:stun2.l.google.com:19302' },
               { urls: 'stun:stun3.l.google.com:19302' },
-              { urls: 'stun:stun4.l.google.com:19302' }
+              { urls: 'stun:stun4.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' }
             ],
-            iceCandidatePoolSize: 2,
+            iceCandidatePoolSize: 10, // Increased candidate pool for better connectivity
             sdpSemantics: 'unified-plan'
           }
         });

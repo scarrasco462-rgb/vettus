@@ -32,7 +32,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     localStorage.setItem('vettus_remembered_email', email);
 
     // REGRA MASTER: Sergio Carrasco Jr sempre tem acesso root local
-    const isSergio = email.toLowerCase() === 'scarrasco462@gmail.com';
+    const isSergio = email.toLowerCase() === 'scarrasco462@gmail.com' || email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
     if (isSergio) {
        onLogin({
           id: 'admin-sergio',
@@ -136,11 +136,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
          const conn = peer.connect(masterNodeId, { reliable: true });
          
          const timeout = setTimeout(() => {
-           setError('O Administrador está offline. Aguarde ou solicite que ele abra o sistema para você poder entrar.');
+           setError(`CONEXÃO P2P: O Administrador Sergio (Master) precisa estar com o sistema aberto para autorizar seu acesso agora.`);
            setIsSyncing(false);
            setStatusMsg('');
            peer.destroy();
-         }, 12000);
+         }, 15000);
 
          conn.on('open', () => {
            clearTimeout(timeout);
