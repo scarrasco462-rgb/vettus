@@ -183,12 +183,12 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <div 
         className={`p-2 rounded-xl transition-all border border-white/5 flex items-center justify-center ${
-          syncStatus === 'synced' ? 'text-[#d4a853] bg-[#d4a853]/5' : 
+          syncStatus === 'synced' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
           syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 
           'text-red-500 bg-red-500/5'
         }`}
       >
-        {syncStatus === 'synced' ? <Wifi size={16} /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> : <WifiOff size={16} />}
+        {syncStatus === 'synced' ? <Wifi size={16} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin text-[#d4a853]" /> : <WifiOff size={16} />}
       </div>
     </div>
   );
@@ -215,9 +215,9 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
              </button>
              <div 
-                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-[#d4a853]' : syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 'text-red-500'}`}
+                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-emerald-500' : syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 'text-red-500'}`}
              >
-                {syncStatus === 'synced' ? <Wifi size={18} /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin" /> : <WifiOff size={18} />}
+                {syncStatus === 'synced' ? <Wifi size={18} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin text-[#d4a853]" /> : <WifiOff size={18} />}
              </div>
           </div>
         </div>

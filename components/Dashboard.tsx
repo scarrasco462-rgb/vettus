@@ -250,14 +250,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
         {isAdmin ? (
           <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 ${statsData.onlineBrokers.filter(b => !b.isSelf && b.isRecentlyActive).length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse scale-110' : 'bg-slate-100 text-slate-400'}`}>
+             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-100/50">
                 <Wifi size={32} />
              </div>
-             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Sincronização Ativa</h3>
+             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Login & Sync Ativo</h3>
              <div className="flex items-center space-x-2 mt-1">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] border-2 border-white"></div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#d4a853]">
-                  Rede Vettus Pro Conectada
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                  Status: Logado na Unidade Vettus
                 </p>
              </div>
              
