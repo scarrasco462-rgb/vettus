@@ -229,6 +229,7 @@ const App: React.FC = () => {
   };
 
   const isInternalUpdateRef = useRef(false);
+  const peerLastSeen = useRef<Map<string, number>>(new Map());
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
   const seenMessages = useRef<Set<string>>(new Set());
 
@@ -380,7 +381,7 @@ const App: React.FC = () => {
     if (!conn || !conn.open) return;
     try {
       const stringified = JSON.stringify(data);
-      const CHUNK_SIZE = 1024; // Reduzido para 1KB para máxima penetração em redes ruidosas (2G/2.4GHz saturado)
+      const CHUNK_SIZE = 16384; // 16KB chunks para melhor performance em WebRTC
       
       if (stringified.length <= CHUNK_SIZE) {
         conn.send(data);
@@ -393,9 +394,8 @@ const App: React.FC = () => {
       console.log(`Kernel P2P: Enviando payload de ${Math.round(stringified.length/1024)}KB em ${total} chunks...`);
       
       for (let i = 0; i < total; i++) {
-        // Pausa maior para evitar saturação do buffer em conexões 2G/2.4GHz
-        // Aumentado delay para 150ms/80ms para dar tempo ao hardware de rádio de processar os pacotes
-        await new Promise(r => setTimeout(r, i % 2 === 0 ? 150 : 80)); 
+        // Delay reduzido para 50ms/30ms - WebRTC lida com pacotes rápidos
+        await new Promise(r => setTimeout(r, i % 2 === 0 ? 50 : 30)); 
         
         if (!conn.open) break;
         
@@ -471,7 +471,13 @@ const App: React.FC = () => {
       });
     }
 
-    if (d.type === 'PING') await safeSend(conn, { type: 'PONG' });
+    if (d.type === 'PING') {
+      peerLastSeen.current.set(conn.peer, Date.now());
+      await safeSend(conn, { type: 'PONG' });
+    }
+    if (d.type === 'PONG') {
+      peerLastSeen.current.set(conn.peer, Date.now());
+    }
 
     if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email))) {
       const { email, password } = d.payload;
@@ -850,7 +856,13 @@ const App: React.FC = () => {
     };
 
     peer.on('connection', (conn) => {
-      // Proteção contra spam de conexões (Aumentado para 50 para suportar grandes equipes)
+      // Identificação imediata via metadata se disponível
+      if (conn.metadata) {
+        console.log(`Kernel P2P: Identidade recebida via metadata para ${conn.peer} -> ${conn.metadata.name}`);
+        peerIdentities.current.set(conn.peer, conn.metadata);
+      }
+
+      // Proteção contra spam de conexões
       if (activeConnections.current.size > 50) {
         try { conn.close(); } catch(e) {}
         return;
@@ -1044,6 +1056,11 @@ const App: React.FC = () => {
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
           onForceSync={handleForceSync}
+          onForceReconnect={() => {
+            reconnectAttemptsRef.current = 0;
+            conflictDetectedRef.current = false;
+            initPeer();
+          }}
           statsData={{ 
             properties: (isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)).filter(p => !p.deleted), 
             clients: (isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted), 
@@ -1053,6 +1070,9 @@ const App: React.FC = () => {
             commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
             campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
             systemLogs: [], 
+            isMaster: peerRef.current?.id === masterIdRef.current,
+            myPeerId: peerRef.current?.id,
+            rawConnectionCount: activeConnections.current.size,
             onlineBrokers: [
               // Inclui o próprio usuário na lista para feedback visual
               {
@@ -1064,12 +1084,18 @@ const App: React.FC = () => {
               },
               ...onlinePeers.map(peerId => {
                 const identity = peerIdentities.current.get(peerId);
+                const lastSeen = peerLastSeen.current.get(peerId) || 0;
+                const isRecentlyActive = (Date.now() - lastSeen) < 30000;
+                
                 return {
                   peerId,
                   id: identity?.id || 'unknown',
                   name: identity?.name || (peerId === masterIdRef.current ? 'Administrador (Sergio)' : 'Conectando...'),
                   role: identity?.role || 'Filiado',
-                  isSelf: false
+                  isSelf: false,
+                  lastSeenMs: lastSeen,
+                  isRecentlyActive,
+                  networkId: netId.toUpperCase()
                 };
               })
             ].filter(p => {

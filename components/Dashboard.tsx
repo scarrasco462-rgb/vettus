@@ -28,13 +28,21 @@ interface DashboardProps {
       id: string;
       name: string;
       role: string;
+      isSelf?: boolean;
+      lastSeenMs?: number;
+      isRecentlyActive?: boolean;
+      networkId?: string;
     }[];
     commissionForecasts: CommissionForecast[];
+    isMaster?: boolean;
+    myPeerId?: string;
+    rawConnectionCount?: number;
   };
   onForceSync?: () => void;
+  onForceReconnect?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser, onForceSync }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser, onForceSync, onForceReconnect }) => {
   const [aiInsight, setAiInsight] = useState<string>("Iniciando análise preditiva...");
   const [isSyncing, setIsSyncing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'all' | '30d' | '7d'>('all');
@@ -246,10 +254,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
                 <Wifi size={32} />
              </div>
              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Central de Sincronismo</h3>
-             <p className="text-slate-500 text-sm mt-2 max-w-xs uppercase font-bold tracking-tight">
-                {statsData.onlineBrokers.length === 0 
+             <div className="flex items-center space-x-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${statsData.isMaster ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'}`}></div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#d4a853]">
+                  {statsData.isMaster ? 'Servidor Mestre Ativo' : 'Conectado via Nó Secundário'}
+                </p>
+             </div>
+             <p className="text-slate-500 text-[10px] mt-2 max-w-xs uppercase font-bold tracking-tight border-t border-slate-100 pt-2">
+                ID Local: <span className="text-slate-900 font-black">{statsData.myPeerId}</span>
+             </p>
+             {isAdmin && (
+                <div className="flex flex-col space-y-2 mt-3 w-full">
+                   {!statsData.isMaster && (
+                      <button 
+                         onClick={() => onForceReconnect && onForceReconnect()}
+                         className="w-full bg-amber-50 border border-amber-200 text-amber-700 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors shadow-sm"
+                      >
+                         Reivindicar Liderança da Rede
+                      </button>
+                   )}
+                   <p className="text-slate-400 text-[9px] uppercase font-bold text-center">
+                     Sinal Bruto: {statsData.rawConnectionCount} links ativos
+                   </p>
+                </div>
+             )}
+             <p className="text-slate-500 text-sm mt-3 max-w-xs uppercase font-bold tracking-tight">
+                {statsData.onlineBrokers.filter(b => !b.isSelf).length === 0 
                   ? "Aguardando corretores entrarem na rede..."
-                  : `Rede Vettus Pro: ${statsData.onlineBrokers.length} Corretor(es) Identificado(s).`
+                  : `Rede Vettus Pro: ${statsData.onlineBrokers.filter(b => !b.isSelf).length} Corretor(es) Identificado(s).`
                 }
              </p>
              {statsData.onlineBrokers.length > 0 && (
@@ -259,23 +291,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
                      <span>Status de Sincronia</span>
                   </div>
                   {statsData.onlineBrokers.map((peer: any, i: number) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-2xl border transition-colors ${peer.isSelf ? 'bg-[#d4a853]/5 border-[#d4a853]/20' : 'bg-slate-50 border-slate-100'}`}>
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${peer.isSelf ? 'bg-[#d4a853]/5 border-[#d4a853]/20 shadow-sm shadow-yellow-500/10' : 'bg-white border-slate-100 hover:shadow-md'}`}>
                       <div className="flex items-center space-x-3 text-left">
-                         <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-900 border border-slate-200 shadow-sm shadow-slate-100">
-                            <User size={16} className={peer.name === 'Conectando...' ? 'animate-pulse text-slate-300' : 'text-[#d4a853]'} />
+                         <div className="relative">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-slate-900 border border-slate-200 shadow-sm ${peer.isSelf ? 'bg-white' : 'bg-slate-50'}`}>
+                               <User size={18} className={peer.name === 'Conectando...' ? 'animate-pulse text-slate-300' : 'text-[#d4a853]'} />
+                            </div>
+                            {!peer.isSelf && (
+                               <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${peer.isRecentlyActive ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                            )}
                          </div>
                          <div>
-                            <p className={`text-[11px] font-black uppercase leading-none ${peer.name === 'Conectando...' ? 'text-slate-400 italic' : 'text-slate-900'}`}>{peer.name}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{peer.role} {peer.peerId !== 'self' && `• Unidade ${peer.peerId.split('-').pop()}`}</p>
+                            <p className={`text-[11px] font-black uppercase leading-none tracking-tight ${peer.name === 'Conectando...' ? 'text-slate-400 italic' : 'text-slate-900'}`}>{peer.name}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
+                              {peer.role} {peer.peerId !== 'self' && `• ID: ${peer.peerId.split('-').pop()}`}
+                            </p>
+                            {peer.networkId && (
+                              <p className="text-[7px] font-black text-[#d4a853] uppercase tracking-widest mt-0.5">Rede: {peer.networkId}</p>
+                            )}
                          </div>
                       </div>
                       <div className="flex flex-col items-end">
                          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
-                            <div className={`w-1.5 h-1.5 rounded-full ${peer.name === 'Conectando...' ? 'bg-slate-300' : 'bg-emerald-500 animate-pulse'}`}></div>
-                            <span className={`text-[9px] font-black uppercase tracking-widest ${peer.name === 'Conectando...' ? 'text-slate-400' : 'text-emerald-600'}`}>
-                              {peer.isSelf ? 'VOCÊ ATIVO' : (peer.name === 'Conectando...' ? 'IDENTIFICANDO' : 'SINCRONIZADO')}
+                            <div className={`w-1.5 h-1.5 rounded-full ${peer.isSelf ? 'bg-emerald-500 animate-pulse' : (peer.name === 'Conectando...' ? 'bg-slate-300' : (peer.isRecentlyActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-400'))}`}></div>
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${peer.isSelf || peer.isRecentlyActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {peer.isSelf ? 'Oline / Mestre' : (peer.name === 'Conectando...' ? 'Sincronizando' : (peer.isRecentlyActive ? 'Conectado' : 'Sinal Instável'))}
                             </span>
                          </div>
+                         {!peer.isSelf && peer.lastSeenMs > 0 && (
+                           <span className="text-[7px] font-bold text-slate-300 mt-1 uppercase">Visto há {Math.round((Date.now() - peer.lastSeenMs)/1000)}s</span>
+                         )}
                       </div>
                     </div>
                   ))}
