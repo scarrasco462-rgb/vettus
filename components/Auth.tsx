@@ -103,23 +103,27 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
        const peer = (() => {
          try {
            return new Peer(tempId, { 
-             secure: true,
+              secure: true,
               debug: 0,
-              pingInterval: 12000,
-             config: {
-               iceServers: [
-                 { urls: 'stun:stun.l.google.com:19302' },
-                 { urls: 'stun:stun1.l.google.com:19302' },
-                 { urls: 'stun:stun2.l.google.com:19302' },
-                 { urls: 'stun:stun3.l.google.com:19302' },
-                 { urls: 'stun:stun4.l.google.com:19302' },
-                 { urls: 'stun:global.stun.twilio.com:3478' },
-                 { urls: 'stun:stun.l.google.com:19305' },
-                 { urls: 'stun:stun.voxgratia.org:3478' }
-               ],
-                iceCandidatePoolSize: 20,
-               sdpSemantics: 'unified-plan'
-             }
+              pingInterval: 15000,
+              pingTimeout: 10000,
+              config: {
+                iceServers: [
+                  { urls: 'stun:stun.l.google.com:19302' },
+                  { urls: 'stun:stun1.l.google.com:19302' },
+                  { urls: 'stun:stun2.l.google.com:19302' },
+                  { urls: 'stun:stun3.l.google.com:19302' },
+                  { urls: 'stun:stun4.l.google.com:19302' },
+                  { urls: 'stun:global.stun.twilio.com:3478' },
+                  { urls: 'stun:stun.l.google.com:19305' },
+                  { urls: 'stun:stun.voxgratia.org:3478' },
+                  { urls: 'stun:stun.ekiga.net' },
+                  { urls: 'stun:stun.ideasip.com' },
+                  { urls: 'stun:stun.schlund.de' }
+                ],
+                iceCandidatePoolSize: 30,
+                sdpSemantics: 'unified-plan'
+              }
            });
          } catch (e) {
            console.error('Erro ao instanciar Peer de Autenticação:', e);
@@ -150,7 +154,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
 
        peer.on('open', () => {
          const masterNodeId = `vettus-master-${networkId.toLowerCase().trim()}`;
-         const conn = peer.connect(masterNodeId, { reliable: true });
+         const conn = peer.connect(masterNodeId, { 
+           reliable: true,
+           serialization: 'json'
+         });
          
          const timeout = setTimeout(() => {
            setError(`CONEXÃO P2P: Timeout ao conectar com a Unidade Sergio (${networkId}). Verifique se ele está online.`);

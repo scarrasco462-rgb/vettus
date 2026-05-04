@@ -712,7 +712,8 @@ const App: React.FC = () => {
         return new Peer(myId, { 
           secure: true, 
           debug: 0, // Reduzido para zero para eliminar popups de erro e logs ruidosos do PeerJS
-          pingInterval: 12000, // Aumentado para 12s para evitar falsos desconectes em redes móveis (5G) instáveis
+          pingInterval: 15000, // Aumentado para 15s para tolerar alta latência em redes 2.4GHz ruidosas
+          pingTimeout: 10000,  // Adicionado timeout para dar tempo ao handshake em redes lentas
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
@@ -721,10 +722,13 @@ const App: React.FC = () => {
               { urls: 'stun:stun3.l.google.com:19302' },
               { urls: 'stun:stun4.l.google.com:19302' },
               { urls: 'stun:global.stun.twilio.com:3478' },
-              { urls: 'stun:stun.l.google.com:19305' }, // Adicional para redundância
-              { urls: 'stun:stun.voxgratia.org:3478' }
+              { urls: 'stun:stun.l.google.com:19305' },
+              { urls: 'stun:stun.voxgratia.org:3478' },
+              { urls: 'stun:stun.ekiga.net' },
+              { urls: 'stun:stun.ideasip.com' },
+              { urls: 'stun:stun.schlund.de' }
             ],
-            iceCandidatePoolSize: 20, // Aumentado para acelerar o discovery de rotas alternativas
+            iceCandidatePoolSize: 30, // Máximo de candidatos para furar firewalls de roteadores 2.4G/5G
             sdpSemantics: 'unified-plan'
           }
         });
@@ -761,7 +765,9 @@ const App: React.FC = () => {
       isConnectingToMasterRef.current = true;
       
       const conn = peer.connect(masterId, { 
-        reliable: true
+        reliable: true,
+        serialization: 'json',
+        metadata: { id: currentUser.id, name: currentUser.name, role: currentUser.role }
       });
 
       const connTimeout = setTimeout(() => {
