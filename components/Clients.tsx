@@ -1572,8 +1572,24 @@ export const ClientView: React.FC<ClientViewProps> = ({
       )}
 
       {activeTab === 'impressao' && (
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500">
-           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-[#0f172a] p-8 rounded-[2.5rem] border border-[#d4a853]/20">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500 print:p-0 print:border-0 print:shadow-none print:rounded-none">
+           {/* Cabeçalho de Impressão (Apenas Impressão) */}
+           <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+              <div className="flex justify-between items-end">
+                 <div>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase">Relatório de Clientes</h1>
+                    <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">
+                       Filtrado por: {printBrokerFilter === 'all' ? 'Toda a Equipe' : brokers.find(b => b.id === printBrokerFilter)?.name} | 
+                       Status: {printStatusFilter === 'active' ? 'Ativos' : printStatusFilter === 'blocked' ? 'Bloqueados' : 'Todos'}
+                    </p>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Gerado em: {new Date().toLocaleString('pt-BR')}</p>
+                 </div>
+              </div>
+           </div>
+
+           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-[#0f172a] p-8 rounded-[2.5rem] border border-[#d4a853]/20 print:hidden">
               <div className="flex items-center space-x-6">
                  <div className="w-16 h-16 gold-gradient rounded-2xl flex items-center justify-center shadow-2xl">
                     <Printer className="w-8 h-8 text-[#0a1120]" />
@@ -1643,43 +1659,43 @@ export const ClientView: React.FC<ClientViewProps> = ({
               </div>
            </div>
 
-           <div className="bg-slate-50 border border-slate-200 rounded-[2rem] overflow-hidden">
+           <div className="bg-slate-50 border border-slate-200 rounded-[2rem] overflow-hidden print:bg-white print:border-slate-800 print:rounded-none">
               <div className="overflow-x-auto">
                  <table className="w-full text-left print:text-[8pt]">
                     <thead>
-                       <tr className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200">
-                          <th className="px-6 py-4">Nome do Lead</th>
-                          <th className="px-6 py-4">Telefone Principal</th>
-                          <th className="px-6 py-4">Responsável</th>
-                          <th className="px-4 py-4">Status</th>
-                          <th className="px-4 py-4">Fase</th>
-                          <th className="px-6 py-4 text-right">Atualização</th>
+                       <tr className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200 print:bg-slate-50 print:text-black print:border-slate-800">
+                          <th className="px-6 py-4 print:px-2 print:py-2">Nome do Lead</th>
+                          <th className="px-6 py-4 print:px-2 print:py-2">Telefone Principal</th>
+                          <th className="px-6 py-4 print:px-2 print:py-2">Responsável</th>
+                          <th className="px-4 py-4 print:px-2 print:py-2">Status</th>
+                          <th className="px-4 py-4 print:px-2 print:py-2">Fase</th>
+                          <th className="px-6 py-4 text-right print:px-2 print:py-2">Atualização</th>
                        </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
+                    <tbody className="divide-y divide-slate-200 bg-white print:divide-slate-300">
                        {printLeads.map(client => (
-                          <tr key={client.id} className="hover:bg-slate-50 transition-colors">
-                             <td className="px-6 py-4">
-                                <span className="text-[11px] font-black text-slate-900 uppercase">{client.name}</span>
+                          <tr key={client.id} className="hover:bg-slate-50 transition-colors print:hover:bg-white">
+                             <td className="px-6 py-4 print:px-2 print:py-1">
+                                <span className="text-[11px] font-black text-slate-900 uppercase print:text-[10px] print:font-bold">{client.name}</span>
                              </td>
-                             <td className="px-6 py-4">
-                                <span className="text-[11px] font-black text-slate-900 tracking-widest">{client.phone}</span>
+                             <td className="px-6 py-4 print:px-2 print:py-1">
+                                <span className="text-[11px] font-black text-slate-900 tracking-widest print:text-[9px] print:font-medium print:tracking-normal">{client.phone}</span>
                              </td>
-                             <td className="px-6 py-4">
-                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg">
+                             <td className="px-6 py-4 print:px-2 print:py-1">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg print:bg-transparent print:p-0 print:text-[9px]">
                                    {client.assignedAgent || 'SISTEMA'}
                                 </span>
                              </td>
-                             <td className="px-4 py-4">
-                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md ${client.blocked ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                             <td className="px-4 py-4 print:px-2 print:py-1">
+                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md print:p-0 print:text-[8px] ${client.blocked ? 'bg-red-100 text-red-600 print:text-red-800' : 'bg-emerald-100 text-emerald-600 print:text-emerald-800'}`}>
                                    {client.blocked ? 'BLOQUEADO' : 'ATIVO'}
                                 </span>
                              </td>
-                             <td className="px-4 py-4">
-                                <span className="text-[9px] font-black text-slate-500 uppercase">{client.status}</span>
+                             <td className="px-4 py-4 print:px-2 print:py-1">
+                                <span className="text-[9px] font-black text-slate-500 uppercase print:text-[8px] print:text-black">{client.status}</span>
                              </td>
-                             <td className="px-6 py-4 text-right">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                             <td className="px-6 py-4 text-right print:px-2 print:py-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase print:text-[8px] print:text-slate-600">
                                    {new Date(client.updatedAt).toLocaleDateString('pt-BR')}
                                 </span>
                              </td>
