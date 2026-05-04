@@ -515,7 +515,9 @@ const App: React.FC = () => {
         // Kernels Differencial: Envia apenas os itens que mudaram (updatedAt ou novos)
         const diff = list.filter(item => {
           const prevItem = prevList.find(p => p.id === item.id);
-          return !prevItem || prevItem.updatedAt !== item.updatedAt;
+          if (!prevItem) return true;
+          // Comparação robusta: updatedAt ou Mudança Estrutural (Deep Equal simplificado via Stringify)
+          return item.updatedAt !== prevItem.updatedAt || JSON.stringify(item) !== JSON.stringify(prevItem);
         });
 
         if (diff.length > 0) {
@@ -596,6 +598,33 @@ const App: React.FC = () => {
     };
     return () => authChannel.close();
   }, [currentUser, brokers]);
+
+  const handleForceSync = useCallback(() => {
+    if (activeConnections.current.size === 0) return;
+    
+    const messageId = `force-sync-${myAppId.current}-${Date.now()}`;
+    console.log(`Kernel P2P: Iniciando Sincronização Forçada para ${activeConnections.current.size} conexões...`);
+    
+    activeConnections.current.forEach(async (conn) => {
+      if (conn.open) {
+        try {
+          const identity = peerIdentities.current.get(conn.peer);
+          // Admins enviam dados filtrados para cada corretor, corretores enviam tudo (já filtrado)
+          const payload = (currentUser?.role === 'Admin' && identity)
+            ? filterPayloadForPeer(stateRef.current, identity, stateRef.current)
+            : stateRef.current;
+
+          await safeSend(conn, { 
+            type: 'DATA_UPDATE', 
+            payload, 
+            messageId,
+            senderAppId: myAppId.current,
+            force: true 
+          });
+        } catch (e) {}
+      }
+    });
+  }, [currentUser]);
 
   // PeerJS Kernel v7.0 - Ultra-Fast Discovery
   const initPeer = useCallback(() => {
@@ -987,6 +1016,7 @@ const App: React.FC = () => {
         <Dashboard 
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
+          onForceSync={handleForceSync}
           statsData={{ 
             properties: (isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)).filter(p => !p.deleted), 
             clients: (isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted), 
@@ -1045,16 +1075,31 @@ const App: React.FC = () => {
           brokers={brokers} 
           onAddClient={c => setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v])} 
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))} 
+          onUpdateClients={updatedClients => {
+            const now = new Date().toISOString();
+            setClients(v => {
+              const map = new Map(v.map(x => [x.id, x]));
+              updatedClients.forEach(c => map.set(c.id, { ...c, updatedAt: now }));
+              return Array.from(map.values());
+            });
+          }}
           onDeleteClient={id => setClients(v => v.map(c => c.id === id ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))} 
           onDeleteClients={ids => setClients(v => v.map(c => ids.includes(c.id) ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))}
           onEditClient={c => { setClientToEdit(c); setIsClientModalOpen(true); }} 
           onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
-          onAddActivities={newActivities => setActivities(v => [...newActivities.map(a => ({...a, updatedAt: new Date().toISOString()})), ...v])}
+          onAddActivities={newActivities => {
+            const now = new Date().toISOString();
+            setActivities(v => [...newActivities.map(a => ({...a, updatedAt: now})), ...v]);
+          }}
           onUpdateActivitiesByClient={() => {
             // Histórico preservado com autor original.
             // A visibilidade agora é garantida pelo filtro dinâmico no App.tsx
           }}
           onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
+          onAddReminders={newReminders => {
+            const now = new Date().toISOString();
+            setReminders(v => [...newReminders.map(r => ({...r, updatedAt: now})), ...v]);
+          }}
           onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])} 
           onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? {...p, updatedAt: new Date().toISOString()} : x))} 
           onAddForecasts={f => setCommissionForecasts(v => [...f.map(item => ({...item, updatedAt: new Date().toISOString()})), ...v])} 

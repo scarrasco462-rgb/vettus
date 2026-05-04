@@ -26,10 +26,12 @@ interface DashboardProps {
     onlineBrokers: string[];
     commissionForecasts: CommissionForecast[];
   };
+  onForceSync?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser, onForceSync }) => {
   const [aiInsight, setAiInsight] = useState<string>("Iniciando análise preditiva...");
+  const [isSyncing, setIsSyncing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'all' | '30d' | '7d'>('all');
   const isAdmin = currentUser.role === 'Admin';
 
@@ -103,6 +105,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isAdmin && onForceSync && (
+            <button
+              onClick={() => {
+                setIsSyncing(true);
+                onForceSync();
+                setTimeout(() => setIsSyncing(false), 2000);
+              }}
+              disabled={isSyncing}
+              title="Forçar envio de atualizações para todos os corretores online"
+              className={`flex items-center px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                isSyncing 
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200'
+              }`}
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Rede'}
+            </button>
+          )}
           <div className="bg-white border-2 border-slate-100 rounded-2xl p-1 flex items-center shadow-sm">
             {(['all', '30d', '7d'] as const).map(f => (
               <button key={f} onClick={() => setTimeFilter(f)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeFilter === f ? 'bg-[#050810] text-[#d4a853]' : 'text-slate-400 hover:text-slate-600'}`}>
