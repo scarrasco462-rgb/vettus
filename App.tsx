@@ -228,98 +228,126 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  const isInternalUpdateRef = useRef(false);
+  const isInternalUpdateRef = useRef(0);
+  const isSyncingRemoteRef = useRef(false);
+  const lastRemoteMergeRef = useRef(0); 
+  const mergeQueue = useRef<any[]>([]);
+  const isProcessingQueue = useRef(false);
   const peerLastSeen = useRef<Map<string, number>>(new Map());
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
   const seenMessages = useRef<Set<string>>(new Set());
 
-  const mergeData = useCallback(async (payload: any, messageId?: string) => {
-    if (!payload) return;
+  const processMergeQueue = async () => {
+    if (isProcessingQueue.current || mergeQueue.current.length === 0) return;
     
-    // Evita processar a mesma mensagem múltiplas vezes
+    isProcessingQueue.current = true;
+    while (mergeQueue.current.length > 0) {
+      const nextItem = mergeQueue.current.shift();
+      if (nextItem) {
+        const { payload, messageId, senderPeerId } = nextItem;
+        await executeMerge(payload, messageId, senderPeerId);
+      }
+      await new Promise(r => setTimeout(r, 20));
+    }
+    isProcessingQueue.current = false;
+  };
+
+  const mergeData = (payload: any, messageId?: string, senderPeerId?: string) => {
+    mergeQueue.current.push({ payload, messageId, senderPeerId });
+    processMergeQueue();
+  };
+
+  const executeMerge = async (payload: any, messageId?: string, senderPeerId?: string) => {
+    if (!payload || isSyncingRemoteRef.current) return;
+    
     if (messageId) {
       if (seenMessages.current.has(messageId)) return;
       seenMessages.current.add(messageId);
-      // Limpeza periódica do set de mensagens vistas
-      if (seenMessages.current.size > 1000) {
+      if (seenMessages.current.size > 2000) {
         const arr = Array.from(seenMessages.current);
-        seenMessages.current = new Set(arr.slice(500));
+        seenMessages.current = new Set(arr.slice(1000));
       }
     }
 
+    isSyncingRemoteRef.current = true;
     let dataChanged = false;
 
-    const updateCollection = (prev: any[], next: any[]) => {
-      if (!next) return prev;
-      const map = new Map(prev.map(item => [item.id, item]));
-      let collectionChanged = false;
-      
-      next.forEach(item => {
-        const existing = map.get(item.id);
-        const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
-        const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
+    try {
+      const updateCollection = (prev: any[], next: any[]) => {
+        if (!next) return prev;
+        const map = new Map(prev.map(item => [item.id, item]));
+        let collectionChanged = false;
+        
+        next.forEach(item => {
+          const existing = map.get(item.id);
+          const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
+          const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
 
-        // Critérios de atualização:
-        // 1. Item não existe localmente
-        // 2. Item recebido é mais recente (Timestamp superior)
-        // 3. Timestamps iguais mas conteúdo diferente (Garante convergência em updates rápidos)
-        const isNewer = itemDate > existingDate;
-        const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
+          const isNewer = itemDate > existingDate;
+          const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
 
-        if (!existing || isNewer || isDifferentEqualDate) {
-           map.set(item.id, item);
-           collectionChanged = true;
-           dataChanged = true;
-           isInternalUpdateRef.current = true;
+          if (!existing || isNewer || isDifferentEqualDate) {
+             map.set(item.id, item);
+             collectionChanged = true;
+             dataChanged = true;
+          }
+        });
+        
+        if (collectionChanged) {
+          isInternalUpdateRef.current += 1;
         }
-      });
-      return collectionChanged ? Array.from(map.values()) : prev;
-    };
+        return collectionChanged ? Array.from(map.values()) : prev;
+      };
 
-    if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
-    if (payload.clients) setClients(p => updateCollection(p, payload.clients));
-    if (payload.properties) setProperties(p => updateCollection(p, payload.properties));
-    if (payload.launches) setLaunches(p => updateCollection(p, payload.launches));
-    if (payload.activities) setActivities(p => updateCollection(p, payload.activities));
-    if (payload.reminders) setReminders(p => updateCollection(p, payload.reminders));
-    if (payload.commissions) setCommissions(p => updateCollection(p, payload.commissions));
-    if (payload.commissionForecasts) setCommissionForecasts(p => updateCollection(p, payload.commissionForecasts));
-    if (payload.documents) setDocuments(p => updateCollection(p, payload.documents));
-    if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
-    if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
-    if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
-    if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
+      if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
+      if (payload.clients) setClients(p => updateCollection(p, payload.clients));
+      if (payload.properties) setProperties(p => updateCollection(p, payload.properties));
+      if (payload.launches) setLaunches(p => updateCollection(p, payload.launches));
+      if (payload.activities) setActivities(p => updateCollection(p, payload.activities));
+      if (payload.reminders) setReminders(p => updateCollection(p, payload.reminders));
+      if (payload.commissions) setCommissions(p => updateCollection(p, payload.commissions));
+      if (payload.commissionForecasts) setCommissionForecasts(p => updateCollection(p, payload.commissionForecasts));
+      if (payload.documents) setDocuments(p => updateCollection(p, payload.documents));
+      if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
+      if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
+      if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
+      if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
 
-    // Propaga para outras conexões (GOSSIP protocol simplificado)
-    if (dataChanged && messageId && activeConnections.current.size > 0) {
-      activeConnections.current.forEach(async (conn) => {
-        if (conn.open) {
-          try {
-            const identity = peerIdentities.current.get(conn.peer);
-            const filteredPayload = (currentUser?.role === 'Admin' && identity) 
-              ? filterPayloadForPeer(payload, identity, stateRef.current)
-              : payload;
+      if (dataChanged && messageId && activeConnections.current.size > 0) {
+        activeConnections.current.forEach(async (conn) => {
+          if (conn.open && conn.peer !== senderPeerId) {
+            try {
+              const identity = peerIdentities.current.get(conn.peer);
+              const filteredPayload = (currentUser?.role === 'Admin' && identity) 
+                ? filterPayloadForPeer(payload, identity, stateRef.current)
+                : payload;
 
-            await safeSend(conn, { 
-              type: 'DATA_UPDATE', 
-              payload: filteredPayload, 
-              messageId,
-              senderId: peerRef.current?.id, 
-              senderAppId: myAppId.current 
-            });
-          } catch (e) {}
-        }
-      });
-    }
-
-    if (dataChanged && currentUser?.role === 'Admin') {
-      try {
-        localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
-      } catch (e) {
-        console.warn('Falha ao salvar backup local (Quota Exceeded?):', e);
+              await safeSend(conn, { 
+                type: 'DATA_UPDATE', 
+                payload: filteredPayload, 
+                messageId,
+                senderId: peerRef.current?.id, 
+                senderAppId: myAppId.current 
+              });
+            } catch (e) {}
+          }
+        });
       }
+
+      if (dataChanged && currentUser?.role === 'Admin') {
+        try {
+          localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
+        } catch (e) {
+          console.warn('Falha ao salvar backup local:', e);
+        }
+      }
+      if (dataChanged) {
+        lastRemoteMergeRef.current = Date.now();
+      }
+    } finally {
+      isSyncingRemoteRef.current = false;
     }
-  }, [currentUser]);
+  };
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
@@ -379,9 +407,16 @@ const App: React.FC = () => {
 
   const safeSend = async (conn: DataConnection, data: any) => {
     if (!conn || !conn.open) return;
+    
+    // Verificação de buffer excedido (previne perda de pacotes e memória em conexões simultâneas)
+    if ((conn as any).dataChannel?.bufferedAmount > 8 * 1024 * 1024) {
+      console.warn(`Kernel P2P: Buffer crítico para ${conn.peer} (${Math.round((conn as any).dataChannel.bufferedAmount/1024)}KB), pulando broadcast...`);
+      return;
+    }
+
     try {
       const stringified = JSON.stringify(data);
-      const CHUNK_SIZE = 16384; // 16KB chunks para melhor performance em WebRTC
+      const CHUNK_SIZE = 32768; // 32KB chunks para melhor vazão sem fragmentação excessiva
       
       if (stringified.length <= CHUNK_SIZE) {
         conn.send(data);
@@ -391,11 +426,12 @@ const App: React.FC = () => {
       const chunkId = `chunk-${myAppId.current}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       const total = Math.ceil(stringified.length / CHUNK_SIZE);
       
-      console.log(`Kernel P2P: Enviando payload de ${Math.round(stringified.length/1024)}KB em ${total} chunks...`);
+      console.log(`Kernel P2P: Broadcast de ${Math.round(stringified.length/1024)}KB via ${chunkId}`);
       
       for (let i = 0; i < total; i++) {
-        // Delay reduzido para 50ms/30ms - WebRTC lida com pacotes rápidos
-        await new Promise(r => setTimeout(r, i % 2 === 0 ? 50 : 30)); 
+        // Delay adaptativo baseado no tamanho total do payload
+        const adaptiveDelay = stringified.length > 500000 ? 50 : 25;
+        await new Promise(r => setTimeout(r, adaptiveDelay)); 
         
         if (!conn.open) break;
         
@@ -455,7 +491,7 @@ const App: React.FC = () => {
       }
     }
 
-    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
+    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId, conn.peer);
 
     if (d.type === 'SYNC_REQUEST') {
       const identity = peerIdentities.current.get(conn.peer);
@@ -540,8 +576,13 @@ const App: React.FC = () => {
     stateRef.current = collections;
 
     if (hasChanges) {
-      if (isInternalUpdateRef.current) {
-        isInternalUpdateRef.current = false;
+      // Bloqueio robusto de eco/boomerang
+      const now = Date.now();
+      const isRemoteSilenced = (now - lastRemoteMergeRef.current) < 2000;
+      
+      if (isInternalUpdateRef.current > 0 || isRemoteSilenced) {
+        if (isInternalUpdateRef.current > 0) isInternalUpdateRef.current -= 1;
+        console.log('Kernel P2P: Broadcast silenciado (Atualização Interna ou Eco recente)');
         return;
       }
 
@@ -757,9 +798,33 @@ const App: React.FC = () => {
 
     peer.on('open', (id) => {
       isInitializingRef.current = false;
-      reconnectAttemptsRef.current = 0; // Reset ao abrir com sucesso
+      reconnectAttemptsRef.current = 0; 
       console.log('Kernel P2P On:', id);
       setSyncStatus('synced');
+      
+      // Heartbeat para manter socket com o servidor de sinalização PeerJS aberto
+      const pingInterval = setInterval(() => {
+        if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
+          try {
+            (peerRef.current as any).socket.send({ type: 'HEARTBEAT' });
+            
+            // Garbage Collection de Peers fantasmas na UI
+            const now = Date.now();
+            activeConnections.current.forEach((conn, peerId) => {
+              const lastSeen = peerLastSeen.current.get(peerId) || 0;
+              if (now - lastSeen > 60000 && !conn.open) {
+                console.log(`Kernel P2P: Descartando peer inativo há 60s: ${peerId}`);
+                activeConnections.current.delete(peerId);
+                peerIdentities.current.delete(peerId);
+              }
+            });
+            setOnlinePeers(Array.from(activeConnections.current.keys()));
+          } catch(e) {}
+        } else {
+          clearInterval(pingInterval);
+        }
+      }, 15000);
+
       if (id !== masterId) connectToMaster();
     });
 
@@ -1095,7 +1160,7 @@ const App: React.FC = () => {
                   isSelf: false,
                   lastSeenMs: lastSeen,
                   isRecentlyActive,
-                  networkId: netId.toUpperCase()
+                  networkId: peerId.split('-')[0].toUpperCase()
                 };
               })
             ].filter(p => {
