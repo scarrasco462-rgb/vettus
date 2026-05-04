@@ -294,7 +294,7 @@ const App: React.FC = () => {
           try {
             const identity = peerIdentities.current.get(conn.peer);
             const filteredPayload = (currentUser?.role === 'Admin' && identity) 
-              ? filterPayloadForPeer(payload, identity)
+              ? filterPayloadForPeer(payload, identity, stateRef.current)
               : payload;
 
             await safeSend(conn, { 
@@ -329,22 +329,43 @@ const App: React.FC = () => {
     return () => channel.close();
   }, [mergeData]);
 
-  const filterPayloadForPeer = (payload: any, identity: { id: string, name: string, role: string }) => {
+  const filterPayloadForPeer = (payload: any, identity: { id: string, name: string, role: string }, fullState: any) => {
     if (!payload || identity.role === 'Admin') return payload;
 
     const filtered: any = { ...payload };
     const uid = identity.id;
     const nameStr = identity.name?.toLowerCase().trim() || '';
 
-    if (filtered.clients) filtered.clients = filtered.clients.filter((c: any) => c.brokerId === uid || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr));
-    if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
+    // Referência de clientes que este peer possui acesso para filtrar outras coleções (Ex: Atividades)
+    const accessibleClients = fullState.clients?.filter((c: any) => 
+      c.brokerId === uid || 
+      (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr) ||
+      c.brokerId === 'unassigned' ||
+      !c.brokerId
+    ) || [];
+
+    if (filtered.clients) {
+      filtered.clients = filtered.clients.filter((c: any) => 
+        c.brokerId === uid || 
+        (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr) ||
+        c.brokerId === 'unassigned' ||
+        !c.brokerId
+      );
+    }
+
+    // Corretores podem ver todas as propriedades para trabalhar em equipe (Padrão de Mercado)
+    if (filtered.properties) {
+      filtered.properties = filtered.properties.filter((p: any) => !p.deleted || p.brokerId === uid);
+    }
+
     if (filtered.activities) {
       filtered.activities = filtered.activities.filter((a: any) => {
         if (a.brokerId === uid) return true;
-        // Permitir que o corretor receba histórico de clientes que ele possui na base filtrada
-        return filtered.clients?.some((c: any) => c.name === a.clientName);
+        // Permitir que o corretor receba histórico de clientes que ele possui acesso
+        return accessibleClients.some((c: any) => c.name === a.clientName);
       });
     }
+
     if (filtered.reminders) filtered.reminders = filtered.reminders.filter((r: any) => r.brokerId === uid);
     if (filtered.commissions) filtered.commissions = filtered.commissions.filter((c: any) => c.brokerId === uid);
     if (filtered.expenses) filtered.expenses = filtered.expenses.filter((e: any) => e.brokerId === uid);
@@ -357,7 +378,7 @@ const App: React.FC = () => {
     if (!conn || !conn.open) return;
     try {
       const stringified = JSON.stringify(data);
-      const CHUNK_SIZE = 2048; // Reduzido para 2KB para máxima compatibilidade com redes instáveis (2.4GHz/2G)
+      const CHUNK_SIZE = 1024; // Reduzido para 1KB para máxima penetração em redes ruidosas (2G/2.4GHz saturado)
       
       if (stringified.length <= CHUNK_SIZE) {
         conn.send(data);
@@ -370,8 +391,9 @@ const App: React.FC = () => {
       console.log(`Kernel P2P: Enviando payload de ${Math.round(stringified.length/1024)}KB em ${total} chunks...`);
       
       for (let i = 0; i < total; i++) {
-        // Pausa maior para evitar saturação do buffer em conexões 2.4GHz saturadas
-        await new Promise(r => setTimeout(r, i % 3 === 0 ? 120 : 60)); 
+        // Pausa maior para evitar saturação do buffer em conexões 2G/2.4GHz
+        // Aumentado delay para 150ms/80ms para dar tempo ao hardware de rádio de processar os pacotes
+        await new Promise(r => setTimeout(r, i % 2 === 0 ? 150 : 80)); 
         
         if (!conn.open) break;
         
@@ -420,7 +442,7 @@ const App: React.FC = () => {
       peerIdentities.current.set(conn.peer, d.payload);
       
       if (currentUser?.role === 'Admin') {
-        const filtered = filterPayloadForPeer(stateRef.current, d.payload);
+        const filtered = filterPayloadForPeer(stateRef.current, d.payload, stateRef.current);
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
           payload: filtered,
@@ -435,7 +457,7 @@ const App: React.FC = () => {
     if (d.type === 'SYNC_REQUEST') {
       const identity = peerIdentities.current.get(conn.peer);
       const payload = (currentUser?.role === 'Admin' && identity)
-        ? filterPayloadForPeer(stateRef.current, identity)
+        ? filterPayloadForPeer(stateRef.current, identity, stateRef.current)
         : stateRef.current;
 
       await safeSend(conn, { 
@@ -461,7 +483,7 @@ const App: React.FC = () => {
             await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema.' });
           } else {
             // Filtrar os dados para o corretor antes de enviar
-            const filteredData = filterPayloadForPeer(stateRef.current, broker);
+            const filteredData = filterPayloadForPeer(stateRef.current, broker, stateRef.current);
             await safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: filteredData } });
           }
         } else {
@@ -490,8 +512,16 @@ const App: React.FC = () => {
     Object.entries(collections).forEach(([key, list]) => {
       const prevList = prevCollectionsRef.current[key] || [];
       if (list !== prevList) {
-        changedCollections[key] = list;
-        hasChanges = true;
+        // Kernels Differencial: Envia apenas os itens que mudaram (updatedAt ou novos)
+        const diff = list.filter(item => {
+          const prevItem = prevList.find(p => p.id === item.id);
+          return !prevItem || prevItem.updatedAt !== item.updatedAt;
+        });
+
+        if (diff.length > 0) {
+          changedCollections[key] = diff;
+          hasChanges = true;
+        }
       }
     });
 
@@ -524,7 +554,7 @@ const App: React.FC = () => {
               try {
                 const identity = peerIdentities.current.get(conn.peer);
                 const filteredPayload = (currentUser?.role === 'Admin' && identity)
-                  ? filterPayloadForPeer(changedCollections, identity)
+                  ? filterPayloadForPeer(changedCollections, identity, stateRef.current)
                   : changedCollections;
 
                 await safeSend(conn, { 
