@@ -54,6 +54,7 @@ const App: React.FC = () => {
 
   // Estados Gerenciados (Rede Vettus)
   const [brokers, setBrokers] = useState<Broker[]>(() => loadLocal('brokers', MOCK_BROKERS));
+  const [onlinePeers, setOnlinePeers] = useState<string[]>([]);
   const [properties, setProperties] = useState<Property[]>(() => loadLocal('properties', []));
   const [clients, setClients] = useState<Client[]>(() => loadLocal('clients', []));
   const [activities, setActivities] = useState<Activity[]>(() => loadLocal('activities', []));
@@ -440,8 +441,9 @@ const App: React.FC = () => {
     if (d.type === 'GREETING') {
       console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
       peerIdentities.current.set(conn.peer, d.payload);
+      setOnlinePeers(Array.from(activeConnections.current.keys()));
       
-      if (currentUser?.role === 'Admin') {
+      if (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email)) {
         const filtered = filterPayloadForPeer(stateRef.current, d.payload, stateRef.current);
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
@@ -713,7 +715,6 @@ const App: React.FC = () => {
           secure: true, 
           debug: 0, // Reduzido para zero para eliminar popups de erro e logs ruidosos do PeerJS
           pingInterval: 15000, // Aumentado para 15s para tolerar alta latência em redes 2.4GHz ruidosas
-          pingTimeout: 10000,  // Adicionado timeout para dar tempo ao handshake em redes lentas
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
@@ -799,6 +800,7 @@ const App: React.FC = () => {
         }
 
         activeConnections.current.set(conn.peer, conn);
+        setOnlinePeers(Array.from(activeConnections.current.keys()));
         setSyncStatus('synced');
         
         await safeSend(conn, { 
@@ -818,8 +820,14 @@ const App: React.FC = () => {
       await safeSend(conn, { type: 'SYNC_REQUEST' });
       
         conn.on('data', (d: any) => handleIncomingData(conn, d));
-        conn.on('close', () => activeConnections.current.delete(conn.peer));
-        conn.on('error', () => activeConnections.current.delete(conn.peer));
+        conn.on('close', () => {
+          activeConnections.current.delete(conn.peer);
+          setOnlinePeers(Array.from(activeConnections.current.keys()));
+        });
+        conn.on('error', () => {
+          activeConnections.current.delete(conn.peer);
+          setOnlinePeers(Array.from(activeConnections.current.keys()));
+        });
         
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
@@ -849,6 +857,7 @@ const App: React.FC = () => {
         return;
       }
       activeConnections.current.set(conn.peer, conn);
+      setOnlinePeers(Array.from(activeConnections.current.keys()));
       
       conn.on('data', (d: any) => handleIncomingData(conn, d));
       
@@ -863,10 +872,12 @@ const App: React.FC = () => {
       conn.on('close', () => {
         activeConnections.current.delete(conn.peer);
         peerIdentities.current.delete(conn.peer);
+        setOnlinePeers(Array.from(activeConnections.current.keys()));
       });
       conn.on('error', () => {
         activeConnections.current.delete(conn.peer);
         peerIdentities.current.delete(conn.peer);
+        setOnlinePeers(Array.from(activeConnections.current.keys()));
       });
     });
 
@@ -1032,7 +1043,7 @@ const App: React.FC = () => {
             commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
             campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
             systemLogs: [], 
-            onlineBrokers: Array.from(activeConnections.current.keys()).map(peerId => {
+            onlineBrokers: onlinePeers.map(peerId => {
               const identity = peerIdentities.current.get(peerId);
               return {
                 peerId,

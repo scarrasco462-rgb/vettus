@@ -106,7 +106,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
               secure: true,
               debug: 0,
               pingInterval: 15000,
-              pingTimeout: 10000,
               config: {
                 iceServers: [
                   { urls: 'stun:stun.l.google.com:19302' },

@@ -38,7 +38,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
   const [aiInsight, setAiInsight] = useState<string>("Iniciando análise preditiva...");
   const [isSyncing, setIsSyncing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'all' | '30d' | '7d'>('all');
-  const isAdmin = currentUser.role === 'Admin';
+  const isAdmin = currentUser.role === 'Admin' || 
+                  currentUser.email.toLowerCase().trim() === 'scarrasco462@gmail.com' || 
+                  currentUser.email.toLowerCase().trim() === 'sergioconsultorimobiliario01@gmail.com';
 
   useEffect(() => {
     const fetchInsight = async () => {
@@ -238,43 +240,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-        <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-           <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${statsData.onlineBrokers.length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
-              <Wifi size={32} />
-           </div>
-           <h3 className="text-xl font-black text-slate-900 uppercase">Hub de Conectividade</h3>
-           <p className="text-slate-500 text-sm mt-2 max-w-xs uppercase font-bold tracking-tight">
-              {statsData.onlineBrokers.length === 0 
-                ? "Nenhum outro notebook conectado no momento. Seus dados estão salvos localmente."
-                : `${statsData.onlineBrokers.length} Dispositivo(s) sincronizando agora na rede.`
-              }
-           </p>
-           {isAdmin && statsData.onlineBrokers.length > 0 && (
-             <div className="mt-8 w-full space-y-3">
-                <div className="flex items-center justify-between px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                   <span>Usuário / Dispositivo</span>
-                   <span>Sincronismo</span>
-                </div>
-                {statsData.onlineBrokers.map((peer, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="flex items-center space-x-3 text-left">
-                       <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-900 border border-slate-200">
-                          <User size={14} />
-                       </div>
-                       <div>
-                          <p className="text-[10px] font-black text-slate-900 uppercase leading-none">{peer.name}</p>
-                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{peer.role} • ID: {peer.peerId.split('-').pop()}</p>
-                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                       <span className="text-[9px] font-black text-emerald-600 uppercase">ONLINE</span>
-                    </div>
-                  </div>
-                ))}
+        {isAdmin ? (
+          <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${statsData.onlineBrokers.length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
+                <Wifi size={32} />
              </div>
-           )}
-        </div>
+             <h3 className="text-xl font-black text-slate-900 uppercase">Hub de Conectividade Admin</h3>
+             <p className="text-slate-500 text-sm mt-2 max-w-xs uppercase font-bold tracking-tight">
+                {statsData.onlineBrokers.length === 0 
+                  ? "Aguardando corretores entrarem na rede..."
+                  : `${statsData.onlineBrokers.length} Dispositivo(s) sincronizando agora com você.`
+                }
+             </p>
+             {statsData.onlineBrokers.length > 0 && (
+               <div className="mt-8 w-full space-y-3">
+                  <div className="flex items-center justify-between px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+                     <span>Usuário / Unidade</span>
+                     <span>Sinal de Rede</span>
+                  </div>
+                  {statsData.onlineBrokers.map((peer, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center space-x-3 text-left">
+                         <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-900 border border-slate-200">
+                            <User size={14} />
+                         </div>
+                         <div>
+                            <p className="text-[10px] font-black text-slate-900 uppercase leading-none">{peer.name}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{peer.role} • Canal Ativo</p>
+                         </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                         <div className="flex items-center space-x-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest text-[8px]">Sincronizado</span>
+                         </div>
+                         <span className="text-[7px] font-black text-slate-300 mt-1">ID: {peer.peerId.split('-').pop()}</span>
+                      </div>
+                    </div>
+                  ))}
+               </div>
+             )}
+          </div>
+        ) : (
+          <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm">
+             <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-50 pb-4 mb-4 lg:mb-6">Top Projetos por VGV</h3>
+             <div className="h-[200px] lg:h-[250px] w-full">
+               <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={analytics.topProperties} layout="vertical" margin={{left: 20}}>
+                   <XAxis type="number" hide />
+                   <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 10, fontWeight: 900}} />
+                   <Tooltip contentStyle={{borderRadius: '12px'}} />
+                   <Bar dataKey="vgv" fill="#d4a853" radius={[0, 10, 10, 0]} barSize={20} />
+                 </BarChart>
+               </ResponsiveContainer>
+             </div>
+          </div>
+        )}
         <div className="bg-[#050810] rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 shadow-xl overflow-hidden relative">
           <div className="absolute bottom-0 right-0 p-8 opacity-5"><Target size={140} className="text-[#d4a853]" /></div>
           <h3 className="text-xs lg:text-sm font-black text-[#d4a853] uppercase tracking-widest border-b border-white/10 pb-4 mb-6 lg:mb-8">Cronograma de Recebimento</h3>
