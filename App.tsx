@@ -1026,7 +1026,15 @@ const App: React.FC = () => {
             commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
             campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
             systemLogs: [], 
-            onlineBrokers: Array.from(activeConnections.current.keys()), 
+            onlineBrokers: Array.from(activeConnections.current.keys()).map(peerId => {
+              const identity = peerIdentities.current.get(peerId);
+              return {
+                peerId,
+                id: identity?.id || 'unknown',
+                name: identity?.name || 'Dispositivo Desconhecido',
+                role: identity?.role || 'Guest'
+              };
+            }), 
             commissionForecasts: isAdmin ? commissionForecasts : commissionForecasts.filter(f => {
               const client = clients.find(cl => cl.id === f.clientId);
               return client && !client.deleted && (client.brokerId === currentUser.id || (client.assignedAgent && client.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));
