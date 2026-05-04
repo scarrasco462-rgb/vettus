@@ -250,32 +250,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
         {isAdmin ? (
           <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${statsData.onlineBrokers.length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
+             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 ${statsData.onlineBrokers.filter(b => !b.isSelf && b.isRecentlyActive).length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse scale-110' : 'bg-slate-100 text-slate-400'}`}>
                 <Wifi size={32} />
              </div>
              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Central de Sincronismo</h3>
              <div className="flex items-center space-x-2 mt-1">
-                <div className={`w-2 h-2 rounded-full ${statsData.isMaster ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'}`}></div>
+                <div className={`w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${statsData.isMaster ? 'bg-emerald-500 shadow-emerald-200' : 'bg-amber-500 shadow-amber-200'}`}></div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#d4a853]">
-                  {statsData.isMaster ? 'Servidor Mestre Ativo' : 'Conectado via Nó Secundário'}
+                  {statsData.isMaster ? 'Hub Master: Central Vettus' : 'Hub Node: Atendimento Sincronizado'}
                 </p>
              </div>
-             <p className="text-slate-500 text-[10px] mt-2 max-w-xs uppercase font-bold tracking-tight border-t border-slate-100 pt-2">
-                ID Local: <span className="text-slate-900 font-black">{statsData.myPeerId}</span>
+             <p className="text-slate-500 text-[10px] mt-2 max-w-xs uppercase font-bold tracking-tight border-t border-slate-100 pt-2 flex justify-between w-full px-4">
+                <span>LOCAL ID:</span>
+                <span className="text-slate-900 font-black">{statsData.myPeerId?.split('-').pop()}</span>
              </p>
              {isAdmin && (
-                <div className="flex flex-col space-y-2 mt-3 w-full">
-                   {!statsData.isMaster && (
-                      <button 
-                         onClick={() => onForceReconnect && onForceReconnect()}
-                         className="w-full bg-amber-50 border border-amber-200 text-amber-700 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors shadow-sm"
-                      >
-                         Reivindicar Liderança da Rede
-                      </button>
-                   )}
-                   <p className="text-slate-400 text-[9px] uppercase font-bold text-center">
-                     Sinal Bruto: {statsData.rawConnectionCount} links ativos
-                   </p>
+                <div className="bg-slate-50 p-2 rounded-lg mt-3 border border-slate-100 w-full mb-1">
+                  <p className="text-slate-400 text-[8px] uppercase font-bold text-center tracking-widest">
+                    Tráfego P2P: {statsData.rawConnectionCount} links • P2P Mesh Ativo
+                  </p>
                 </div>
              )}
              <p className="text-slate-500 text-sm mt-3 max-w-xs uppercase font-bold tracking-tight">

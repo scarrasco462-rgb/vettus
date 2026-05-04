@@ -260,6 +260,7 @@ const App: React.FC = () => {
   const executeMerge = async (payload: any, messageId?: string, senderPeerId?: string) => {
     if (!payload || isSyncingRemoteRef.current) return;
     
+    // Filtro de eco redundante por ID de mensagem e APP ID
     if (messageId) {
       if (seenMessages.current.has(messageId)) return;
       seenMessages.current.add(messageId);
@@ -273,6 +274,8 @@ const App: React.FC = () => {
     let dataChanged = false;
 
     try {
+      // Pequeno delay para garantir que o buffer de rede local foi limpo
+      await new Promise(r => setTimeout(r, 50));
       const updateCollection = (prev: any[], next: any[]) => {
         if (!next) return prev;
         const map = new Map(prev.map(item => [item.id, item]));
@@ -921,14 +924,12 @@ const App: React.FC = () => {
     };
 
     peer.on('connection', (conn) => {
-      // Identificação imediata via metadata se disponível
       if (conn.metadata) {
-        console.log(`Kernel P2P: Identidade recebida via metadata para ${conn.peer} -> ${conn.metadata.name}`);
+        console.log(`Kernel P2P: Bio-ID detectado para ${conn.peer} (${conn.metadata.name})`);
         peerIdentities.current.set(conn.peer, conn.metadata);
       }
 
-      // Proteção contra spam de conexões
-      if (activeConnections.current.size > 50) {
+      if (activeConnections.current.size > 80) {
         try { conn.close(); } catch(e) {}
         return;
       }
@@ -939,20 +940,17 @@ const App: React.FC = () => {
       conn.on('data', (d: any) => handleIncomingData(conn, d));
       
       conn.on('open', async () => {
-        // Envia sua própria identidade para quem conectou
         await safeSend(conn, { 
           type: 'GREETING', 
           payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
         });
 
-        // Se eu sou o Admin, envio os dados iniciais
         if (currentUser.role === 'Admin' || isSergioEmail(currentUser.email)) {
-          console.log(`Kernel Master: Enviando base para ${conn.peer}`);
-          const filtered = stateRef.current; // Adicione filtros por brokerId se necessário
+          console.log(`Kernel Master: Alimentando nó secundário ${conn.peer}`);
           await safeSend(conn, { 
             type: 'DATA_UPDATE', 
-            payload: filtered,
-            messageId: `welcome-${myAppId.current}-${Date.now()}`,
+            payload: stateRef.current,
+            messageId: `master-feed-${myAppId.current}-${Date.now()}`,
             senderAppId: myAppId.current
           });
         }
@@ -969,13 +967,15 @@ const App: React.FC = () => {
     });
 
     peer.on('disconnected', () => {
+      console.log('Kernel P2P: Link de sinalização interrompido, tentando restauração...');
+      setSyncStatus('offline');
       if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
       statusDebounceRef.current = setTimeout(() => {
-        if (peer && !peer.destroyed && peer.disconnected) {
-          console.log('Kernel P2P: Detectada desconexão. Tentando restabelecer sinal...');
-          peer.reconnect();
+        if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
+          peerRef.current.reconnect();
+          setSyncStatus('synced');
         }
-      }, 1500); // Reconexão imediata (reduzido de 5s para 1.5s)
+      }, 5000);
     });
 
     peer.on('error', (err) => {
