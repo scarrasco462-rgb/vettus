@@ -1688,41 +1688,41 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
            <div className="bg-slate-50 border border-slate-200 rounded-[2rem] overflow-hidden print:bg-white print:border-none print:rounded-none">
               <div className="overflow-x-auto">
-                 <table className="w-full text-left print:text-[10pt] print:border-collapse">
+                 <table className="w-full text-left print:text-[12pt] print:border-collapse print:table-fixed">
                     <thead>
                        <tr className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200 print:bg-slate-200 print:text-black print:border-black">
-                          <th className="px-6 py-4 print:px-3 print:py-3 print:border-black">Nome do Lead</th>
-                          <th className="px-6 py-4 print:px-3 print:py-3 print:border-black">Telefone Principal</th>
-                          <th className="px-6 py-4 print:px-3 print:py-3 print:border-black">Responsável</th>
-                          <th className="px-4 py-4 print:px-3 print:py-3 print:border-black">Status</th>
-                          <th className="px-4 py-4 print:px-3 print:py-3 print:border-black">Fase</th>
-                          <th className="px-6 py-4 text-right print:px-3 print:py-3 print:border-black">Atualização</th>
+                          <th className="px-6 py-4 print:px-2 print:py-2 print:border-black print:w-[25%]">Nome</th>
+                          <th className="px-6 py-4 print:px-2 print:py-2 print:border-black print:w-[20%]">Telefone</th>
+                          <th className="px-6 py-4 print:px-2 print:py-2 print:border-black print:w-[20%]">Responsável</th>
+                          <th className="px-4 py-4 print:px-2 print:py-2 print:border-black print:w-[12%] text-center">Status</th>
+                          <th className="px-4 py-4 print:px-2 print:py-2 print:border-black print:w-[13%]">Fase</th>
+                          <th className="px-6 py-4 text-right print:px-2 print:py-2 print:border-black print:w-[10%]">Data</th>
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white print:divide-black">
                        {printLeads.map(client => (
                           <tr key={client.id} className="hover:bg-slate-50 transition-colors print:hover:bg-white">
-                             <td className="px-6 py-4 print:px-3 print:py-2 print:border-black">
-                                <span className="text-[11px] font-black text-slate-900 uppercase print:text-[10pt] print:font-bold">{client.name}</span>
+                             <td className="px-6 py-4 print:px-2 print:py-2 print:border-black overflow-hidden truncate">
+                                <span className="text-[11px] font-black text-slate-900 uppercase print:text-[12pt] print:font-bold">{client.name}</span>
                              </td>
-                             <td className="px-6 py-4 print:px-3 print:py-2 print:border-black">
-                                <span className="text-[11px] font-black text-slate-900 tracking-widest print:text-[9pt] print:font-normal print:tracking-normal">{client.phone}</span>
+                             <td className="px-6 py-4 print:px-2 print:py-2 print:border-black">
+                                <span className="text-[11px] font-black text-slate-900 tracking-widest print:text-[11pt] print:font-normal print:tracking-tight">{client.phone}</span>
                              </td>
-                             <td className="px-6 py-4 print:px-3 print:py-2 print:border-black">
-                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg print:bg-transparent print:p-0 print:text-[9pt]">
+                             <td className="px-6 py-4 print:px-2 print:py-2 print:border-black overflow-hidden truncate">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg print:bg-transparent print:p-0 print:text-[11pt]">
                                    {client.assignedAgent || 'SISTEMA'}
                                 </span>
                              </td>
-                             <td className="px-4 py-4 print:px-3 print:py-2 print:border-black">
-                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md print:p-0 print:text-[8pt] ${client.blocked ? 'bg-red-100 text-red-600 print:font-bold' : 'bg-emerald-100 text-emerald-600 print:font-bold'}`}>
-                                   {client.blocked ? 'BLOQUEADO' : 'ATIVO'}
+                             <td className="px-4 py-4 print:px-2 print:py-2 print:border-black text-center">
+                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md print:p-0 print:text-[10pt] ${client.blocked ? 'bg-red-100 text-red-600 print:text-red-600' : 'bg-emerald-100 text-emerald-600 print:text-emerald-600'}`}>
+                                   {client.blocked ? 'BLOQ' : 'ATIVO'}
                                 </span>
                              </td>
-                             <td className="px-4 py-4 print:px-3 print:py-2 print:border-black">
-                                <span className="text-[9px] font-black text-slate-500 uppercase print:text-[8pt] print:text-black">{client.status}</span>
+                             <td className="px-4 py-4 print:px-2 print:py-2 print:border-black">
+                                <span className="text-[9px] font-black text-slate-500 uppercase print:text-[10pt] print:text-black">{client.status}</span>
                              </td>
-                             <td className="px-6 py-4 text-right print:px-3 print:py-2 print:border-black">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase print:text-[8pt] print:text-slate-700">
+                             <td className="px-6 py-4 text-right print:px-2 print:py-2 print:border-black">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase print:text-[10pt] print:text-slate-700">
                                    {new Date(client.updatedAt).toLocaleDateString('pt-BR')}
                                 </span>
                              </td>
