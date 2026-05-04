@@ -96,10 +96,14 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockSelectMotive, setBlockSelectMotive] = useState('');
   const [blockDescriptionText, setBlockDescriptionText] = useState('');
-  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia'>('carteira');
+  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia' | 'impressao'>('carteira');
   const [spreadsheetSubTab, setSpreadsheetSubTab] = useState<'active' | 'blocked'>('active');
   const [spreadsheetMode, setSpreadsheetMode] = useState<'groups' | 'leads'>('groups');
   const [spreadsheetBrokerFilter, setSpreadsheetBrokerFilter] = useState<string>('all');
+  
+  // Estados para Impressão de Planilha
+  const [printBrokerFilter, setPrintBrokerFilter] = useState<string>('all');
+  const [printStatusFilter, setPrintStatusFilter] = useState<'active' | 'blocked' | 'all'>('active');
   
   // Estados para Registro de Atendimento
   const [currentAtendimento, setCurrentAtendimento] = useState({ type: 'Call', desc: '' });
@@ -775,6 +779,25 @@ export const ClientView: React.FC<ClientViewProps> = ({
     return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [spreadsheetLeads]);
 
+  const printLeads = useMemo(() => {
+    return clients.filter(c => {
+      if (c.deleted) return false;
+      
+      // Permitir visualização de acordo com o papel
+      const isAssigned = c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
+      const canSee = isAdmin || isAssigned;
+      if (!canSee) return false;
+
+      const matchesBroker = printBrokerFilter === 'all' || c.brokerId === printBrokerFilter;
+      const matchesStatus = 
+        printStatusFilter === 'all' || 
+        (printStatusFilter === 'active' && !c.blocked) || 
+        (printStatusFilter === 'blocked' && c.blocked);
+        
+      return matchesBroker && matchesStatus;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, printBrokerFilter, printStatusFilter, isAdmin, currentUser]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -903,6 +926,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
         >
           <HardHat className="w-3.5 h-3.5" />
           <span>Fluxos de Obra</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('impressao')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'impressao' 
+            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+            : 'text-slate-500 hover:bg-white hover:text-slate-900'
+          }`}
+        >
+          <Printer className="w-3.5 h-3.5" />
+          <span>Impressão de Planilha</span>
         </button>
         {isAdmin && (
           <button
@@ -1537,7 +1571,143 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       )}
 
-      {/* MODAL BLOQUEIO DE SEGURANÇA */}
+      {activeTab === 'impressao' && (
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500">
+           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-[#0f172a] p-8 rounded-[2.5rem] border border-[#d4a853]/20">
+              <div className="flex items-center space-x-6">
+                 <div className="w-16 h-16 gold-gradient rounded-2xl flex items-center justify-center shadow-2xl">
+                    <Printer className="w-8 h-8 text-[#0a1120]" />
+                 </div>
+                 <div>
+                    <h2 className="text-xl font-black text-white uppercase">Impressão de Planilha</h2>
+                    <p className="text-[#d4a853] text-[10px] font-black uppercase tracking-[0.2em] mt-1">Geração de relatórios para conferência física ou digital</p>
+                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                 <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2">
+                    <Filter className="w-4 h-4 text-[#d4a853] mr-3" />
+                    <select 
+                       value={printBrokerFilter}
+                       onChange={e => setPrintBrokerFilter(e.target.value)}
+                       className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
+                    >
+                       <option value="all" className="text-black">Toda a Equipe</option>
+                       {brokers.filter(b => !b.deleted).map(b => (
+                          <option key={b.id} value={b.id} className="text-black">{b.name}</option>
+                       ))}
+                    </select>
+                 </div>
+
+                 <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2">
+                    <ShieldIcon className="w-4 h-4 text-[#d4a853] mr-3" />
+                    <select 
+                       value={printStatusFilter}
+                       onChange={e => setPrintStatusFilter(e.target.value as any)}
+                       className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
+                    >
+                       <option value="active" className="text-black">Clientes Ativos</option>
+                       <option value="blocked" className="text-black">Clientes Bloqueados</option>
+                       <option value="all" className="text-black">Todos (Ativos + Bloq)</option>
+                    </select>
+                 </div>
+
+                 <button 
+                    onClick={() => {
+                       const ws = XLSX.utils.json_to_sheet(printLeads.map(c => ({
+                          Nome: c.name,
+                          Telefone: c.phone,
+                          Email: c.email,
+                          Corretor: c.assignedAgent || 'Não Atribuído',
+                          Status: c.status,
+                          Situação: c.blocked ? 'Bloqueado' : 'Ativo',
+                          'Data de Cadastro': new Date(c.updatedAt).toLocaleDateString('pt-BR')
+                       })));
+                       const wb = XLSX.utils.book_new();
+                       XLSX.utils.book_append_sheet(wb, ws, 'Relatório de Leads');
+                       XLSX.writeFile(wb, `Relatorio_Leads_${new Date().toISOString().split('T')[0]}.xlsx`);
+                    }}
+                    className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg flex items-center"
+                 >
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Exportar Excel
+                 </button>
+
+                 <button 
+                    onClick={() => window.print()}
+                    className="gold-gradient text-[#0a1120] px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg flex items-center"
+                 >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Imprimir Página
+                 </button>
+              </div>
+           </div>
+
+           <div className="bg-slate-50 border border-slate-200 rounded-[2rem] overflow-hidden">
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left print:text-[8pt]">
+                    <thead>
+                       <tr className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200">
+                          <th className="px-6 py-4">Nome do Lead</th>
+                          <th className="px-6 py-4">Telefone Principal</th>
+                          <th className="px-6 py-4">Responsável</th>
+                          <th className="px-4 py-4">Status</th>
+                          <th className="px-4 py-4">Fase</th>
+                          <th className="px-6 py-4 text-right">Atualização</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                       {printLeads.map(client => (
+                          <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                             <td className="px-6 py-4">
+                                <span className="text-[11px] font-black text-slate-900 uppercase">{client.name}</span>
+                             </td>
+                             <td className="px-6 py-4">
+                                <span className="text-[11px] font-black text-slate-900 tracking-widest">{client.phone}</span>
+                             </td>
+                             <td className="px-6 py-4">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg">
+                                   {client.assignedAgent || 'SISTEMA'}
+                                </span>
+                             </td>
+                             <td className="px-4 py-4">
+                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md ${client.blocked ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                   {client.blocked ? 'BLOQUEADO' : 'ATIVO'}
+                                </span>
+                             </td>
+                             <td className="px-4 py-4">
+                                <span className="text-[9px] font-black text-slate-500 uppercase">{client.status}</span>
+                             </td>
+                             <td className="px-6 py-4 text-right">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                   {new Date(client.updatedAt).toLocaleDateString('pt-BR')}
+                                </span>
+                             </td>
+                          </tr>
+                       ))}
+                       {printLeads.length === 0 && (
+                          <tr>
+                             <td colSpan={6} className="py-20 text-center">
+                                <AlertTriangle className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                                <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Nenhum resultado para os filtros aplicados</p>
+                             </td>
+                          </tr>
+                       )}
+                    </tbody>
+                 </table>
+              </div>
+           </div>
+           
+           <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-start space-x-4 print:hidden">
+              <Info className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                 <p className="text-[10px] font-black text-amber-900 uppercase">Dica de Impressão</p>
+                 <p className="text-xs text-amber-700 font-medium mt-1">Ao utilizar o botão "Imprimir Página", certifique-se de habilitar "Gráficos de segundo plano" nas configurações do seu navegador para manter as cores e estilos da planilha.</p>
+              </div>
+           </div>
+        </div>
+      )}
+       {/* MODAL BLOQUEIO DE SEGURANÇA */}
       {showBlockModal && selectedClient && (
         <div className="fixed inset-0 z-[195] flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-[#0f172a]/95 backdrop-blur-md" onClick={() => setShowBlockModal(false)}></div>
