@@ -10,7 +10,8 @@ import {
   FileSpreadsheet,
   Layers, HardHat, LayoutList, ArrowDownWideNarrow,
   UploadCloud, ShieldAlert, Trash, AlertTriangle, ChevronDown,
-  Repeat, ArrowRightLeft, UserCheck2, ShieldOff, Lock, Unlock, ShieldAlert as ShieldIcon
+  Repeat, ArrowRightLeft, UserCheck2, ShieldOff, Lock, Unlock, ShieldAlert as ShieldIcon,
+  Layout
 } from 'lucide-react';
 import { Client, ClientStatus, Broker, Activity, Property, Commission, Reminder, ConstructionCompany, CommissionForecast } from '../types.ts';
 import * as XLSX from 'xlsx';
@@ -104,6 +105,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   // Estados para Impressão de Planilha
   const [printBrokerFilter, setPrintBrokerFilter] = useState<string>('all');
   const [printStatusFilter, setPrintStatusFilter] = useState<'active' | 'blocked' | 'all'>('active');
+  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
   
   // Estados para Registro de Atendimento
   const [currentAtendimento, setCurrentAtendimento] = useState({ type: 'Call', desc: '' });
@@ -1573,6 +1575,18 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
       {activeTab === 'impressao' && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500 print:p-0 print:border-none print:shadow-none print:rounded-none print:static print:bg-transparent">
+           {/* Dynamic Print Orientation Style */}
+           <style>
+              {`
+                @media print {
+                  @page {
+                    size: ${printOrientation};
+                    margin: 1cm;
+                  }
+                }
+              `}
+           </style>
+
            {/* Cabeçalho de Impressão (Apenas Impressão) */}
            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
               <div className="flex justify-between items-end">
@@ -1580,7 +1594,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
                     <h1 className="text-2xl font-black text-slate-900 uppercase">Relatório de Clientes</h1>
                     <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">
                        Filtrado por: {printBrokerFilter === 'all' ? 'Toda a Equipe' : brokers.find(b => b.id === printBrokerFilter)?.name} | 
-                       Status: {printStatusFilter === 'active' ? 'Ativos' : printStatusFilter === 'blocked' ? 'Bloqueados' : 'Todos'}
+                       Status: {printStatusFilter === 'active' ? 'Ativos' : printStatusFilter === 'blocked' ? 'Bloqueados' : 'Todos'} |
+                       Orientação: {printOrientation === 'landscape' ? 'Horizontal' : 'Vertical'}
                     </p>
                  </div>
                  <div className="text-right">
@@ -1625,6 +1640,18 @@ export const ClientView: React.FC<ClientViewProps> = ({
                        <option value="active" className="text-black">Clientes Ativos</option>
                        <option value="blocked" className="text-black">Clientes Bloqueados</option>
                        <option value="all" className="text-black">Todos (Ativos + Bloq)</option>
+                    </select>
+                 </div>
+
+                 <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2">
+                    <Layout className="w-4 h-4 text-[#d4a853] mr-3" />
+                    <select 
+                       value={printOrientation}
+                       onChange={e => setPrintOrientation(e.target.value as any)}
+                       className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
+                    >
+                       <option value="landscape" className="text-black">Horizontal (Paisagem)</option>
+                       <option value="portrait" className="text-black">Vertical (Retrato)</option>
                     </select>
                  </div>
 
