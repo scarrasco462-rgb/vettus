@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, Users, Home, Wallet, Sparkles, ShieldCheck, User, 
   ArrowUpRight, ArrowDownRight, Download, Maximize2, 
-  Calendar, Target, Wifi
+  Calendar, Target
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -23,33 +23,15 @@ interface DashboardProps {
     commissions: Commission[];
     campaigns: Campaign[];
     systemLogs: SystemActivity[];
-    onlineBrokers: {
-      peerId: string;
-      id: string;
-      name: string;
-      role: string;
-      isSelf?: boolean;
-      lastSeenMs?: number;
-      isRecentlyActive?: boolean;
-      networkId?: string;
-    }[];
+    onlineBrokers: string[];
     commissionForecasts: CommissionForecast[];
-    isMaster?: boolean;
-    myPeerId?: string;
-    rawConnectionCount?: number;
   };
-  syncStatus?: 'synced' | 'syncing' | 'disconnected';
-  onForceSync?: () => void;
-  onForceReconnect?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser, onForceSync, onForceReconnect, syncStatus = 'disconnected' }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser }) => {
   const [aiInsight, setAiInsight] = useState<string>("Iniciando análise preditiva...");
-  const [isSyncing, setIsSyncing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'all' | '30d' | '7d'>('all');
-  const isAdmin = currentUser.role === 'Admin' || 
-                  currentUser.email.toLowerCase().trim() === 'scarrasco462@gmail.com' || 
-                  currentUser.email.toLowerCase().trim() === 'sergioconsultorimobiliario01@gmail.com';
+  const isAdmin = currentUser.role === 'Admin';
 
   useEffect(() => {
     const fetchInsight = async () => {
@@ -121,25 +103,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {isAdmin && onForceSync && (
-            <button
-              onClick={() => {
-                setIsSyncing(true);
-                onForceSync();
-                setTimeout(() => setIsSyncing(false), 2000);
-              }}
-              disabled={isSyncing}
-              title="Forçar envio de atualizações para todos os corretores online"
-              className={`flex items-center px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                isSyncing 
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200'
-              }`}
-            >
-              <ShieldCheck className={`w-3.5 h-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Sincronizando...' : 'Sincronizar Rede'}
-            </button>
-          )}
           <div className="bg-white border-2 border-slate-100 rounded-2xl p-1 flex items-center shadow-sm">
             {(['all', '30d', '7d'] as const).map(f => (
               <button key={f} onClick={() => setTimeFilter(f)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeFilter === f ? 'bg-[#050810] text-[#d4a853]' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -249,108 +212,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-        {isAdmin ? (
-          <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 shadow-lg ${
-                syncStatus === 'synced' ? 'bg-emerald-100 text-emerald-600 shadow-emerald-100/50' :
-                syncStatus === 'syncing' ? 'bg-amber-100 text-amber-600 shadow-amber-100/50 animate-pulse' :
-                'bg-red-100 text-red-600 shadow-red-100/50'
-             }`}>
-                <Wifi size={32} />
-             </div>
-             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
-                {syncStatus === 'synced' ? 'Login & Sync Ativo' : 
-                 syncStatus === 'syncing' ? 'Estabelecendo Rede...' : 'Módulo P2P Offline'}
-             </h3>
-             <div className="flex items-center space-x-2 mt-1">
-                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)] border-2 border-white ${
-                  syncStatus === 'synced' ? 'bg-emerald-500' :
-                  syncStatus === 'syncing' ? 'bg-amber-500' : 'bg-red-500'
-                }`}></div>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${
-                  syncStatus === 'synced' ? 'text-emerald-600' :
-                  syncStatus === 'syncing' ? 'text-amber-600' : 'text-red-600'
-                }`}>
-                  {syncStatus === 'synced' ? 'Status: Logado na Unidade Vettus' : 
-                   syncStatus === 'syncing' ? 'Status: Sincronizando Canais' : 'Status: Erro de Comunicação'}
-                </p>
-             </div>
-             
-             <p className="text-slate-500 text-sm mt-3 max-w-xs uppercase font-bold tracking-tight">
-                {syncStatus === 'synced' 
-                  ? (statsData.onlineBrokers.filter(b => !b.isSelf).length === 0 
-                    ? "Sua unidade está online e pronta para sincronizar."
-                    : `Existem ${statsData.onlineBrokers.filter(b => !b.isSelf).length} corretor(es) ativos na sua rede.`)
-                  : syncStatus === 'syncing' 
-                    ? "Conectando ao hub central de inteligência..."
-                    : "Falha ao conectar com a rede de dados compartilhada."
-                }
-             </p>
-
-             {syncStatus === 'disconnected' && (
-               <button 
-                 onClick={() => onForceReconnect?.()}
-                 className="mt-6 px-6 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-red-700 transition-all active:scale-95 flex items-center space-x-2"
-               >
-                 <ShieldCheck size={14} />
-                 <span>Forçar Reconexão</span>
-               </button>
-             )}
-             {statsData.onlineBrokers.length > 0 && (
-               <div className="mt-8 w-full space-y-3">
-                  <div className="flex items-center justify-between px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                     <span>Corretor / Dispositivo</span>
-                     <span>Status de Sincronia</span>
-                  </div>
-                  {statsData.onlineBrokers.map((peer: any, i: number) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${peer.isSelf ? 'bg-[#d4a853]/5 border-[#d4a853]/20 shadow-sm shadow-yellow-500/10' : 'bg-white border-slate-100 hover:shadow-md'}`}>
-                      <div className="flex items-center space-x-3 text-left">
-                         <div className="relative">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-slate-900 border border-slate-200 shadow-sm ${peer.isSelf ? 'bg-white' : 'bg-slate-50'}`}>
-                               <User size={18} className={peer.name === 'Conectando...' ? 'animate-pulse text-slate-300' : 'text-[#d4a853]'} />
-                            </div>
-                            {!peer.isSelf && (
-                               <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${peer.isRecentlyActive ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
-                            )}
-                         </div>
-                         <div>
-                            <p className={`text-[11px] font-black uppercase leading-none tracking-tight ${peer.name === 'Conectando...' ? 'text-slate-400 italic' : 'text-slate-900'}`}>{peer.name}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
-                              {peer.role} {peer.isSelf ? ' (Você)' : ''}
-                            </p>
-                         </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                         <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
-                            <div className={`w-1.5 h-1.5 rounded-full ${peer.isSelf ? 'bg-emerald-500 animate-pulse' : (peer.name === 'Conectando...' ? 'bg-slate-300' : (peer.isRecentlyActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-400'))}`}></div>
-                            <span className={`text-[9px] font-black uppercase tracking-widest ${peer.isSelf || peer.isRecentlyActive ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              {peer.isSelf ? 'Oline / Mestre' : (peer.name === 'Conectando...' ? 'Sincronizando' : (peer.isRecentlyActive ? 'Conectado' : 'Sinal Instável'))}
-                            </span>
-                         </div>
-                         {!peer.isSelf && peer.lastSeenMs > 0 && (
-                           <span className="text-[7px] font-bold text-slate-300 mt-1 uppercase">Visto há {Math.round((Date.now() - peer.lastSeenMs)/1000)}s</span>
-                         )}
-                      </div>
-                    </div>
-                  ))}
-               </div>
-             )}
-          </div>
-        ) : (
-          <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm">
-             <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-50 pb-4 mb-4 lg:mb-6">Top Projetos por VGV</h3>
-             <div className="h-[200px] lg:h-[250px] w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={analytics.topProperties} layout="vertical" margin={{left: 20}}>
-                   <XAxis type="number" hide />
-                   <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 10, fontWeight: 900}} />
-                   <Tooltip contentStyle={{borderRadius: '12px'}} />
-                   <Bar dataKey="vgv" fill="#d4a853" radius={[0, 10, 10, 0]} barSize={20} />
-                 </BarChart>
-               </ResponsiveContainer>
-             </div>
-          </div>
-        )}
+        <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm">
+           <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-50 pb-4 mb-4 lg:mb-6">Top Projetos por VGV</h3>
+           <div className="h-[200px] lg:h-[250px] w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <BarChart data={analytics.topProperties} layout="vertical" margin={{left: 20}}>
+                 <XAxis type="number" hide />
+                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 10, fontWeight: 900}} />
+                 <Tooltip contentStyle={{borderRadius: '12px'}} />
+                 <Bar dataKey="vgv" fill="#d4a853" radius={[0, 10, 10, 0]} barSize={20} />
+               </BarChart>
+             </ResponsiveContainer>
+           </div>
+        </div>
         <div className="bg-[#050810] rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 shadow-xl overflow-hidden relative">
           <div className="absolute bottom-0 right-0 p-8 opacity-5"><Target size={140} className="text-[#d4a853]" /></div>
           <h3 className="text-xs lg:text-sm font-black text-[#d4a853] uppercase tracking-widest border-b border-white/10 pb-4 mb-6 lg:mb-8">Cronograma de Recebimento</h3>

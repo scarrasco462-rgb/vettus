@@ -45,7 +45,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   clients,
   brokers
 }) => {
-  const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('timeline');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);

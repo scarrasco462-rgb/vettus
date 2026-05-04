@@ -24,7 +24,6 @@ interface ClientViewProps {
   commissionForecasts: CommissionForecast[];
   onAddClient: (client: Client) => void;
   onUpdateClient: (client: Client) => void;
-  onUpdateClients?: (clients: Client[]) => void;
   onDeleteClient: (id: string) => void;
   onDeleteClients: (ids: string[]) => void;
   onEditClient: (client: Client) => void;
@@ -32,7 +31,6 @@ interface ClientViewProps {
   onAddActivities: (activities: Activity[]) => void;
   onUpdateActivitiesByClient?: (clientName: string, newBrokerId: string, newBrokerName: string) => void;
   onAddReminder: (reminder: Reminder) => void;
-  onAddReminders?: (reminders: Reminder[]) => void;
   onAddSale: (sale: Commission) => void;
   onUpdateProperty: (property: Property) => void;
   onAddForecasts: (forecasts: CommissionForecast[]) => void;
@@ -88,7 +86,7 @@ const parseCurrencyToNumber = (value: string): number => {
 
 export const ClientView: React.FC<ClientViewProps> = ({ 
   clients, activities, properties, commissions = [], constructionCompanies = [], commissionForecasts = [], 
-  onUpdateClient, onUpdateClients, onDeleteClient, onDeleteClients, onEditClient, onAddActivity, onAddActivities, onUpdateActivitiesByClient, onAddReminder, onAddReminders, onAddSale, 
+  onUpdateClient, onDeleteClient, onDeleteClients, onEditClient, onAddActivity, onAddActivities, onUpdateActivitiesByClient, onAddReminder, onAddSale, 
   onUpdateProperty, onAddForecasts, currentUser, brokers, onOpenAddModal, onOpenImport, onOpenFlow
 }) => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -335,30 +333,26 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const dateStr = now.split('T')[0];
     const timeStr = new Date().toLocaleTimeString('pt-BR');
 
-    const updatedClients: Client[] = [];
-    const newActivities: Activity[] = [];
-    const newReminders: Reminder[] = [];
-
     selectedClientIds.forEach(clientId => {
       const client = clients.find(c => c.id === clientId);
       if (!client) return;
 
       const oldBrokerName = client.assignedAgent || 'Gestão';
 
-      // 1. Preparar o Cliente
-      updatedClients.push({
+      // 1. Atualizar o Cliente
+      const updatedClient: Client = {
         ...client,
         brokerId: newBroker.id,
         assignedAgent: newBroker.name,
         updatedAt: now
-      });
+      };
+      onUpdateClient(updatedClient);
       
-      // 1.1 Transferir Histórico de Atividades (Opcional se implementado no App)
+      // 1.1 Transferir Histórico de Atividades
       if (onUpdateActivitiesByClient) {
         onUpdateActivitiesByClient(client.name, newBroker.id, newBroker.name);
       }
-
-      newActivities.push({
+      onAddActivity({
         id: Math.random().toString(36).substr(2, 9),
         brokerId: currentUser.id,
         brokerName: currentUser.name,
@@ -370,7 +364,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
         updatedAt: now
       });
 
-      newReminders.push({
+      // 3. Notificar o Corretor Destino via Reminder
+      onAddReminder({
         id: Math.random().toString(36).substr(2, 9),
         brokerId: newBroker.id,
         title: `NOVO LEAD RECEBIDO: ${client.name} transferido pela Administração.`,
@@ -381,11 +376,6 @@ export const ClientView: React.FC<ClientViewProps> = ({
         updatedAt: now
       });
     });
-
-    // Disparar atualizações em massa
-    if (onUpdateClients) onUpdateClients(updatedClients); else updatedClients.forEach(c => onUpdateClient(c));
-    if (onAddActivities) onAddActivities(newActivities); else newActivities.forEach(a => onAddActivity(a));
-    if (onAddReminders) onAddReminders(newReminders); else newReminders.forEach(r => onAddReminder(r));
 
     setConfirmModal({
       show: true,

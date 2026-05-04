@@ -184,13 +184,13 @@ export const Layout: React.FC<LayoutProps> = ({
       <button 
         onClick={() => onForceReconnect?.()}
         className={`p-2 rounded-xl transition-all border border-white/5 flex items-center justify-center ${
-          syncStatus === 'synced' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
-          syncStatus === 'syncing' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20 animate-pulse' : 
+          syncStatus === 'synced' ? 'text-[#d4a853] bg-[#d4a853]/5' : 
+          syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 
           'text-red-500 bg-red-500/5'
         }`}
-        title={syncStatus === 'synced' ? 'Conexão Estável Vettus-Sync' : syncStatus === 'syncing' ? 'Sincronizando Canais...' : 'Offline - Clique para Reconectar'}
+        title={syncStatus === 'synced' ? 'Conexão Estável' : syncStatus === 'syncing' ? 'Sincronizando...' : 'Offline - Clique para Resetar'}
       >
-        {syncStatus === 'synced' ? <Wifi size={16} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin text-amber-500" /> : <WifiOff size={16} />}
+        {syncStatus === 'synced' ? <Wifi size={16} /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> : <WifiOff size={16} />}
       </button>
     </div>
   );
@@ -218,10 +218,9 @@ export const Layout: React.FC<LayoutProps> = ({
              </button>
              <button 
                 onClick={() => onForceReconnect?.()}
-                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-emerald-500' : syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' : 'text-red-500'}`}
-                title="Sincronização"
+                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-[#d4a853]' : syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 'text-red-500'}`}
              >
-                {syncStatus === 'synced' ? <Wifi size={18} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin text-amber-500" /> : <WifiOff size={18} />}
+                {syncStatus === 'synced' ? <Wifi size={18} /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin" /> : <WifiOff size={18} />}
              </button>
           </div>
         </div>

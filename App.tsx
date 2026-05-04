@@ -48,13 +48,12 @@ const loadLocal = <T,>(key: string, def: T): T => {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Broker | null>(() => loadLocal('session_user', null));
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected'>('disconnected');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected' | 'connecting'>('disconnected');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const loginTimeRef = useRef<number>(Date.now());
 
   // Estados Gerenciados (Rede Vettus)
   const [brokers, setBrokers] = useState<Broker[]>(() => loadLocal('brokers', MOCK_BROKERS));
-  const [onlinePeers, setOnlinePeers] = useState<string[]>([]);
   const [properties, setProperties] = useState<Property[]>(() => loadLocal('properties', []));
   const [clients, setClients] = useState<Client[]>(() => loadLocal('clients', []));
   const [activities, setActivities] = useState<Activity[]>(() => loadLocal('activities', []));
@@ -84,7 +83,6 @@ const App: React.FC = () => {
   const isInitializingRef = useRef(false);
   const lastInitRef = useRef(0);
   const isConnectingToMasterRef = useRef(false);
-  const masterIdRef = useRef<string | null>(null);
   const initTimeoutRef = useRef<any>(null);
   const statusDebounceRef = useRef<any>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -228,130 +226,97 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  const isInternalUpdateRef = useRef(0);
-  const isSyncingRemoteRef = useRef(false);
-  const lastRemoteMergeRef = useRef(0); 
-  const mergeQueue = useRef<any[]>([]);
-  const isProcessingQueue = useRef(false);
-  const peerLastSeen = useRef<Map<string, number>>(new Map());
-  const chunkTimeoutRef = useRef<Map<string, number>>(new Map());
+  const isInternalUpdateRef = useRef(false);
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
   const seenMessages = useRef<Set<string>>(new Set());
 
-  const processMergeQueue = async () => {
-    if (isProcessingQueue.current || mergeQueue.current.length === 0) return;
+  const mergeData = useCallback(async (payload: any, messageId?: string) => {
+    if (!payload) return;
     
-    isProcessingQueue.current = true;
-    while (mergeQueue.current.length > 0) {
-      const nextItem = mergeQueue.current.shift();
-      if (nextItem) {
-        const { payload, messageId, senderPeerId } = nextItem;
-        await executeMerge(payload, messageId, senderPeerId);
-      }
-      await new Promise(r => setTimeout(r, 20));
-    }
-    isProcessingQueue.current = false;
-  };
-
-  const mergeData = (payload: any, messageId?: string, senderPeerId?: string) => {
-    mergeQueue.current.push({ payload, messageId, senderPeerId });
-    processMergeQueue();
-  };
-
-  const executeMerge = async (payload: any, messageId?: string, senderPeerId?: string) => {
-    if (!payload || isSyncingRemoteRef.current) return;
-    
-    // Filtro de eco redundante por ID de mensagem e APP ID
+    // Evita processar a mesma mensagem múltiplas vezes
     if (messageId) {
       if (seenMessages.current.has(messageId)) return;
       seenMessages.current.add(messageId);
-      if (seenMessages.current.size > 2000) {
+      // Limpeza periódica do set de mensagens vistas
+      if (seenMessages.current.size > 1000) {
         const arr = Array.from(seenMessages.current);
-        seenMessages.current = new Set(arr.slice(1000));
+        seenMessages.current = new Set(arr.slice(500));
       }
     }
 
-    isSyncingRemoteRef.current = true;
     let dataChanged = false;
 
-    try {
-      // Pequeno delay para garantir que o buffer de rede local foi limpo
-      await new Promise(r => setTimeout(r, 50));
-      const updateCollection = (prev: any[], next: any[]) => {
-        if (!next) return prev;
-        const map = new Map(prev.map(item => [item.id, item]));
-        let collectionChanged = false;
-        
-        next.forEach(item => {
-          const existing = map.get(item.id);
-          const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
-          const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
+    const updateCollection = (prev: any[], next: any[]) => {
+      if (!next) return prev;
+      const map = new Map(prev.map(item => [item.id, item]));
+      let collectionChanged = false;
+      
+      next.forEach(item => {
+        const existing = map.get(item.id);
+        const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
+        const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
 
-          const isNewer = itemDate > existingDate;
-          const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
+        // Critérios de atualização:
+        // 1. Item não existe localmente
+        // 2. Item recebido é mais recente (Timestamp superior)
+        // 3. Timestamps iguais mas conteúdo diferente (Garante convergência em updates rápidos)
+        const isNewer = itemDate > existingDate;
+        const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
 
-          if (!existing || isNewer || isDifferentEqualDate) {
-             map.set(item.id, item);
-             collectionChanged = true;
-             dataChanged = true;
-          }
-        });
-        
-        if (collectionChanged) {
-          isInternalUpdateRef.current += 1;
+        if (!existing || isNewer || isDifferentEqualDate) {
+           map.set(item.id, item);
+           collectionChanged = true;
+           dataChanged = true;
+           isInternalUpdateRef.current = true;
         }
-        return collectionChanged ? Array.from(map.values()) : prev;
-      };
+      });
+      return collectionChanged ? Array.from(map.values()) : prev;
+    };
 
-      if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
-      if (payload.clients) setClients(p => updateCollection(p, payload.clients));
-      if (payload.properties) setProperties(p => updateCollection(p, payload.properties));
-      if (payload.launches) setLaunches(p => updateCollection(p, payload.launches));
-      if (payload.activities) setActivities(p => updateCollection(p, payload.activities));
-      if (payload.reminders) setReminders(p => updateCollection(p, payload.reminders));
-      if (payload.commissions) setCommissions(p => updateCollection(p, payload.commissions));
-      if (payload.commissionForecasts) setCommissionForecasts(p => updateCollection(p, payload.commissionForecasts));
-      if (payload.documents) setDocuments(p => updateCollection(p, payload.documents));
-      if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
-      if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
-      if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
-      if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
+    if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
+    if (payload.clients) setClients(p => updateCollection(p, payload.clients));
+    if (payload.properties) setProperties(p => updateCollection(p, payload.properties));
+    if (payload.launches) setLaunches(p => updateCollection(p, payload.launches));
+    if (payload.activities) setActivities(p => updateCollection(p, payload.activities));
+    if (payload.reminders) setReminders(p => updateCollection(p, payload.reminders));
+    if (payload.commissions) setCommissions(p => updateCollection(p, payload.commissions));
+    if (payload.commissionForecasts) setCommissionForecasts(p => updateCollection(p, payload.commissionForecasts));
+    if (payload.documents) setDocuments(p => updateCollection(p, payload.documents));
+    if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
+    if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
+    if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
+    if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
 
-      if (dataChanged && messageId && activeConnections.current.size > 0) {
-        activeConnections.current.forEach(async (conn) => {
-          if (conn.open && conn.peer !== senderPeerId) {
-            try {
-              const identity = peerIdentities.current.get(conn.peer);
-              const filteredPayload = (currentUser?.role === 'Admin' && identity) 
-                ? filterPayloadForPeer(payload, identity, stateRef.current)
-                : payload;
+    // Propaga para outras conexões (GOSSIP protocol simplificado)
+    if (dataChanged && messageId && activeConnections.current.size > 0) {
+      activeConnections.current.forEach(async (conn) => {
+        if (conn.open) {
+          try {
+            const identity = peerIdentities.current.get(conn.peer);
+            const filteredPayload = (currentUser?.role === 'Admin' && identity) 
+              ? filterPayloadForPeer(payload, identity)
+              : payload;
 
-              await safeSend(conn, { 
-                type: 'DATA_UPDATE', 
-                payload: filteredPayload, 
-                messageId,
-                senderId: peerRef.current?.id, 
-                senderAppId: myAppId.current 
-              });
-            } catch (e) {}
-          }
-        });
-      }
-
-      if (dataChanged && currentUser?.role === 'Admin') {
-        try {
-          localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
-        } catch (e) {
-          console.warn('Falha ao salvar backup local:', e);
+            await safeSend(conn, { 
+              type: 'DATA_UPDATE', 
+              payload: filteredPayload, 
+              messageId,
+              senderId: peerRef.current?.id, 
+              senderAppId: myAppId.current 
+            });
+          } catch (e) {}
         }
-      }
-      if (dataChanged) {
-        lastRemoteMergeRef.current = Date.now();
-      }
-    } finally {
-      isSyncingRemoteRef.current = false;
+      });
     }
-  };
+
+    if (dataChanged && currentUser?.role === 'Admin') {
+      try {
+        localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
+      } catch (e) {
+        console.warn('Falha ao salvar backup local (Quota Exceeded?):', e);
+      }
+    }
+  }, [currentUser]);
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
@@ -364,43 +329,22 @@ const App: React.FC = () => {
     return () => channel.close();
   }, [mergeData]);
 
-  const filterPayloadForPeer = (payload: any, identity: { id: string, name: string, role: string }, fullState: any) => {
+  const filterPayloadForPeer = (payload: any, identity: { id: string, name: string, role: string }) => {
     if (!payload || identity.role === 'Admin') return payload;
 
     const filtered: any = { ...payload };
     const uid = identity.id;
     const nameStr = identity.name?.toLowerCase().trim() || '';
 
-    // Referência de clientes que este peer possui acesso para filtrar outras coleções (Ex: Atividades)
-    const accessibleClients = fullState.clients?.filter((c: any) => 
-      c.brokerId === uid || 
-      (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr) ||
-      c.brokerId === 'unassigned' ||
-      !c.brokerId
-    ) || [];
-
-    if (filtered.clients) {
-      filtered.clients = filtered.clients.filter((c: any) => 
-        c.brokerId === uid || 
-        (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr) ||
-        c.brokerId === 'unassigned' ||
-        !c.brokerId
-      );
-    }
-
-    // Corretores podem ver todas as propriedades para trabalhar em equipe (Padrão de Mercado)
-    if (filtered.properties) {
-      filtered.properties = filtered.properties.filter((p: any) => !p.deleted || p.brokerId === uid);
-    }
-
+    if (filtered.clients) filtered.clients = filtered.clients.filter((c: any) => c.brokerId === uid || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr));
+    if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
     if (filtered.activities) {
       filtered.activities = filtered.activities.filter((a: any) => {
         if (a.brokerId === uid) return true;
-        // Permitir que o corretor receba histórico de clientes que ele possui acesso
-        return accessibleClients.some((c: any) => c.name === a.clientName);
+        // Permitir que o corretor receba histórico de clientes que ele possui na base filtrada
+        return filtered.clients?.some((c: any) => c.name === a.clientName);
       });
     }
-
     if (filtered.reminders) filtered.reminders = filtered.reminders.filter((r: any) => r.brokerId === uid);
     if (filtered.commissions) filtered.commissions = filtered.commissions.filter((c: any) => c.brokerId === uid);
     if (filtered.expenses) filtered.expenses = filtered.expenses.filter((e: any) => e.brokerId === uid);
@@ -411,16 +355,9 @@ const App: React.FC = () => {
 
   const safeSend = async (conn: DataConnection, data: any) => {
     if (!conn || !conn.open) return;
-    
-    // Verificação de buffer excedido (previne perda de pacotes e memória em conexões simultâneas)
-    if ((conn as any).dataChannel?.bufferedAmount > 8 * 1024 * 1024) {
-      console.warn(`Kernel P2P: Buffer crítico para ${conn.peer} (${Math.round((conn as any).dataChannel.bufferedAmount/1024)}KB), pulando broadcast...`);
-      return;
-    }
-
     try {
       const stringified = JSON.stringify(data);
-      const CHUNK_SIZE = 32768; // 32KB chunks para melhor vazão sem fragmentação excessiva
+      const CHUNK_SIZE = 6000; // Chunk menor para evitar picos de buffer
       
       if (stringified.length <= CHUNK_SIZE) {
         conn.send(data);
@@ -430,12 +367,11 @@ const App: React.FC = () => {
       const chunkId = `chunk-${myAppId.current}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       const total = Math.ceil(stringified.length / CHUNK_SIZE);
       
-      console.log(`Kernel P2P: Broadcast de ${Math.round(stringified.length/1024)}KB via ${chunkId}`);
+      console.log(`Kernel P2P: Enviando payload de ${Math.round(stringified.length/1024)}KB em ${total} chunks...`);
       
       for (let i = 0; i < total; i++) {
-        // Delay adaptativo baseado no tamanho total do payload
-        const adaptiveDelay = stringified.length > 500000 ? 50 : 25;
-        await new Promise(r => setTimeout(r, adaptiveDelay)); 
+        // Pausa maior a cada 2 chunks para o browser processar o buffer
+        if (i % 2 === 0) await new Promise(r => setTimeout(r, 60)); 
         
         if (!conn.open) break;
         
@@ -457,8 +393,6 @@ const App: React.FC = () => {
 
     if (d.type === 'DATA_CHUNK') {
       const { chunkId, index, total, data } = d;
-      chunkTimeoutRef.current.set(chunkId, Date.now());
-
       let record = pendingChunks.current.get(chunkId);
       if (!record) {
         record = { total, chunks: new Array(total).fill(null) };
@@ -472,12 +406,10 @@ const App: React.FC = () => {
         try {
           const completeData = JSON.parse(record.chunks.join(''));
           pendingChunks.current.delete(chunkId);
-          chunkTimeoutRef.current.delete(chunkId);
-          await executeMerge(completeData.payload, completeData.messageId, conn.peer);
+          await handleIncomingData(conn, completeData);
         } catch (e) {
           console.error('Kernel P2P: Erro ao reconstruir chunk:', e);
           pendingChunks.current.delete(chunkId);
-          chunkTimeoutRef.current.delete(chunkId);
         }
       }
       return;
@@ -486,10 +418,9 @@ const App: React.FC = () => {
     if (d.type === 'GREETING') {
       console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
       peerIdentities.current.set(conn.peer, d.payload);
-      setOnlinePeers(Array.from(activeConnections.current.keys()));
       
-      if (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email)) {
-        const filtered = filterPayloadForPeer(stateRef.current, d.payload, stateRef.current);
+      if (currentUser?.role === 'Admin') {
+        const filtered = filterPayloadForPeer(stateRef.current, d.payload);
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
           payload: filtered,
@@ -499,12 +430,12 @@ const App: React.FC = () => {
       }
     }
 
-    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId, conn.peer);
+    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
 
     if (d.type === 'SYNC_REQUEST') {
       const identity = peerIdentities.current.get(conn.peer);
       const payload = (currentUser?.role === 'Admin' && identity)
-        ? filterPayloadForPeer(stateRef.current, identity, stateRef.current)
+        ? filterPayloadForPeer(stateRef.current, identity)
         : stateRef.current;
 
       await safeSend(conn, { 
@@ -515,13 +446,7 @@ const App: React.FC = () => {
       });
     }
 
-    if (d.type === 'PING') {
-      peerLastSeen.current.set(conn.peer, Date.now());
-      await safeSend(conn, { type: 'PONG' });
-    }
-    if (d.type === 'PONG') {
-      peerLastSeen.current.set(conn.peer, Date.now());
-    }
+    if (d.type === 'PING') await safeSend(conn, { type: 'PONG' });
 
     if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email))) {
       const { email, password } = d.payload;
@@ -536,7 +461,7 @@ const App: React.FC = () => {
             await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema.' });
           } else {
             // Filtrar os dados para o corretor antes de enviar
-            const filteredData = filterPayloadForPeer(stateRef.current, broker, stateRef.current);
+            const filteredData = filterPayloadForPeer(stateRef.current, broker);
             await safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: filteredData } });
           }
         } else {
@@ -565,18 +490,8 @@ const App: React.FC = () => {
     Object.entries(collections).forEach(([key, list]) => {
       const prevList = prevCollectionsRef.current[key] || [];
       if (list !== prevList) {
-        // Kernels Differencial: Envia apenas os itens que mudaram (updatedAt ou novos)
-        const diff = list.filter(item => {
-          const prevItem = prevList.find(p => p.id === item.id);
-          if (!prevItem) return true;
-          // Comparação robusta: updatedAt ou Mudança Estrutural (Deep Equal simplificado via Stringify)
-          return item.updatedAt !== prevItem.updatedAt || JSON.stringify(item) !== JSON.stringify(prevItem);
-        });
-
-        if (diff.length > 0) {
-          changedCollections[key] = diff;
-          hasChanges = true;
-        }
+        changedCollections[key] = list;
+        hasChanges = true;
       }
     });
 
@@ -584,13 +499,8 @@ const App: React.FC = () => {
     stateRef.current = collections;
 
     if (hasChanges) {
-      // Bloqueio robusto de eco/boomerang
-      const now = Date.now();
-      const isRemoteSilenced = (now - lastRemoteMergeRef.current) < 2000;
-      
-      if (isInternalUpdateRef.current > 0 || isRemoteSilenced) {
-        if (isInternalUpdateRef.current > 0) isInternalUpdateRef.current -= 1;
-        console.log('Kernel P2P: Broadcast silenciado (Atualização Interna ou Eco recente)');
+      if (isInternalUpdateRef.current) {
+        isInternalUpdateRef.current = false;
         return;
       }
 
@@ -614,7 +524,7 @@ const App: React.FC = () => {
               try {
                 const identity = peerIdentities.current.get(conn.peer);
                 const filteredPayload = (currentUser?.role === 'Admin' && identity)
-                  ? filterPayloadForPeer(changedCollections, identity, stateRef.current)
+                  ? filterPayloadForPeer(changedCollections, identity)
                   : changedCollections;
 
                 await safeSend(conn, { 
@@ -656,33 +566,6 @@ const App: React.FC = () => {
     };
     return () => authChannel.close();
   }, [currentUser, brokers]);
-
-  const handleForceSync = useCallback(() => {
-    if (activeConnections.current.size === 0) return;
-    
-    const messageId = `force-sync-${myAppId.current}-${Date.now()}`;
-    console.log(`Kernel P2P: Iniciando Sincronização Forçada para ${activeConnections.current.size} conexões...`);
-    
-    activeConnections.current.forEach(async (conn) => {
-      if (conn.open) {
-        try {
-          const identity = peerIdentities.current.get(conn.peer);
-          // Admins enviam dados filtrados para cada corretor, corretores enviam tudo (já filtrado)
-          const payload = (currentUser?.role === 'Admin' && identity)
-            ? filterPayloadForPeer(stateRef.current, identity, stateRef.current)
-            : stateRef.current;
-
-          await safeSend(conn, { 
-            type: 'DATA_UPDATE', 
-            payload, 
-            messageId,
-            senderAppId: myAppId.current,
-            force: true 
-          });
-        } catch (e) {}
-      }
-    });
-  }, [currentUser]);
 
   // PeerJS Kernel v7.0 - Ultra-Fast Discovery
   const initPeer = useCallback(() => {
@@ -753,24 +636,24 @@ const App: React.FC = () => {
 
     isInitializingRef.current = true;
     if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
-    setSyncStatus('syncing');
+    setSyncStatus('connecting');
 
-    const netId = (currentUser.networkId || 'VETTUS-PRO').toUpperCase().trim();
-    const masterId = `vettus-hub-${netId}`;
-    masterIdRef.current = masterId;
+    const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
+    const masterId = `vettus-master-${netId}`;
     
     const isMasterCandidate = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
 
+    // Tenta ser Master sempre que for candidato, a menos que um conflito real de ID tenha sido detectado (duas abas do Admin)
     const myId = (isMasterCandidate && !conflictDetectedRef.current)
       ? masterId 
-      : `vettus-node-${netId}-${currentUser.id}-${Math.floor(Math.random() * 100000)}`;
+      : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 50000)}`;
 
     const peer = (() => {
       try {
         return new Peer(myId, { 
           secure: true, 
           debug: 0, // Reduzido para zero para eliminar popups de erro e logs ruidosos do PeerJS
-          pingInterval: 15000, // Aumentado para 15s para tolerar alta latência em redes 2.4GHz ruidosas
+          pingInterval: 5000,
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
@@ -779,13 +662,10 @@ const App: React.FC = () => {
               { urls: 'stun:stun3.l.google.com:19302' },
               { urls: 'stun:stun4.l.google.com:19302' },
               { urls: 'stun:global.stun.twilio.com:3478' },
-              { urls: 'stun:stun.l.google.com:19305' },
-              { urls: 'stun:stun.voxgratia.org:3478' },
-              { urls: 'stun:stun.ekiga.net' },
-              { urls: 'stun:stun.ideasip.com' },
-              { urls: 'stun:stun.schlund.de' }
+              { urls: 'stun:stun.voiparound.com:3478' },
+              { urls: 'stun:stun.voxgratia.org:3478' }
             ],
-            iceCandidatePoolSize: 30, // Máximo de candidatos para furar firewalls de roteadores 2.4G/5G
+            iceCandidatePoolSize: 10, 
             sdpSemantics: 'unified-plan'
           }
         });
@@ -805,47 +685,9 @@ const App: React.FC = () => {
 
     peer.on('open', (id) => {
       isInitializingRef.current = false;
-      reconnectAttemptsRef.current = 0; 
+      reconnectAttemptsRef.current = 0; // Reset ao abrir com sucesso
       console.log('Kernel P2P On:', id);
       setSyncStatus('synced');
-      
-      const pingInterval = setInterval(() => {
-        if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
-          try {
-            if ((peerRef.current as any).socket && (peerRef.current as any).socket.send) {
-              (peerRef.current as any).socket.send({ type: 'HEARTBEAT' });
-            }
-            
-            const now = Date.now();
-            activeConnections.current.forEach(async (conn) => {
-              if (conn.open) {
-                await safeSend(conn, { type: 'PING' });
-              }
-            });
-
-            chunkTimeoutRef.current.forEach((time, cId) => {
-              if (now - time > 30000) {
-                pendingChunks.current.delete(cId);
-                chunkTimeoutRef.current.delete(cId);
-              }
-            });
-
-            activeConnections.current.forEach((conn, peerId) => {
-              const lastSeen = peerLastSeen.current.get(peerId) || 0;
-              if (peerId !== masterId && (now - lastSeen > 45000)) {
-                console.log(`Kernel P2P: GC Peer ${peerId}`);
-                try { conn.close(); } catch(e) {}
-                activeConnections.current.delete(peerId);
-                peerIdentities.current.delete(peerId);
-              }
-            });
-            setOnlinePeers(Array.from(activeConnections.current.keys()));
-          } catch(e) {}
-        } else {
-          clearInterval(pingInterval);
-        }
-      }, 10000);
-
       if (id !== masterId) connectToMaster();
     });
 
@@ -860,9 +702,7 @@ const App: React.FC = () => {
       isConnectingToMasterRef.current = true;
       
       const conn = peer.connect(masterId, { 
-        reliable: true,
-        serialization: 'json',
-        metadata: { id: currentUser.id, name: currentUser.name, role: currentUser.role }
+        reliable: true
       });
 
       const connTimeout = setTimeout(() => {
@@ -870,7 +710,7 @@ const App: React.FC = () => {
           isConnectingToMasterRef.current = false;
           conn.close();
         }
-      }, 30000); // Aumentado para 30s para suportar conexões iniciais lentas (2G/2.4GHz)
+      }, 10000);
       
       conn.on('open', async () => {
         clearTimeout(connTimeout);
@@ -894,35 +734,27 @@ const App: React.FC = () => {
         }
 
         activeConnections.current.set(conn.peer, conn);
-        setOnlinePeers(Array.from(activeConnections.current.keys()));
         setSyncStatus('synced');
         
-        // PRIORIDADE 1: Identificação Imediata
-        await safeSend(conn, { 
-          type: 'GREETING', 
-          payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
-        });
-
-        // PRIORIDADE 2: Sinalizar que deseja sincronizar
-        await safeSend(conn, { type: 'SYNC_REQUEST' });
-
-        // PRIORIDADE 3: Envio de dados pesados
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
           payload: stateRef.current,
           messageId: `init-push-${myAppId.current}-${Date.now()}`,
           senderAppId: myAppId.current
         });
-        
+
+      // Identificação
+      await safeSend(conn, { 
+        type: 'GREETING', 
+        payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
+      });
+      
+      // Sincronização Bi-Direcional imediata na abertura
+      await safeSend(conn, { type: 'SYNC_REQUEST' });
+      
         conn.on('data', (d: any) => handleIncomingData(conn, d));
-        conn.on('close', () => {
-          activeConnections.current.delete(conn.peer);
-          setOnlinePeers(Array.from(activeConnections.current.keys()));
-        });
-        conn.on('error', () => {
-          activeConnections.current.delete(conn.peer);
-          setOnlinePeers(Array.from(activeConnections.current.keys()));
-        });
+        conn.on('close', () => activeConnections.current.delete(conn.peer));
+        conn.on('error', () => activeConnections.current.delete(conn.peer));
         
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
@@ -942,58 +774,45 @@ const App: React.FC = () => {
     };
 
     peer.on('connection', (conn) => {
-      if (conn.metadata) {
-        console.log(`Kernel P2P: Bio-ID detectado para ${conn.peer} (${conn.metadata.name})`);
-        peerIdentities.current.set(conn.peer, conn.metadata);
-      }
-
-      if (activeConnections.current.size > 80) {
-        try { conn.close(); } catch(e) {}
+      // Proteção agressiva contra spam de conexões
+      if (activeConnections.current.size > 10) {
+        try { 
+          conn.off('open');
+          conn.off('data');
+          conn.close(); 
+        } catch(e) {}
         return;
       }
-      
       activeConnections.current.set(conn.peer, conn);
-      setOnlinePeers(Array.from(activeConnections.current.keys()));
       
       conn.on('data', (d: any) => handleIncomingData(conn, d));
       
       conn.on('open', async () => {
         await safeSend(conn, { 
-          type: 'GREETING', 
-          payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
+          type: 'DATA_UPDATE', 
+          payload: stateRef.current,
+          messageId: `welcome-${myAppId.current}-${Date.now()}`,
+          senderAppId: myAppId.current
         });
-
-        if (currentUser.role === 'Admin' || isSergioEmail(currentUser.email)) {
-          console.log(`Kernel Master: Alimentando nó secundário ${conn.peer}`);
-          await safeSend(conn, { 
-            type: 'DATA_UPDATE', 
-            payload: stateRef.current,
-            messageId: `master-feed-${myAppId.current}-${Date.now()}`,
-            senderAppId: myAppId.current
-          });
-        }
       });
-
-      const cleanup = () => {
+      conn.on('close', () => {
         activeConnections.current.delete(conn.peer);
         peerIdentities.current.delete(conn.peer);
-        setOnlinePeers(Array.from(activeConnections.current.keys()));
-      };
-
-      conn.on('close', cleanup);
-      conn.on('error', cleanup);
+      });
+      conn.on('error', () => {
+        activeConnections.current.delete(conn.peer);
+        peerIdentities.current.delete(conn.peer);
+      });
     });
 
     peer.on('disconnected', () => {
-      console.log('Kernel P2P: Link de sinalização interrompido, tentando restauração...');
-      setSyncStatus('disconnected');
       if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
       statusDebounceRef.current = setTimeout(() => {
-        if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
-          peerRef.current.reconnect();
-          setSyncStatus('synced');
+        if (peer && !peer.destroyed && peer.disconnected) {
+          console.log('Kernel P2P: Detectada desconexão. Tentando restabelecer sinal...');
+          peer.reconnect();
         }
-      }, 5000);
+      }, 1500); // Reconexão imediata (reduzido de 5s para 1.5s)
     });
 
     peer.on('error', (err) => {
@@ -1119,32 +938,6 @@ const App: React.FC = () => {
   const isAdmin = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
   const pendingRemindersCount = reminders.filter(r => !r.completed && r.brokerId === currentUser.id).length;
 
-  const handleForceReconnect = useCallback(() => {
-    console.log('Kernel P2P: Reinicialização manual solicitada...');
-    conflictDetectedRef.current = false;
-    reconnectAttemptsRef.current = 0;
-    initPeer();
-  }, [initPeer]);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      console.log('Kernel P2P: Rede física detectada (Online), restabelecendo canais...');
-      initPeer();
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [initPeer]);
-
-  useEffect(() => {
-    const safetyNet = setInterval(() => {
-      if (currentUser && syncStatus === 'disconnected' && !isInitializingRef.current) {
-        console.log('Kernel P2P: Safety Net - Reconectando subsistema inativo...');
-        initPeer();
-      }
-    }, 20000); // Checa a cada 20s
-    return () => clearInterval(safetyNet);
-  }, [currentUser, syncStatus, initPeer]);
-
   return (
     <Layout 
       currentView={currentView} 
@@ -1153,16 +946,17 @@ const App: React.FC = () => {
       onLogout={handleLogout} 
       pendingRemindersCount={pendingRemindersCount}
       syncStatus={syncStatus}
-      onForceReconnect={handleForceReconnect}
+      onForceReconnect={() => {
+        reconnectAttemptsRef.current = 0;
+        conflictDetectedRef.current = false;
+        initPeer();
+      }}
       lastSaved={lastSavedTime}
     >
       {currentView === 'dashboard' && (
         <Dashboard 
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
-          onForceSync={handleForceSync}
-          onForceReconnect={handleForceReconnect}
-          syncStatus={syncStatus}
           statsData={{ 
             properties: (isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)).filter(p => !p.deleted), 
             clients: (isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted), 
@@ -1172,39 +966,7 @@ const App: React.FC = () => {
             commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
             campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
             systemLogs: [], 
-            isMaster: peerRef.current?.id === masterIdRef.current,
-            myPeerId: peerRef.current?.id,
-            rawConnectionCount: activeConnections.current.size,
-            onlineBrokers: [
-              // Inclui o próprio usuário na lista para feedback visual
-              {
-                peerId: 'self',
-                id: currentUser.id,
-                name: `${currentUser.name} (Você)`,
-                role: currentUser.role,
-                isSelf: true
-              },
-              ...onlinePeers.map(peerId => {
-                const identity = peerIdentities.current.get(peerId);
-                const lastSeen = peerLastSeen.current.get(peerId) || 0;
-                const isRecentlyActive = (Date.now() - lastSeen) < 30000;
-                
-                return {
-                  peerId,
-                  id: identity?.id || 'unknown',
-                  name: identity?.name || (peerId === masterIdRef.current ? 'Administrador (Sergio)' : 'Conectando...'),
-                  role: identity?.role || 'Filiado',
-                  isSelf: false,
-                  lastSeenMs: lastSeen,
-                  isRecentlyActive,
-                  networkId: peerId.split('-')[0].toUpperCase()
-                };
-              })
-            ].filter(p => {
-              if (p.isSelf) return true;
-              if (isAdmin) return true;
-              return p.peerId === masterIdRef.current;
-            }), 
+            onlineBrokers: Array.from(activeConnections.current.keys()), 
             commissionForecasts: isAdmin ? commissionForecasts : commissionForecasts.filter(f => {
               const client = clients.find(cl => cl.id === f.clientId);
               return client && !client.deleted && (client.brokerId === currentUser.id || (client.assignedAgent && client.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));
@@ -1253,31 +1015,16 @@ const App: React.FC = () => {
           brokers={brokers} 
           onAddClient={c => setClients(v => [{...c, updatedAt: new Date().toISOString()}, ...v])} 
           onUpdateClient={c => setClients(v => v.map(x => x.id === c.id ? {...c, updatedAt: new Date().toISOString()} : x))} 
-          onUpdateClients={updatedClients => {
-            const now = new Date().toISOString();
-            setClients(v => {
-              const map = new Map(v.map(x => [x.id, x]));
-              updatedClients.forEach(c => map.set(c.id, { ...c, updatedAt: now }));
-              return Array.from(map.values());
-            });
-          }}
           onDeleteClient={id => setClients(v => v.map(c => c.id === id ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))} 
           onDeleteClients={ids => setClients(v => v.map(c => ids.includes(c.id) ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))}
           onEditClient={c => { setClientToEdit(c); setIsClientModalOpen(true); }} 
           onAddActivity={a => setActivities(v => [{...a, updatedAt: new Date().toISOString()}, ...v])} 
-          onAddActivities={newActivities => {
-            const now = new Date().toISOString();
-            setActivities(v => [...newActivities.map(a => ({...a, updatedAt: now})), ...v]);
-          }}
+          onAddActivities={newActivities => setActivities(v => [...newActivities.map(a => ({...a, updatedAt: new Date().toISOString()})), ...v])}
           onUpdateActivitiesByClient={() => {
             // Histórico preservado com autor original.
             // A visibilidade agora é garantida pelo filtro dinâmico no App.tsx
           }}
           onAddReminder={r => setReminders(v => [{...r, updatedAt: new Date().toISOString()}, ...v])} 
-          onAddReminders={newReminders => {
-            const now = new Date().toISOString();
-            setReminders(v => [...newReminders.map(r => ({...r, updatedAt: now})), ...v]);
-          }}
           onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])} 
           onUpdateProperty={p => setProperties(v => v.map(x => x.id === p.id ? {...p, updatedAt: new Date().toISOString()} : x))} 
           onAddForecasts={f => setCommissionForecasts(v => [...f.map(item => ({...item, updatedAt: new Date().toISOString()})), ...v])} 
