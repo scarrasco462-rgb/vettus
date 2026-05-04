@@ -253,28 +253,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 ${statsData.onlineBrokers.filter(b => !b.isSelf && b.isRecentlyActive).length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse scale-110' : 'bg-slate-100 text-slate-400'}`}>
                 <Wifi size={32} />
              </div>
-             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Central de Sincronismo</h3>
+             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Sincronização Ativa</h3>
              <div className="flex items-center space-x-2 mt-1">
-                <div className={`w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${statsData.isMaster ? 'bg-emerald-500 shadow-emerald-200' : 'bg-amber-500 shadow-amber-200'}`}></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] border-2 border-white"></div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#d4a853]">
-                  {statsData.isMaster ? 'Hub Master: Central Vettus' : 'Hub Node: Atendimento Sincronizado'}
+                  Rede Vettus Pro Conectada
                 </p>
              </div>
-             <p className="text-slate-500 text-[10px] mt-2 max-w-xs uppercase font-bold tracking-tight border-t border-slate-100 pt-2 flex justify-between w-full px-4">
-                <span>LOCAL ID:</span>
-                <span className="text-slate-900 font-black">{statsData.myPeerId?.split('-').pop()}</span>
-             </p>
-             {isAdmin && (
-                <div className="bg-slate-50 p-2 rounded-lg mt-3 border border-slate-100 w-full mb-1">
-                  <p className="text-slate-400 text-[8px] uppercase font-bold text-center tracking-widest">
-                    Tráfego P2P: {statsData.rawConnectionCount} links • P2P Mesh Ativo
-                  </p>
-                </div>
-             )}
+             
              <p className="text-slate-500 text-sm mt-3 max-w-xs uppercase font-bold tracking-tight">
                 {statsData.onlineBrokers.filter(b => !b.isSelf).length === 0 
-                  ? "Aguardando corretores entrarem na rede..."
-                  : `Rede Vettus Pro: ${statsData.onlineBrokers.filter(b => !b.isSelf).length} Corretor(es) Identificado(s).`
+                  ? "Sua unidade está online e pronta para sincronizar."
+                  : `Existem ${statsData.onlineBrokers.filter(b => !b.isSelf).length} corretor(es) ativos na sua rede.`
                 }
              </p>
              {statsData.onlineBrokers.length > 0 && (
@@ -297,11 +287,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
                          <div>
                             <p className={`text-[11px] font-black uppercase leading-none tracking-tight ${peer.name === 'Conectando...' ? 'text-slate-400 italic' : 'text-slate-900'}`}>{peer.name}</p>
                             <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
-                              {peer.role} {peer.peerId !== 'self' && `• ID: ${peer.peerId.split('-').pop()}`}
+                              {peer.role} {peer.isSelf ? ' (Você)' : ''}
                             </p>
-                            {peer.networkId && (
-                              <p className="text-[7px] font-black text-[#d4a853] uppercase tracking-widest mt-0.5">Rede: {peer.networkId}</p>
-                            )}
                          </div>
                       </div>
                       <div className="flex flex-col items-end">

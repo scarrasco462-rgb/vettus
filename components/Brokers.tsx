@@ -187,29 +187,14 @@ export const BrokersView: React.FC<BrokersViewProps> = ({ brokers, onAddBroker, 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
           <div className="flex items-center space-x-6">
             <div className="w-20 h-20 gold-gradient rounded-[2rem] flex items-center justify-center shadow-2xl transition-transform border-4 border-white/10">
-              <Wifi className="w-10 h-10 text-white" />
+              <ShieldIcon className="w-10 h-10 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-black uppercase tracking-tight">Unidade Vettus-Sync</h2>
-              <p className="text-slate-400 text-xs font-medium max-w-sm mt-1 leading-relaxed">
-                Gestão centralizada de acesso e auditoria de credenciais P2P.
+              <h2 className="text-2xl font-black uppercase tracking-tight">Gestão de Inteligência</h2>
+              <p className="text-slate-400 text-xs font-medium max-w-lg mt-1 leading-relaxed">
+                Controle centralizado de membros, permissões e auditoria de segurança da plataforma Vettus Pro.
               </p>
             </div>
-          </div>
-          
-          <div className="bg-white/5 border-2 border-white/10 p-5 rounded-3xl flex items-center space-x-6 min-w-[320px] justify-between transition-all hover:bg-white/10">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-[#d4a853] uppercase tracking-widest mb-1">ID DE REDE ATIVO</span>
-              <span className="text-xl font-black tracking-[0.3em] font-mono text-white">
-                {currentUser.networkId || 'VETTUS-PRO'}
-              </span>
-            </div>
-            <button 
-              onClick={handleCopyNetworkKey}
-              className="p-4 bg-white/5 hover:bg-[#d4a853] hover:text-white rounded-2xl transition-all text-[#d4a853]"
-            >
-              {copied ? <CheckCircle2 className="w-6 h-6 text-emerald-400" /> : <Copy className="w-6 h-6" />}
-            </button>
           </div>
         </div>
       </div>

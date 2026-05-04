@@ -1149,7 +1149,7 @@ const App: React.FC = () => {
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
           onForceSync={handleForceSync}
-          onForceReconnect={handleForceReconnect}
+          onForceReconnect={() => {}}
           statsData={{ 
             properties: (isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)).filter(p => !p.deleted), 
             clients: (isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted), 
