@@ -258,22 +258,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
                      <span>Corretor / Dispositivo</span>
                      <span>Status de Sincronia</span>
                   </div>
-                  {statsData.onlineBrokers.map((peer, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-[#d4a853]/30 transition-colors">
+                  {statsData.onlineBrokers.map((peer: any, i: number) => (
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-2xl border transition-colors ${peer.isSelf ? 'bg-[#d4a853]/5 border-[#d4a853]/20' : 'bg-slate-50 border-slate-100'}`}>
                       <div className="flex items-center space-x-3 text-left">
                          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-900 border border-slate-200 shadow-sm shadow-slate-100">
                             <User size={16} className={peer.name === 'Conectando...' ? 'animate-pulse text-slate-300' : 'text-[#d4a853]'} />
                          </div>
                          <div>
                             <p className={`text-[11px] font-black uppercase leading-none ${peer.name === 'Conectando...' ? 'text-slate-400 italic' : 'text-slate-900'}`}>{peer.name}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{peer.role} • Unidade {peer.peerId.split('-').pop()}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{peer.role} {peer.peerId !== 'self' && `• Unidade ${peer.peerId.split('-').pop()}`}</p>
                          </div>
                       </div>
                       <div className="flex flex-col items-end">
                          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
                             <div className={`w-1.5 h-1.5 rounded-full ${peer.name === 'Conectando...' ? 'bg-slate-300' : 'bg-emerald-500 animate-pulse'}`}></div>
                             <span className={`text-[9px] font-black uppercase tracking-widest ${peer.name === 'Conectando...' ? 'text-slate-400' : 'text-emerald-600'}`}>
-                              {peer.name === 'Conectando...' ? 'IDENTIFICANDO' : 'SINCRONIZADO'}
+                              {peer.isSelf ? 'VOCÊ ATIVO' : (peer.name === 'Conectando...' ? 'IDENTIFICANDO' : 'SINCRONIZADO')}
                             </span>
                          </div>
                       </div>

@@ -1053,15 +1053,30 @@ const App: React.FC = () => {
             commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
             campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
             systemLogs: [], 
-            onlineBrokers: onlinePeers.map(peerId => {
-              const identity = peerIdentities.current.get(peerId);
-              return {
-                peerId,
-                id: identity?.id || 'unknown',
-                name: identity?.name || (peerId === masterIdRef.current ? 'Administrador (Sergio)' : 'Conectando...'),
-                role: identity?.role || 'Dispositivo'
-              };
-            }).filter(p => isAdmin ? true : p.peerId === masterIdRef.current), 
+            onlineBrokers: [
+              // Inclui o próprio usuário na lista para feedback visual
+              {
+                peerId: 'self',
+                id: currentUser.id,
+                name: `${currentUser.name} (Você)`,
+                role: currentUser.role,
+                isSelf: true
+              },
+              ...onlinePeers.map(peerId => {
+                const identity = peerIdentities.current.get(peerId);
+                return {
+                  peerId,
+                  id: identity?.id || 'unknown',
+                  name: identity?.name || (peerId === masterIdRef.current ? 'Administrador (Sergio)' : 'Conectando...'),
+                  role: identity?.role || 'Filiado',
+                  isSelf: false
+                };
+              })
+            ].filter(p => {
+              if (p.isSelf) return true;
+              if (isAdmin) return true;
+              return p.peerId === masterIdRef.current;
+            }), 
             commissionForecasts: isAdmin ? commissionForecasts : commissionForecasts.filter(f => {
               const client = clients.find(cl => cl.id === f.clientId);
               return client && !client.deleted && (client.brokerId === currentUser.id || (client.assignedAgent && client.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));
