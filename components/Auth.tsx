@@ -104,7 +104,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
          try {
            return new Peer(tempId, { 
              secure: true,
-             debug: 1,
+              debug: 0,
+              pingInterval: 10000,
              config: {
                iceServers: [
                  { urls: 'stun:stun.l.google.com:19302' },
@@ -156,7 +157,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
            setIsSyncing(false);
            setStatusMsg('');
            peer.destroy();
-         }, 25000);
+          }, 45000);
 
          const handleAuthData = (d: any) => {
            if (!d) return;

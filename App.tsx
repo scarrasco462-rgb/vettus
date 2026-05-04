@@ -96,22 +96,32 @@ const App: React.FC = () => {
   // Global Error Boundary (Silencioso)
   useEffect(() => {
     const handleError = (e: ErrorEvent) => {
-      // Silenciar erros conhecidos do PeerJS
-      if (e.message?.includes('PeerJS') || e.message?.includes('Aborting') || e.message?.includes('unavailable-id')) {
-        console.warn('Kernel P2P: Erro interceptado e silenciado:', e.message);
+      // Silenciar erros conhecidos do PeerJS e sinalização WebRTC
+      const msg = e.message || '';
+      if (
+        msg.includes('PeerJS') || 
+        msg.includes('Aborting') || 
+        msg.includes('unavailable-id') || 
+        msg.includes('ID') && msg.includes('taken') ||
+        msg.includes('already exists')
+      ) {
+        // Silenciamos o log ruidoso no console pois o sistema trata isso via conflictDetectedRef
         e.preventDefault();
         return;
       }
       
-      // Capturar outros erros "Uncaught" para evitar travamento total
-      console.error('Uncaught Exception Interceptada:', e.message, e.error);
-      // Opcional: e.preventDefault(); // Se quisermos esconder do console, mas melhor deixar logado
+      console.error('Uncaught Exception Interceptada:', msg, e.error);
     };
 
     const handleRejection = (e: PromiseRejectionEvent) => {
       // Silenciar rejeições do PeerJS
-      if (e.reason?.message?.includes('PeerJS') || e.reason?.type?.includes('PeerJS')) {
-        console.warn('Kernel P2P: Rejeição interceptada e silenciada:', e.reason.message || e.reason.type);
+      const msg = e.reason?.message || e.reason?.type || '';
+      if (
+        msg.includes('PeerJS') || 
+        msg.includes('Aborting') || 
+        msg.includes('unavailable-id') ||
+        msg.includes('taken')
+      ) {
         e.preventDefault();
         return;
       }
@@ -347,7 +357,7 @@ const App: React.FC = () => {
     if (!conn || !conn.open) return;
     try {
       const stringified = JSON.stringify(data);
-      const CHUNK_SIZE = 6000; // Chunk menor para evitar picos de buffer
+      const CHUNK_SIZE = 4000; // Reduzido para maior estabilidade em redes 2.4GHz/2G
       
       if (stringified.length <= CHUNK_SIZE) {
         conn.send(data);
@@ -360,8 +370,8 @@ const App: React.FC = () => {
       console.log(`Kernel P2P: Enviando payload de ${Math.round(stringified.length/1024)}KB em ${total} chunks...`);
       
       for (let i = 0; i < total; i++) {
-        // Pausa maior a cada 2 chunks para o browser processar o buffer
-        if (i % 2 === 0) await new Promise(r => setTimeout(r, 60)); 
+        // Pausa estratégica a cada chunk para evitar estouro de buffer em conexões lentas
+        await new Promise(r => setTimeout(r, i % 5 === 0 ? 100 : 40)); 
         
         if (!conn.open) break;
         
@@ -642,8 +652,8 @@ const App: React.FC = () => {
       try {
         return new Peer(myId, { 
           secure: true, 
-          debug: 1, // Increased debug level for better diagnostics
-          pingInterval: 5000,
+          debug: 0, // Reduzido para zero para eliminar popups de erro e logs ruidosos do PeerJS
+          pingInterval: 10000, // Aumentado para tolerar latência de redes 2.4GHz
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
@@ -700,7 +710,7 @@ const App: React.FC = () => {
           isConnectingToMasterRef.current = false;
           conn.close();
         }
-      }, 10000);
+      }, 30000); // Aumentado para 30s para suportar conexões iniciais lentas (2G/2.4GHz)
       
       conn.on('open', async () => {
         clearTimeout(connTimeout);
