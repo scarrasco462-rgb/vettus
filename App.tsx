@@ -48,7 +48,7 @@ const loadLocal = <T,>(key: string, def: T): T => {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Broker | null>(() => loadLocal('session_user', null));
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected' | 'connecting'>('disconnected');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'connecting' | 'disconnected'>('disconnected');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const loginTimeRef = useRef<number>(Date.now());
 
@@ -234,6 +234,7 @@ const App: React.FC = () => {
   const mergeQueue = useRef<any[]>([]);
   const isProcessingQueue = useRef(false);
   const peerLastSeen = useRef<Map<string, number>>(new Map());
+  const chunkTimeoutRef = useRef<Map<string, number>>(new Map());
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
   const seenMessages = useRef<Set<string>>(new Set());
 
@@ -456,6 +457,8 @@ const App: React.FC = () => {
 
     if (d.type === 'DATA_CHUNK') {
       const { chunkId, index, total, data } = d;
+      chunkTimeoutRef.current.set(chunkId, Date.now());
+
       let record = pendingChunks.current.get(chunkId);
       if (!record) {
         record = { total, chunks: new Array(total).fill(null) };
@@ -469,10 +472,12 @@ const App: React.FC = () => {
         try {
           const completeData = JSON.parse(record.chunks.join(''));
           pendingChunks.current.delete(chunkId);
-          await handleIncomingData(conn, completeData);
+          chunkTimeoutRef.current.delete(chunkId);
+          await executeMerge(completeData.payload, completeData.messageId, conn.peer);
         } catch (e) {
           console.error('Kernel P2P: Erro ao reconstruir chunk:', e);
           pendingChunks.current.delete(chunkId);
+          chunkTimeoutRef.current.delete(chunkId);
         }
       }
       return;
@@ -750,16 +755,15 @@ const App: React.FC = () => {
     if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
     setSyncStatus('connecting');
 
-    const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
-    const masterId = `vettus-master-${netId}`;
+    const netId = (currentUser.networkId || 'VETTUS-PRO').toUpperCase().trim();
+    const masterId = `vettus-hub-${netId}`;
     masterIdRef.current = masterId;
     
     const isMasterCandidate = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
 
-    // Tenta ser Master sempre que for candidato, a menos que um conflito real de ID tenha sido detectado (duas abas do Admin)
     const myId = (isMasterCandidate && !conflictDetectedRef.current)
       ? masterId 
-      : `vettus-node-${netId}-${currentUser.id}-${Date.now()}-${Math.floor(Math.random() * 50000)}`;
+      : `vettus-node-${netId}-${currentUser.id}-${Math.floor(Math.random() * 100000)}`;
 
     const peer = (() => {
       try {
@@ -805,18 +809,30 @@ const App: React.FC = () => {
       console.log('Kernel P2P On:', id);
       setSyncStatus('synced');
       
-      // Heartbeat para manter socket com o servidor de sinalização PeerJS aberto
       const pingInterval = setInterval(() => {
         if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
           try {
             (peerRef.current as any).socket.send({ type: 'HEARTBEAT' });
             
-            // Garbage Collection de Peers fantasmas na UI
             const now = Date.now();
+            activeConnections.current.forEach(async (conn) => {
+              if (conn.open) {
+                await safeSend(conn, { type: 'PING' });
+              }
+            });
+
+            chunkTimeoutRef.current.forEach((time, cId) => {
+              if (now - time > 30000) {
+                pendingChunks.current.delete(cId);
+                chunkTimeoutRef.current.delete(cId);
+              }
+            });
+
             activeConnections.current.forEach((conn, peerId) => {
               const lastSeen = peerLastSeen.current.get(peerId) || 0;
-              if (now - lastSeen > 60000 && !conn.open) {
-                console.log(`Kernel P2P: Descartando peer inativo há 60s: ${peerId}`);
+              if (peerId !== masterId && (now - lastSeen > 45000)) {
+                console.log(`Kernel P2P: GC Peer ${peerId}`);
+                try { conn.close(); } catch(e) {}
                 activeConnections.current.delete(peerId);
                 peerIdentities.current.delete(peerId);
               }
@@ -826,7 +842,7 @@ const App: React.FC = () => {
         } else {
           clearInterval(pingInterval);
         }
-      }, 15000);
+      }, 10000);
 
       if (id !== masterId) connectToMaster();
     });
@@ -968,7 +984,7 @@ const App: React.FC = () => {
 
     peer.on('disconnected', () => {
       console.log('Kernel P2P: Link de sinalização interrompido, tentando restauração...');
-      setSyncStatus('offline');
+      setSyncStatus('disconnected');
       if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
       statusDebounceRef.current = setTimeout(() => {
         if (peerRef.current && !peerRef.current.destroyed && peerRef.current.disconnected) {
@@ -1101,6 +1117,22 @@ const App: React.FC = () => {
   const isAdmin = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
   const pendingRemindersCount = reminders.filter(r => !r.completed && r.brokerId === currentUser.id).length;
 
+  const handleForceReconnect = useCallback(() => {
+    console.log('Kernel P2P: Reinicialização manual solicitada...');
+    conflictDetectedRef.current = false;
+    reconnectAttemptsRef.current = 0;
+    initPeer();
+  }, [initPeer]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('Kernel P2P: Rede física detectada (Online), restabelecendo canais...');
+      initPeer();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [initPeer]);
+
   return (
     <Layout 
       currentView={currentView} 
@@ -1109,11 +1141,7 @@ const App: React.FC = () => {
       onLogout={handleLogout} 
       pendingRemindersCount={pendingRemindersCount}
       syncStatus={syncStatus}
-      onForceReconnect={() => {
-        reconnectAttemptsRef.current = 0;
-        conflictDetectedRef.current = false;
-        initPeer();
-      }}
+      onForceReconnect={handleForceReconnect}
       lastSaved={lastSavedTime}
     >
       {currentView === 'dashboard' && (
@@ -1121,11 +1149,7 @@ const App: React.FC = () => {
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
           onForceSync={handleForceSync}
-          onForceReconnect={() => {
-            reconnectAttemptsRef.current = 0;
-            conflictDetectedRef.current = false;
-            initPeer();
-          }}
+          onForceReconnect={handleForceReconnect}
           statsData={{ 
             properties: (isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)).filter(p => !p.deleted), 
             clients: (isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted), 
