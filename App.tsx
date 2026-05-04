@@ -84,6 +84,7 @@ const App: React.FC = () => {
   const isInitializingRef = useRef(false);
   const lastInitRef = useRef(0);
   const isConnectingToMasterRef = useRef(false);
+  const masterIdRef = useRef<string | null>(null);
   const initTimeoutRef = useRef<any>(null);
   const statusDebounceRef = useRef<any>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -701,6 +702,7 @@ const App: React.FC = () => {
 
     const netId = (currentUser.networkId || 'VETTUS-PRO').toLowerCase().trim();
     const masterId = `vettus-master-${netId}`;
+    masterIdRef.current = masterId;
     
     const isMasterCandidate = currentUser.role === 'Admin' || isSergioEmail(currentUser.email);
 
@@ -1048,10 +1050,10 @@ const App: React.FC = () => {
               return {
                 peerId,
                 id: identity?.id || 'unknown',
-                name: identity?.name || 'Dispositivo Desconhecido',
-                role: identity?.role || 'Guest'
+                name: identity?.name || (peerId === masterIdRef.current ? 'Administrador (Sergio)' : 'Conectando...'),
+                role: identity?.role || 'Dispositivo'
               };
-            }), 
+            }).filter(p => isAdmin ? true : p.peerId === masterIdRef.current), 
             commissionForecasts: isAdmin ? commissionForecasts : commissionForecasts.filter(f => {
               const client = clients.find(cl => cl.id === f.clientId);
               return client && !client.deleted && (client.brokerId === currentUser.id || (client.assignedAgent && client.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()));

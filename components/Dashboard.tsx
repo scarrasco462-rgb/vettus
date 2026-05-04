@@ -245,36 +245,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${statsData.onlineBrokers.length > 0 ? 'bg-emerald-100 text-emerald-600 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
                 <Wifi size={32} />
              </div>
-             <h3 className="text-xl font-black text-slate-900 uppercase">Hub de Conectividade Admin</h3>
+             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Central de Sincronismo</h3>
              <p className="text-slate-500 text-sm mt-2 max-w-xs uppercase font-bold tracking-tight">
                 {statsData.onlineBrokers.length === 0 
                   ? "Aguardando corretores entrarem na rede..."
-                  : `${statsData.onlineBrokers.length} Dispositivo(s) sincronizando agora com você.`
+                  : `Rede Vettus Pro: ${statsData.onlineBrokers.length} Corretor(es) Identificado(s).`
                 }
              </p>
              {statsData.onlineBrokers.length > 0 && (
                <div className="mt-8 w-full space-y-3">
                   <div className="flex items-center justify-between px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                     <span>Usuário / Unidade</span>
-                     <span>Sinal de Rede</span>
+                     <span>Corretor / Dispositivo</span>
+                     <span>Status de Sincronia</span>
                   </div>
                   {statsData.onlineBrokers.map((peer, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-[#d4a853]/30 transition-colors">
                       <div className="flex items-center space-x-3 text-left">
-                         <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-900 border border-slate-200">
-                            <User size={14} />
+                         <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-900 border border-slate-200 shadow-sm shadow-slate-100">
+                            <User size={16} className={peer.name === 'Conectando...' ? 'animate-pulse text-slate-300' : 'text-[#d4a853]'} />
                          </div>
                          <div>
-                            <p className="text-[10px] font-black text-slate-900 uppercase leading-none">{peer.name}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{peer.role} • Canal Ativo</p>
+                            <p className={`text-[11px] font-black uppercase leading-none ${peer.name === 'Conectando...' ? 'text-slate-400 italic' : 'text-slate-900'}`}>{peer.name}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{peer.role} • Unidade {peer.peerId.split('-').pop()}</p>
                          </div>
                       </div>
                       <div className="flex flex-col items-end">
-                         <div className="flex items-center space-x-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest text-[8px]">Sincronizado</span>
+                         <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
+                            <div className={`w-1.5 h-1.5 rounded-full ${peer.name === 'Conectando...' ? 'bg-slate-300' : 'bg-emerald-500 animate-pulse'}`}></div>
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${peer.name === 'Conectando...' ? 'text-slate-400' : 'text-emerald-600'}`}>
+                              {peer.name === 'Conectando...' ? 'IDENTIFICANDO' : 'SINCRONIZADO'}
+                            </span>
                          </div>
-                         <span className="text-[7px] font-black text-slate-300 mt-1">ID: {peer.peerId.split('-').pop()}</span>
                       </div>
                     </div>
                   ))}
