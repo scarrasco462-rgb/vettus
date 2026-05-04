@@ -1572,7 +1572,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       )}
 
       {activeTab === 'impressao' && (
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500 print:p-0 print:border-0 print:shadow-none print:rounded-none">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500 print:p-0 print:border-none print:shadow-none print:rounded-none print:static print:bg-transparent">
            {/* Cabeçalho de Impressão (Apenas Impressão) */}
            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
               <div className="flex justify-between items-end">
@@ -1659,43 +1659,43 @@ export const ClientView: React.FC<ClientViewProps> = ({
               </div>
            </div>
 
-           <div className="bg-slate-50 border border-slate-200 rounded-[2rem] overflow-hidden print:bg-white print:border-slate-800 print:rounded-none">
+           <div className="bg-slate-50 border border-slate-200 rounded-[2rem] overflow-hidden print:bg-white print:border-none print:rounded-none">
               <div className="overflow-x-auto">
-                 <table className="w-full text-left print:text-[8pt]">
+                 <table className="w-full text-left print:text-[10pt] print:border-collapse">
                     <thead>
-                       <tr className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200 print:bg-slate-50 print:text-black print:border-slate-800">
-                          <th className="px-6 py-4 print:px-2 print:py-2">Nome do Lead</th>
-                          <th className="px-6 py-4 print:px-2 print:py-2">Telefone Principal</th>
-                          <th className="px-6 py-4 print:px-2 print:py-2">Responsável</th>
-                          <th className="px-4 py-4 print:px-2 print:py-2">Status</th>
-                          <th className="px-4 py-4 print:px-2 print:py-2">Fase</th>
-                          <th className="px-6 py-4 text-right print:px-2 print:py-2">Atualização</th>
+                       <tr className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200 print:bg-slate-200 print:text-black print:border-black">
+                          <th className="px-6 py-4 print:px-3 print:py-3 print:border-black">Nome do Lead</th>
+                          <th className="px-6 py-4 print:px-3 print:py-3 print:border-black">Telefone Principal</th>
+                          <th className="px-6 py-4 print:px-3 print:py-3 print:border-black">Responsável</th>
+                          <th className="px-4 py-4 print:px-3 print:py-3 print:border-black">Status</th>
+                          <th className="px-4 py-4 print:px-3 print:py-3 print:border-black">Fase</th>
+                          <th className="px-6 py-4 text-right print:px-3 print:py-3 print:border-black">Atualização</th>
                        </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white print:divide-slate-300">
+                    <tbody className="divide-y divide-slate-200 bg-white print:divide-black">
                        {printLeads.map(client => (
                           <tr key={client.id} className="hover:bg-slate-50 transition-colors print:hover:bg-white">
-                             <td className="px-6 py-4 print:px-2 print:py-1">
-                                <span className="text-[11px] font-black text-slate-900 uppercase print:text-[10px] print:font-bold">{client.name}</span>
+                             <td className="px-6 py-4 print:px-3 print:py-2 print:border-black">
+                                <span className="text-[11px] font-black text-slate-900 uppercase print:text-[10pt] print:font-bold">{client.name}</span>
                              </td>
-                             <td className="px-6 py-4 print:px-2 print:py-1">
-                                <span className="text-[11px] font-black text-slate-900 tracking-widest print:text-[9px] print:font-medium print:tracking-normal">{client.phone}</span>
+                             <td className="px-6 py-4 print:px-3 print:py-2 print:border-black">
+                                <span className="text-[11px] font-black text-slate-900 tracking-widest print:text-[9pt] print:font-normal print:tracking-normal">{client.phone}</span>
                              </td>
-                             <td className="px-6 py-4 print:px-2 print:py-1">
-                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg print:bg-transparent print:p-0 print:text-[9px]">
+                             <td className="px-6 py-4 print:px-3 print:py-2 print:border-black">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-100 px-2 py-1 rounded-lg print:bg-transparent print:p-0 print:text-[9pt]">
                                    {client.assignedAgent || 'SISTEMA'}
                                 </span>
                              </td>
-                             <td className="px-4 py-4 print:px-2 print:py-1">
-                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md print:p-0 print:text-[8px] ${client.blocked ? 'bg-red-100 text-red-600 print:text-red-800' : 'bg-emerald-100 text-emerald-600 print:text-emerald-800'}`}>
+                             <td className="px-4 py-4 print:px-3 print:py-2 print:border-black">
+                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md print:p-0 print:text-[8pt] ${client.blocked ? 'bg-red-100 text-red-600 print:font-bold' : 'bg-emerald-100 text-emerald-600 print:font-bold'}`}>
                                    {client.blocked ? 'BLOQUEADO' : 'ATIVO'}
                                 </span>
                              </td>
-                             <td className="px-4 py-4 print:px-2 print:py-1">
-                                <span className="text-[9px] font-black text-slate-500 uppercase print:text-[8px] print:text-black">{client.status}</span>
+                             <td className="px-4 py-4 print:px-3 print:py-2 print:border-black">
+                                <span className="text-[9px] font-black text-slate-500 uppercase print:text-[8pt] print:text-black">{client.status}</span>
                              </td>
-                             <td className="px-6 py-4 text-right print:px-2 print:py-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase print:text-[8px] print:text-slate-600">
+                             <td className="px-6 py-4 text-right print:px-3 print:py-2 print:border-black">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase print:text-[8pt] print:text-slate-700">
                                    {new Date(client.updatedAt).toLocaleDateString('pt-BR')}
                                 </span>
                              </td>
@@ -1704,8 +1704,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
                        {printLeads.length === 0 && (
                           <tr>
                              <td colSpan={6} className="py-20 text-center">
-                                <AlertTriangle className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                                <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Nenhum resultado para os filtros aplicados</p>
+                                <AlertTriangle className="w-12 h-12 text-slate-200 mx-auto mb-4 print:hidden" />
+                                <p className="text-slate-400 font-black uppercase text-xs tracking-widest print:text-black">Nenhum resultado para os filtros aplicados</p>
                              </td>
                           </tr>
                        )}
