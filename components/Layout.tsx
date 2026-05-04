@@ -181,15 +181,17 @@ export const Layout: React.FC<LayoutProps> = ({
         )}
       </button>
 
-      <div 
+      <button 
+        onClick={() => onForceReconnect?.()}
         className={`p-2 rounded-xl transition-all border border-white/5 flex items-center justify-center ${
           syncStatus === 'synced' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
-          syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 
+          syncStatus === 'syncing' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20 animate-pulse' : 
           'text-red-500 bg-red-500/5'
         }`}
+        title={syncStatus === 'synced' ? 'Conexão Estável Vettus-Sync' : syncStatus === 'syncing' ? 'Sincronizando Canais...' : 'Offline - Clique para Reconectar'}
       >
-        {syncStatus === 'synced' ? <Wifi size={16} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin text-[#d4a853]" /> : <WifiOff size={16} />}
-      </div>
+        {syncStatus === 'synced' ? <Wifi size={16} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin text-amber-500" /> : <WifiOff size={16} />}
+      </button>
     </div>
   );
 
@@ -214,11 +216,13 @@ export const Layout: React.FC<LayoutProps> = ({
                    </span>
                 )}
              </button>
-             <div 
-                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-emerald-500' : syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 'text-red-500'}`}
+             <button 
+                onClick={() => onForceReconnect?.()}
+                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-emerald-500' : syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' : 'text-red-500'}`}
+                title="Sincronização"
              >
-                {syncStatus === 'synced' ? <Wifi size={18} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin text-[#d4a853]" /> : <WifiOff size={18} />}
-             </div>
+                {syncStatus === 'synced' ? <Wifi size={18} className="text-emerald-500" /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin text-amber-500" /> : <WifiOff size={18} />}
+             </button>
           </div>
         </div>
         <div className="flex items-center space-x-2">

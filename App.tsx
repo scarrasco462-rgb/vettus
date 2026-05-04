@@ -48,7 +48,7 @@ const loadLocal = <T,>(key: string, def: T): T => {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Broker | null>(() => loadLocal('session_user', null));
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'connecting' | 'disconnected'>('disconnected');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'disconnected'>('disconnected');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const loginTimeRef = useRef<number>(Date.now());
 
@@ -753,7 +753,7 @@ const App: React.FC = () => {
 
     isInitializingRef.current = true;
     if (statusDebounceRef.current) clearTimeout(statusDebounceRef.current);
-    setSyncStatus('connecting');
+    setSyncStatus('syncing');
 
     const netId = (currentUser.networkId || 'VETTUS-PRO').toUpperCase().trim();
     const masterId = `vettus-hub-${netId}`;
@@ -812,7 +812,9 @@ const App: React.FC = () => {
       const pingInterval = setInterval(() => {
         if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
           try {
-            (peerRef.current as any).socket.send({ type: 'HEARTBEAT' });
+            if ((peerRef.current as any).socket && (peerRef.current as any).socket.send) {
+              (peerRef.current as any).socket.send({ type: 'HEARTBEAT' });
+            }
             
             const now = Date.now();
             activeConnections.current.forEach(async (conn) => {
@@ -1133,6 +1135,16 @@ const App: React.FC = () => {
     return () => window.removeEventListener('online', handleOnline);
   }, [initPeer]);
 
+  useEffect(() => {
+    const safetyNet = setInterval(() => {
+      if (currentUser && syncStatus === 'disconnected' && !isInitializingRef.current) {
+        console.log('Kernel P2P: Safety Net - Reconectando subsistema inativo...');
+        initPeer();
+      }
+    }, 20000); // Checa a cada 20s
+    return () => clearInterval(safetyNet);
+  }, [currentUser, syncStatus, initPeer]);
+
   return (
     <Layout 
       currentView={currentView} 
@@ -1149,7 +1161,8 @@ const App: React.FC = () => {
           onNavigate={setCurrentView} 
           currentUser={currentUser} 
           onForceSync={handleForceSync}
-          onForceReconnect={() => {}}
+          onForceReconnect={handleForceReconnect}
+          syncStatus={syncStatus}
           statsData={{ 
             properties: (isAdmin ? properties : properties.filter(p => p.brokerId === currentUser.id)).filter(p => !p.deleted), 
             clients: (isAdmin ? clients : clients.filter(c => c.brokerId === currentUser.id || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))).filter(c => !c.deleted), 

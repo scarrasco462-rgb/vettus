@@ -38,11 +38,12 @@ interface DashboardProps {
     myPeerId?: string;
     rawConnectionCount?: number;
   };
+  syncStatus?: 'synced' | 'syncing' | 'disconnected';
   onForceSync?: () => void;
   onForceReconnect?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser, onForceSync, onForceReconnect }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, currentUser, onForceSync, onForceReconnect, syncStatus = 'disconnected' }) => {
   const [aiInsight, setAiInsight] = useState<string>("Iniciando análise preditiva...");
   const [isSyncing, setIsSyncing] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'all' | '30d' | '7d'>('all');
@@ -250,23 +251,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
         {isAdmin ? (
           <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 lg:p-10 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-100/50">
+             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all duration-500 shadow-lg ${
+                syncStatus === 'synced' ? 'bg-emerald-100 text-emerald-600 shadow-emerald-100/50' :
+                syncStatus === 'syncing' ? 'bg-amber-100 text-amber-600 shadow-amber-100/50 animate-pulse' :
+                'bg-red-100 text-red-600 shadow-red-100/50'
+             }`}>
                 <Wifi size={32} />
              </div>
-             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Login & Sync Ativo</h3>
+             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+                {syncStatus === 'synced' ? 'Login & Sync Ativo' : 
+                 syncStatus === 'syncing' ? 'Estabelecendo Rede...' : 'Módulo P2P Offline'}
+             </h3>
              <div className="flex items-center space-x-2 mt-1">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] border-2 border-white"></div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                  Status: Logado na Unidade Vettus
+                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)] border-2 border-white ${
+                  syncStatus === 'synced' ? 'bg-emerald-500' :
+                  syncStatus === 'syncing' ? 'bg-amber-500' : 'bg-red-500'
+                }`}></div>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${
+                  syncStatus === 'synced' ? 'text-emerald-600' :
+                  syncStatus === 'syncing' ? 'text-amber-600' : 'text-red-600'
+                }`}>
+                  {syncStatus === 'synced' ? 'Status: Logado na Unidade Vettus' : 
+                   syncStatus === 'syncing' ? 'Status: Sincronizando Canais' : 'Status: Erro de Comunicação'}
                 </p>
              </div>
              
              <p className="text-slate-500 text-sm mt-3 max-w-xs uppercase font-bold tracking-tight">
-                {statsData.onlineBrokers.filter(b => !b.isSelf).length === 0 
-                  ? "Sua unidade está online e pronta para sincronizar."
-                  : `Existem ${statsData.onlineBrokers.filter(b => !b.isSelf).length} corretor(es) ativos na sua rede.`
+                {syncStatus === 'synced' 
+                  ? (statsData.onlineBrokers.filter(b => !b.isSelf).length === 0 
+                    ? "Sua unidade está online e pronta para sincronizar."
+                    : `Existem ${statsData.onlineBrokers.filter(b => !b.isSelf).length} corretor(es) ativos na sua rede.`)
+                  : syncStatus === 'syncing' 
+                    ? "Conectando ao hub central de inteligência..."
+                    : "Falha ao conectar com a rede de dados compartilhada."
                 }
              </p>
+
+             {syncStatus === 'disconnected' && (
+               <button 
+                 onClick={() => onForceReconnect?.()}
+                 className="mt-6 px-6 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-red-700 transition-all active:scale-95 flex items-center space-x-2"
+               >
+                 <ShieldCheck size={14} />
+                 <span>Forçar Reconexão</span>
+               </button>
+             )}
              {statsData.onlineBrokers.length > 0 && (
                <div className="mt-8 w-full space-y-3">
                   <div className="flex items-center justify-between px-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
