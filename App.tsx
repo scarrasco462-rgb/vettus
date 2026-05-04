@@ -357,7 +357,7 @@ const App: React.FC = () => {
     if (!conn || !conn.open) return;
     try {
       const stringified = JSON.stringify(data);
-      const CHUNK_SIZE = 4000; // Reduzido para maior estabilidade em redes 2.4GHz/2G
+      const CHUNK_SIZE = 2048; // Reduzido para 2KB para máxima compatibilidade com redes instáveis (2.4GHz/2G)
       
       if (stringified.length <= CHUNK_SIZE) {
         conn.send(data);
@@ -370,8 +370,8 @@ const App: React.FC = () => {
       console.log(`Kernel P2P: Enviando payload de ${Math.round(stringified.length/1024)}KB em ${total} chunks...`);
       
       for (let i = 0; i < total; i++) {
-        // Pausa estratégica a cada chunk para evitar estouro de buffer em conexões lentas
-        await new Promise(r => setTimeout(r, i % 5 === 0 ? 100 : 40)); 
+        // Pausa maior para evitar saturação do buffer em conexões 2.4GHz saturadas
+        await new Promise(r => setTimeout(r, i % 3 === 0 ? 120 : 60)); 
         
         if (!conn.open) break;
         
@@ -653,7 +653,7 @@ const App: React.FC = () => {
         return new Peer(myId, { 
           secure: true, 
           debug: 0, // Reduzido para zero para eliminar popups de erro e logs ruidosos do PeerJS
-          pingInterval: 10000, // Aumentado para tolerar latência de redes 2.4GHz
+          pingInterval: 12000, // Aumentado para 12s para evitar falsos desconectes em redes móveis (5G) instáveis
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
@@ -662,10 +662,10 @@ const App: React.FC = () => {
               { urls: 'stun:stun3.l.google.com:19302' },
               { urls: 'stun:stun4.l.google.com:19302' },
               { urls: 'stun:global.stun.twilio.com:3478' },
-              { urls: 'stun:stun.voiparound.com:3478' },
+              { urls: 'stun:stun.l.google.com:19305' }, // Adicional para redundância
               { urls: 'stun:stun.voxgratia.org:3478' }
             ],
-            iceCandidatePoolSize: 10, 
+            iceCandidatePoolSize: 20, // Aumentado para acelerar o discovery de rotas alternativas
             sdpSemantics: 'unified-plan'
           }
         });

@@ -105,7 +105,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
            return new Peer(tempId, { 
              secure: true,
               debug: 0,
-              pingInterval: 10000,
+              pingInterval: 12000,
              config: {
                iceServers: [
                  { urls: 'stun:stun.l.google.com:19302' },
@@ -114,10 +114,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
                  { urls: 'stun:stun3.l.google.com:19302' },
                  { urls: 'stun:stun4.l.google.com:19302' },
                  { urls: 'stun:global.stun.twilio.com:3478' },
-                 { urls: 'stun:stun.voiparound.com:3478' },
+                 { urls: 'stun:stun.l.google.com:19305' },
                  { urls: 'stun:stun.voxgratia.org:3478' }
                ],
-               iceCandidatePoolSize: 10,
+                iceCandidatePoolSize: 20,
                sdpSemantics: 'unified-plan'
              }
            });
