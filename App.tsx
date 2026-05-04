@@ -805,22 +805,23 @@ const App: React.FC = () => {
         setOnlinePeers(Array.from(activeConnections.current.keys()));
         setSyncStatus('synced');
         
+        // PRIORIDADE 1: Identificação Imediata
+        await safeSend(conn, { 
+          type: 'GREETING', 
+          payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
+        });
+
+        // PRIORIDADE 2: Sinalizar que deseja sincronizar
+        await safeSend(conn, { type: 'SYNC_REQUEST' });
+
+        // PRIORIDADE 3: Envio de dados pesados
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
           payload: stateRef.current,
           messageId: `init-push-${myAppId.current}-${Date.now()}`,
           senderAppId: myAppId.current
         });
-
-      // Identificação
-      await safeSend(conn, { 
-        type: 'GREETING', 
-        payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
-      });
-      
-      // Sincronização Bi-Direcional imediata na abertura
-      await safeSend(conn, { type: 'SYNC_REQUEST' });
-      
+        
         conn.on('data', (d: any) => handleIncomingData(conn, d));
         conn.on('close', () => {
           activeConnections.current.delete(conn.peer);
@@ -849,38 +850,45 @@ const App: React.FC = () => {
     };
 
     peer.on('connection', (conn) => {
-      // Proteção agressiva contra spam de conexões
-      if (activeConnections.current.size > 10) {
-        try { 
-          conn.off('open');
-          conn.off('data');
-          conn.close(); 
-        } catch(e) {}
+      // Proteção contra spam de conexões (Aumentado para 50 para suportar grandes equipes)
+      if (activeConnections.current.size > 50) {
+        try { conn.close(); } catch(e) {}
         return;
       }
+      
       activeConnections.current.set(conn.peer, conn);
       setOnlinePeers(Array.from(activeConnections.current.keys()));
       
       conn.on('data', (d: any) => handleIncomingData(conn, d));
       
       conn.on('open', async () => {
+        // Envia sua própria identidade para quem conectou
         await safeSend(conn, { 
-          type: 'DATA_UPDATE', 
-          payload: stateRef.current,
-          messageId: `welcome-${myAppId.current}-${Date.now()}`,
-          senderAppId: myAppId.current
+          type: 'GREETING', 
+          payload: { id: currentUser.id, name: currentUser.name, role: currentUser.role } 
         });
+
+        // Se eu sou o Admin, envio os dados iniciais
+        if (currentUser.role === 'Admin' || isSergioEmail(currentUser.email)) {
+          console.log(`Kernel Master: Enviando base para ${conn.peer}`);
+          const filtered = stateRef.current; // Adicione filtros por brokerId se necessário
+          await safeSend(conn, { 
+            type: 'DATA_UPDATE', 
+            payload: filtered,
+            messageId: `welcome-${myAppId.current}-${Date.now()}`,
+            senderAppId: myAppId.current
+          });
+        }
       });
-      conn.on('close', () => {
+
+      const cleanup = () => {
         activeConnections.current.delete(conn.peer);
         peerIdentities.current.delete(conn.peer);
         setOnlinePeers(Array.from(activeConnections.current.keys()));
-      });
-      conn.on('error', () => {
-        activeConnections.current.delete(conn.peer);
-        peerIdentities.current.delete(conn.peer);
-        setOnlinePeers(Array.from(activeConnections.current.keys()));
-      });
+      };
+
+      conn.on('close', cleanup);
+      conn.on('error', cleanup);
     });
 
     peer.on('disconnected', () => {
