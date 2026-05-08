@@ -1547,9 +1547,26 @@ export const ClientView: React.FC<ClientViewProps> = ({
                              </td>
                              <td className="px-8 py-6">
                                 <div className="flex items-center space-x-4">
-                                   <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black text-xs">{client.name[0]}</div>
+                                   <div className="relative">
+                                      <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black text-xs">{client.name[0]}</div>
+                                      {client.blocked && (
+                                         <div className="absolute -top-1 -right-1 bg-red-600 text-white p-1 rounded-full border-2 border-white shadow-sm ring-1 ring-red-100">
+                                            <ShieldOff className="w-2.5 h-2.5" />
+                                         </div>
+                                      )}
+                                      {!client.blocked && (
+                                         <div className="absolute -top-1 -right-1 bg-emerald-600 text-white p-1 rounded-full border-2 border-white shadow-sm ring-1 ring-emerald-100">
+                                            <ShieldCheck className="w-2.5 h-2.5" />
+                                         </div>
+                                      )}
+                                   </div>
                                    <div>
-                                      <p className="font-black text-slate-900 text-xs uppercase">{client.name}</p>
+                                      <div className="flex items-center space-x-3">
+                                         <p className="font-black text-slate-900 text-xs uppercase">{client.name}</p>
+                                         <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${client.blocked ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                                            {client.blocked ? 'Bloqueado' : 'Ativo'}
+                                         </span>
+                                      </div>
                                       <p className="text-lg text-black font-black uppercase tracking-widest mt-1">{client.phone}</p>
                                    </div>
                                 </div>
