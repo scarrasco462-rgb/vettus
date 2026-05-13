@@ -97,7 +97,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockSelectMotive, setBlockSelectMotive] = useState('');
   const [blockDescriptionText, setBlockDescriptionText] = useState('');
-  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia' | 'impressao'>('carteira');
+  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia' | 'impressao' | 'bloqueados'>('carteira');
   const [spreadsheetSubTab, setSpreadsheetSubTab] = useState<'active' | 'blocked'>('active');
   const [spreadsheetMode, setSpreadsheetMode] = useState<'groups' | 'leads'>('groups');
   const [spreadsheetBrokerFilter, setSpreadsheetBrokerFilter] = useState<string>('all');
@@ -730,15 +730,22 @@ export const ClientView: React.FC<ClientViewProps> = ({
       );
     }
 
-    // Filtro de Status
-    if (selectedStatusFilter === 'all') {
-      filtered = filtered.filter(c => !c.deleted);
-    } else if (selectedStatusFilter === 'Bloqueado') {
+    // Filtro de Bloqueados vs Ativos por Tab
+    if (activeTab === 'bloqueados') {
       filtered = filtered.filter(c => c.blocked && !c.deleted);
-    } else if (selectedStatusFilter === 'Excluído') {
-      filtered = filtered.filter(c => c.deleted);
-    } else {
-      filtered = filtered.filter(c => c.status === selectedStatusFilter && !c.blocked && !c.deleted);
+    } else if (activeTab === 'carteira' || activeTab === 'impressao' || activeTab === 'fluxos') {
+      filtered = filtered.filter(c => !c.blocked && !c.deleted);
+    }
+
+    // Filtro de Status (Dropdown)
+    if (selectedStatusFilter !== 'all') {
+      if (selectedStatusFilter === 'Bloqueado') {
+        filtered = clients.filter(c => c.blocked && !c.deleted);
+      } else if (selectedStatusFilter === 'Excluído') {
+        filtered = clients.filter(c => c.deleted);
+      } else {
+        filtered = filtered.filter(c => c.status === selectedStatusFilter);
+      }
     }
 
     if (selectedImportFilter) {
@@ -940,6 +947,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
           <Printer className="w-3.5 h-3.5" />
           <span>Impressão de Planilha</span>
         </button>
+        <button
+          onClick={() => setActiveTab('bloqueados')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'bloqueados' 
+            ? 'bg-red-600 text-white shadow-lg scale-105' 
+            : 'text-slate-500 hover:bg-white hover:text-slate-900'
+          }`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          <span>Bloqueados</span>
+        </button>
         {isAdmin && (
           <button
             onClick={() => setActiveTab('transferencia')}
@@ -955,8 +973,19 @@ export const ClientView: React.FC<ClientViewProps> = ({
         )}
       </div>
 
-      {activeTab === 'carteira' && (
+      {(activeTab === 'carteira' || activeTab === 'bloqueados') && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
+          {activeTab === 'bloqueados' && (
+            <div className="bg-red-50 border-b border-red-100 px-8 py-4">
+               <div className="flex items-center space-x-3 text-red-700">
+                  <ShieldAlert className="w-5 h-5" />
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Central de Auditoria</p>
+                    <p className="text-xs font-bold">Visualizando leads bloqueados do sistema comercial.</p>
+                  </div>
+               </div>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
