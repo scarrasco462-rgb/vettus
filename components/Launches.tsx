@@ -319,7 +319,10 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
                                    <p className="font-black text-slate-900 text-sm uppercase tracking-tight">{client.name}</p>
                                    <div className="flex flex-wrap items-center gap-2 mt-1">
                                       <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${
-                                         client.status === ClientStatus.HOT ? 'bg-red-50 text-red-500 border-red-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                                         client.status === ClientStatus.HOT ? 'bg-red-50 text-red-500 border-red-100' : 
+                                         client.status === ClientStatus.PROPOSAL ? 'bg-amber-50 text-amber-500 border-amber-100' :
+                                         client.status === ClientStatus.WON ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
+                                         'bg-slate-50 text-slate-400 border-slate-100'
                                       }`}>
                                          {client.status}
                                       </span>

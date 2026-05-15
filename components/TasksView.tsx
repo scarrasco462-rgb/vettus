@@ -5,9 +5,10 @@ import { MoreHorizontal, Clock, User, DollarSign, Plus, X, Phone, Mail, MapPin, 
 
 const STAGES_CONFIG: { stage: string; status: ClientStatus }[] = [
   { stage: 'Lead', status: ClientStatus.LEAD },
-  { stage: 'Frio', status: ClientStatus.COLD },
-  { stage: 'Morno', status: ClientStatus.WARM },
-  { stage: 'Quente', status: ClientStatus.HOT },
+  { stage: 'Ligação', status: ClientStatus.COLD },
+  { stage: 'Agendamento', status: ClientStatus.WARM },
+  { stage: 'Proposta', status: ClientStatus.PROPOSAL },
+  { stage: 'Apresentação', status: ClientStatus.HOT },
   { stage: 'Ganho', status: ClientStatus.WON }
 ];
 

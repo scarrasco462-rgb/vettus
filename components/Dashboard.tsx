@@ -81,7 +81,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, statsData, cur
 
   const totalSales = statsData.commissions.reduce((acc, c) => acc + (c.isGanho ? (c.salePrice || 0) : 0), 0);
   const totalFee = statsData.commissionForecasts.reduce((a, f) => a + (f.commissionAmount || 0), 0);
-  const COLORS = ['#d4a853', '#0f172a', '#334155', '#475569', '#64748b'];
+  const COLORS = ['#d4a853', '#0f172a', '#334155', '#475569', '#64748b', '#94a3b8'];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">

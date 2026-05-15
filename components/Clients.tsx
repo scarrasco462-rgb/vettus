@@ -839,9 +839,10 @@ export const ClientView: React.FC<ClientViewProps> = ({
             >
               <option value="all">Todos os Status</option>
               <option value={ClientStatus.LEAD}>LEAD</option>
-              <option value={ClientStatus.COLD}>Frio</option>
-              <option value={ClientStatus.WARM}>Morno</option>
-              <option value={ClientStatus.HOT}>Quente</option>
+              <option value={ClientStatus.COLD}>Ligação</option>
+              <option value={ClientStatus.WARM}>Agendamento</option>
+              <option value={ClientStatus.PROPOSAL}>Proposta</option>
+              <option value={ClientStatus.HOT}>Apresentação</option>
               <option value={ClientStatus.WON}>Ganho</option>
               <option value="Bloqueado">Bloqueado</option>
               {isAdmin && <option value="Excluído">Excluído</option>}
@@ -1054,7 +1055,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
                       </div>
                     </td>
                     <td className="px-4 lg:px-8 py-4 lg:py-5">
-                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center justify-center min-w-[100px] ${client.status === ClientStatus.WON ? 'gold-gradient text-white border-transparent' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border inline-flex items-center justify-center min-w-[100px] ${
+                        client.status === ClientStatus.WON ? 'gold-gradient text-white border-transparent' : 
+                        client.status === ClientStatus.PROPOSAL ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        client.status === ClientStatus.HOT ? 'bg-red-50 text-red-600 border-red-100' :
+                        'bg-slate-50 text-slate-600 border-slate-100'
+                      }`}>
                         {client.status}
                       </span>
                     </td>

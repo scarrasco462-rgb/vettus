@@ -36,9 +36,10 @@ export const ALL_PERMISSIONS: AppView[] = [
 
 export enum ClientStatus {
   LEAD = 'Lead',
-  COLD = 'Frio',
-  WARM = 'Morno',
-  HOT = 'Quente',
+  COLD = 'Ligação',
+  WARM = 'Agendamento',
+  PROPOSAL = 'Proposta',
+  HOT = 'Apresentação',
   WON = 'Ganho'
 }
 
@@ -242,7 +243,7 @@ export interface Commission {
   updatedAt: string;
 }
 
-export type SalesStage = 'Lead' | 'Frio' | 'Morno' | 'Quente' | 'Ganho';
+export type SalesStage = 'Lead' | 'Ligação' | 'Agendamento' | 'Proposta' | 'Apresentação' | 'Ganho';
 
 export interface Task {
   id: string;

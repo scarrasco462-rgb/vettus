@@ -259,10 +259,11 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
           const bClients = baseClients.filter(c => c.brokerId === broker.id);
           return {
             name: broker.name,
-            firstContact: bClients.filter(c => c.status === ClientStatus.LEAD).length,
-            cold: bClients.filter(c => c.status === ClientStatus.COLD).length,
-            warm: bClients.filter(c => c.status === ClientStatus.WARM).length,
-            hot: bClients.filter(c => c.status === ClientStatus.HOT).length,
+            lead: bClients.filter(c => c.status === ClientStatus.LEAD).length,
+            ligacao: bClients.filter(c => c.status === ClientStatus.COLD).length,
+            agendamento: bClients.filter(c => c.status === ClientStatus.WARM).length,
+            proposta: bClients.filter(c => c.status === ClientStatus.PROPOSAL).length,
+            apresentacao: bClients.filter(c => c.status === ClientStatus.HOT).length,
             total: bClients.length
           };
         }).filter(b => b.name.toLowerCase().includes(search) && b.total > 0);
@@ -347,17 +348,18 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
         <table>
           <thead>
             <tr>
-              <th>Corretor</th><th>Lead</th><th>Frio</th><th>Morno</th><th>Quente</th><th>Total</th>
+              <th>Corretor</th><th>Lead</th><th>Ligação</th><th>Agendamento</th><th>Proposta</th><th>Apresentação</th><th>Total</th>
             </tr>
           </thead>
           <tbody>
             ${data.map((l: any) => `
               <tr>
                 <td><b>${l.name}</b></td>
-                <td>${l.firstContact}</td>
-                <td>${l.cold}</td>
-                <td>${l.warm}</td>
-                <td>${l.hot}</td>
+                <td>${l.lead}</td>
+                <td>${l.ligacao}</td>
+                <td>${l.agendamento}</td>
+                <td>${l.proposta}</td>
+                <td>${l.apresentacao}</td>
                 <td><b>${l.total}</b></td>
               </tr>
             `).join('')}
@@ -441,9 +443,9 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
       ];
     } else {
       ws_data = [
-        ['Corretor', 'Lead', 'Frio', 'Morno', 'Quente', 'Total Base'],
+        ['Corretor', 'Lead', 'Ligação', 'Agendamento', 'Proposta', 'Apresentação', 'Total Base'],
         ...data.map((l: any) => [
-          l.name, l.firstContact, l.cold, l.warm, l.hot, l.total
+          l.name, l.lead, l.ligacao, l.agendamento, l.proposta, l.apresentacao, l.total
         ])
       ];
     }
@@ -696,6 +698,7 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                         <td className="px-8 py-5">
                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
                             client.status === ClientStatus.HOT ? 'bg-red-50 text-red-600 border-red-100' :
+                            client.status === ClientStatus.PROPOSAL ? 'bg-amber-50 text-amber-600 border-amber-100' :
                             client.status === ClientStatus.WON ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                             'bg-slate-50 text-slate-600 border-slate-100'
                           }`}>{client.status}</span>
@@ -773,10 +776,11 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                   <thead>
                     <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100">
                       <th className="px-8 py-5">Corretor</th>
-                      <th className="px-8 py-5 text-center">Novos Leads</th>
-                      <th className="px-8 py-5 text-center">Status Frio</th>
-                      <th className="px-8 py-5 text-center">Status Morno</th>
-                      <th className="px-8 py-5 text-center">Status Quente</th>
+                      <th className="px-8 py-5 text-center">Lead</th>
+                      <th className="px-8 py-5 text-center">Ligação</th>
+                      <th className="px-8 py-5 text-center">Agendamento</th>
+                      <th className="px-8 py-5 text-center">Proposta</th>
+                      <th className="px-8 py-5 text-center">Apresentação</th>
                       <th className="px-8 py-5 text-right">Total Base</th>
                     </tr>
                   </thead>
@@ -784,10 +788,11 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                     {getFilteredData().map((stat: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-8 py-5 font-black text-slate-900 text-xs uppercase">{stat.name}</td>
-                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-blue-500 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">{stat.firstContact}</span></td>
-                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">{stat.cold}</span></td>
-                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">{stat.warm}</span></td>
-                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100">{stat.hot}</span></td>
+                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-blue-500 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">{stat.lead}</span></td>
+                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">{stat.ligacao}</span></td>
+                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">{stat.agendamento}</span></td>
+                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">{stat.proposta}</span></td>
+                        <td className="px-8 py-5 text-center"><span className="text-[10px] font-black text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100">{stat.apresentacao}</span></td>
                         <td className="px-8 py-5 text-right font-black text-slate-900 text-xs">{stat.total}</td>
                       </tr>
                     ))}

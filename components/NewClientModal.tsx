@@ -203,9 +203,10 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status Comercial</label>
                 <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as ClientStatus})} className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none">
                   <option value={ClientStatus.LEAD}>📩 Lead</option>
-                  <option value={ClientStatus.COLD}>❄️ Frio</option>
-                  <option value={ClientStatus.WARM}>⚡ Morno</option>
-                  <option value={ClientStatus.HOT}>🔥 Quente</option>
+                  <option value={ClientStatus.COLD}>📞 Ligação</option>
+                  <option value={ClientStatus.WARM}>📅 Agendamento</option>
+                  <option value={ClientStatus.PROPOSAL}>📄 Proposta</option>
+                  <option value={ClientStatus.HOT}>🤝 Apresentação</option>
                   <option value={ClientStatus.WON}>🎉 Ganho</option>
                 </select>
               </div>
