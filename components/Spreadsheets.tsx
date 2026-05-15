@@ -36,6 +36,7 @@ interface SpreadsheetsViewProps {
   currentUser: Broker;
   onDeleteClients?: (ids: string[]) => void;
   onAddActivities?: (activities: Activity[]) => void;
+  onUpdateClient?: (client: Client) => void;
   onNavigate?: (view: any) => void;
 }
 
@@ -51,7 +52,7 @@ const formatCurrency = (value: number) => {
 
 export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({ 
   brokers, clients, commissions, properties, currentUser, 
-  onDeleteClients, onAddActivities, onNavigate 
+  onDeleteClients, onAddActivities, onUpdateClient, onNavigate 
 }) => {
   const isAdmin = currentUser.role === 'Admin';
   const [activeTab, setActiveTab] = useState<SpreadsheetTab>('clients');
@@ -696,12 +697,41 @@ export const SpreadsheetsView: React.FC<SpreadsheetsViewProps> = ({
                         <td className="px-8 py-5 text-xs font-bold text-slate-900">{client.name}</td>
                         <td className="px-8 py-5 text-xs font-black text-emerald-600">{client.phone || 'N/A'}</td>
                         <td className="px-8 py-5">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                            client.status === ClientStatus.HOT ? 'bg-red-50 text-red-600 border-red-100' :
-                            client.status === ClientStatus.PROPOSAL ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                            client.status === ClientStatus.WON ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            'bg-slate-50 text-slate-600 border-slate-100'
-                          }`}>{client.status}</span>
+                          <select
+                            value={client.status}
+                            onChange={(e) => {
+                              const newStatus = e.target.value as ClientStatus;
+                              const now = new Date().toISOString();
+                              const updatedClient = {
+                                ...client,
+                                status: newStatus,
+                                updatedAt: now
+                              };
+                              onUpdateClient?.(updatedClient);
+                              
+                              onAddActivities?.([{
+                                id: Math.random().toString(36).substr(2, 9),
+                                brokerId: currentUser.id,
+                                brokerName: currentUser.name,
+                                type: 'Meeting',
+                                clientName: client.name,
+                                description: `ESTÁGIO ATUALIZADO: Lead movido para ${newStatus.toUpperCase()} via Central de Planilhas.`,
+                                date: now.split('T')[0],
+                                time: new Date().toLocaleTimeString('pt-BR'),
+                                updatedAt: now
+                              }]);
+                            }}
+                            className={`appearance-none text-[9px] font-black uppercase px-3 py-1 rounded-full border cursor-pointer outline-none transition-all hover:bg-slate-100 ${
+                              client.status === ClientStatus.HOT ? 'bg-red-50 text-red-600 border-red-100' :
+                              client.status === ClientStatus.PROPOSAL ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                              client.status === ClientStatus.WON ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                              'bg-slate-50 text-slate-600 border-slate-100'
+                            }`}
+                          >
+                            {Object.values(ClientStatus).map(status => (
+                              <option key={status} value={status} className="bg-white text-slate-900 font-bold">{status}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-8 py-5 text-xs font-black text-slate-600">{formatCurrency(client.budget)}</td>
                         <td className="px-8 py-5 text-xs text-slate-500 font-medium">{new Date(client.lastContact).toLocaleDateString('pt-BR')}</td>

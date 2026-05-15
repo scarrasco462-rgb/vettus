@@ -4,8 +4,8 @@ import { Task, SalesStage, Activity, Broker } from '../types';
 // Fix: Added Save to the lucide-react imports
 import { MoreHorizontal, Clock, User, DollarSign, Plus, X, Phone, Mail, MapPin, Users, CheckCircle, MessageSquare, ChevronLeft, ChevronRight, LayoutGrid, Hash, Star, Save } from 'lucide-react';
 
-// Fix: Updated stages to match SalesStage type definition: 'Lead' | 'Frio' | 'Morno' | 'Quente' | 'Ganho'
-const STAGES: SalesStage[] = ['Lead', 'Frio', 'Morno', 'Quente', 'Ganho'];
+// Fix: Updated stages to match SalesStage type definition
+const STAGES: SalesStage[] = ['Lead', 'Ligação', 'Agendamento', 'Proposta', 'Apresentação', 'Ganho'];
 
 interface TasksViewProps {
   tasks: Task[];
