@@ -30,9 +30,10 @@ interface LeadImportProps {
   currentUser: Broker;
   brokers: Broker[];
   unassignedLeads: Client[];
+  allClients?: Client[];
 }
 
-export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateLead, currentUser, brokers, unassignedLeads }) => {
+export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateLead, currentUser, brokers, unassignedLeads, allClients }) => {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -48,6 +49,56 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
       l.phone.includes(searchTerm)
     );
   }, [unassignedLeads, searchTerm]);
+
+  const duplicateInfo = useMemo(() => {
+    const listToCheck = allClients || unassignedLeads || [];
+    const nameMap = new Map<string, string[]>();
+    const phoneMap = new Map<string, string[]>();
+
+    listToCheck.forEach(c => {
+      if (c.deleted) return;
+      const normName = c.name.toLowerCase().trim();
+      const normPhone = c.phone.replace(/[^\d]/g, '');
+
+      if (normName) {
+        if (!nameMap.has(normName)) {
+          nameMap.set(normName, []);
+        }
+        nameMap.get(normName)!.push(c.id);
+      }
+
+      if (normPhone && normPhone.length >= 8) {
+        if (!phoneMap.has(normPhone)) {
+          phoneMap.set(normPhone, []);
+        }
+        phoneMap.get(normPhone)!.push(c.id);
+      }
+    });
+
+    const duplicateIds = new Set<string>();
+    const duplicateReasons = new Map<string, string>();
+
+    nameMap.forEach((ids, name) => {
+      if (ids.length > 1) {
+        ids.forEach(id => {
+          duplicateIds.add(id);
+          duplicateReasons.set(id, 'Nome Duplicado');
+        });
+      }
+    });
+
+    phoneMap.forEach((ids, phone) => {
+      if (ids.length > 1) {
+        ids.forEach(id => {
+          duplicateIds.add(id);
+          const existingReason = duplicateReasons.get(id);
+          duplicateReasons.set(id, existingReason ? 'Nome e Telefone Duplicados' : 'Telefone Duplicado');
+        });
+      }
+    });
+
+    return { duplicateIds, duplicateReasons };
+  }, [allClients, unassignedLeads]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -278,14 +329,23 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
              </div>
 
              <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-4">
-                {filteredPending.map(lead => (
-                  <div key={lead.id} className="bg-slate-50 border border-slate-100 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-lg hover:bg-white transition-all group">
+                {filteredPending.map(lead => {
+                   const isDup = duplicateInfo.duplicateIds.has(lead.id);
+                   const dupReason = duplicateInfo.duplicateReasons.get(lead.id) || '';
+                   return (
+                  <div key={lead.id} className={`border rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-lg transition-all group ${isDup ? 'bg-amber-50/70 border-amber-300 hover:bg-amber-100/50 shadow-sm' : 'bg-slate-50 border-slate-100 hover:bg-white'}`}>
                      <div className="flex items-center space-x-5">
                         <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-[#d4a853] text-lg font-black shadow-sm group-hover:scale-110 transition-transform">
                            {lead.name[0]}
                         </div>
                         <div>
                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{lead.name}</h4>
+                               {isDup && (
+                                  <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-2 py-1 rounded-lg animate-pulse shadow-sm inline-flex items-center ml-2" title={`Duplicidade encontrada: ${dupReason}`}>
+                                     <AlertCircle className="w-2.5 h-2.5 mr-1 text-slate-950 animate-bounce" />
+                                     DUPLICADO
+                                  </span>
+                               )}
                            <div className="flex items-center space-x-3 mt-1">
                               <span className="text-[10px] font-bold text-slate-400 flex items-center"><Phone className="w-2.5 h-2.5 mr-1" /> {lead.phone}</span>
                               <span className="text-[10px] font-black text-[#d4a853] uppercase">{lead.preference || 'Geral'}</span>
@@ -314,7 +374,8 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
                         </button>
                      </div>
                   </div>
-                ))}
+                );
+              })}
                 
                 {filteredPending.length === 0 && (
                   <div className="py-32 text-center">

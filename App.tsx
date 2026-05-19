@@ -1162,6 +1162,7 @@ const App: React.FC = () => {
           unassignedLeads={clients.filter(c => c.brokerId === 'unassigned' && !c.deleted)}
           brokers={brokers}
           currentUser={currentUser}
+          allClients={clients}
           onImportLeads={ls => setClients(v => [...v, ...ls.map(l => ({...l, updatedAt: new Date().toISOString()}))])}
           onUpdateLead={l => {
              const updatedAt = new Date().toISOString();

@@ -762,7 +762,118 @@ export const ClientView: React.FC<ClientViewProps> = ({
     return filtered;
   }, [clients, isAdmin, selectedBrokerFilter, selectedStatusFilter, selectedImportFilter, searchTerm, brokers]);
 
-  const sortedClients = useMemo(() => [...filteredClients].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [filteredClients]);
+  const sortedClients = useMemo(() => {
+    const parent = new Map<string, string>();
+    const find = (id: string): string => {
+      if (!parent.has(id)) {
+        parent.set(id, id);
+        return id;
+      }
+      let root = id;
+      let currVal = parent.get(root);
+      while (currVal !== undefined && root !== currVal) {
+        root = currVal;
+        currVal = parent.get(root);
+      }
+      let curr = id;
+      let nextVal = parent.get(curr);
+      while (nextVal !== undefined && curr !== root) {
+        parent.set(curr, root);
+        curr = nextVal;
+        nextVal = parent.get(curr);
+      }
+      return root;
+    };
+
+    const union = (id1: string, id2: string) => {
+      const r1 = find(id1);
+      const r2 = find(id2);
+      if (r1 !== r2) {
+        parent.set(r1, r2);
+      }
+    };
+
+    const nameMap = new Map<string, string[]>();
+    const phoneMap = new Map<string, string[]>();
+
+    filteredClients.forEach(c => {
+      if (c.deleted) return;
+      const normName = c.name.toLowerCase().trim();
+      const normPhone = c.phone.replace(/[^\d]/g, '');
+
+      if (normName) {
+        if (!nameMap.has(normName)) {
+          nameMap.set(normName, []);
+        }
+        nameMap.get(normName)!.push(c.id);
+      }
+
+      if (normPhone && normPhone.length >= 8) {
+        if (!phoneMap.has(normPhone)) {
+          phoneMap.set(normPhone, []);
+        }
+        phoneMap.get(normPhone)!.push(c.id);
+      }
+    });
+
+    nameMap.forEach(ids => {
+      if (ids.length > 1) {
+        const first = ids[0];
+        for (let i = 1; i < ids.length; i++) {
+          union(first, ids[i]);
+        }
+      }
+    });
+
+    phoneMap.forEach(ids => {
+      if (ids.length > 1) {
+        const first = ids[0];
+        for (let i = 1; i < ids.length; i++) {
+          union(first, ids[i]);
+        }
+      }
+    });
+
+    const groupSizes = new Map<string, number>();
+    filteredClients.forEach(c => {
+      if (c.deleted) return;
+      const r = find(c.id);
+      groupSizes.set(r, (groupSizes.get(r) || 0) + 1);
+    });
+
+    const groupLatestUpdate = new Map<string, number>();
+    filteredClients.forEach(c => {
+      if (c.deleted) return;
+      const r = find(c.id);
+      const time = new Date(c.updatedAt).getTime();
+      const current = groupLatestUpdate.get(r) || 0;
+      if (time > current) {
+        groupLatestUpdate.set(r, time);
+      }
+    });
+
+    return [...filteredClients].sort((a, b) => {
+      const rA = find(a.id);
+      const rB = find(b.id);
+      const isA_dup = (groupSizes.get(rA) || 0) > 1;
+      const isB_dup = (groupSizes.get(rB) || 0) > 1;
+
+      if (isA_dup && !isB_dup) return -1;
+      if (!isA_dup && isB_dup) return 1;
+
+      if (isA_dup && isB_dup) {
+        if (rA !== rB) {
+          const timeA = groupLatestUpdate.get(rA) || 0;
+          const timeB = groupLatestUpdate.get(rB) || 0;
+          if (timeB !== timeA) return timeB - timeA;
+          return rA.localeCompare(rB);
+        }
+        return a.name.localeCompare(b.name);
+      }
+
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [filteredClients]);
 
   const spreadsheetLeads = useMemo(() => {
     return clients.filter(c => 
@@ -806,6 +917,55 @@ export const ClientView: React.FC<ClientViewProps> = ({
       return matchesBroker && matchesStatus;
     }).sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, printBrokerFilter, printStatusFilter, isAdmin, currentUser]);
+
+  const duplicateInfo = useMemo(() => {
+    const nameMap = new Map<string, string[]>();
+    const phoneMap = new Map<string, string[]>();
+
+    clients.forEach(c => {
+      if (c.deleted) return;
+      const normName = c.name.toLowerCase().trim();
+      const normPhone = c.phone.replace(/[^\d]/g, '');
+
+      if (normName) {
+        if (!nameMap.has(normName)) {
+          nameMap.set(normName, []);
+        }
+        nameMap.get(normName)!.push(c.id);
+      }
+
+      if (normPhone && normPhone.length >= 8) {
+        if (!phoneMap.has(normPhone)) {
+          phoneMap.set(normPhone, []);
+        }
+        phoneMap.get(normPhone)!.push(c.id);
+      }
+    });
+
+    const duplicateIds = new Set<string>();
+    const duplicateReasons = new Map<string, string>();
+
+    nameMap.forEach((ids, name) => {
+      if (ids.length > 1) {
+        ids.forEach(id => {
+          duplicateIds.add(id);
+          duplicateReasons.set(id, 'Nome Duplicado');
+        });
+      }
+    });
+
+    phoneMap.forEach((ids, phone) => {
+      if (ids.length > 1) {
+        ids.forEach(id => {
+          duplicateIds.add(id);
+          const existingReason = duplicateReasons.get(id);
+          duplicateReasons.set(id, existingReason ? 'Nome e Telefone Duplicados' : 'Telefone Duplicado');
+        });
+      }
+    });
+
+    return { duplicateIds, duplicateReasons };
+  }, [clients]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -1009,36 +1169,54 @@ export const ClientView: React.FC<ClientViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sortedClients.map((client) => (
-                  <tr key={client.id} className={`hover:bg-[#d4a853]/5 transition-colors group ${client.blocked ? 'grayscale bg-slate-50 opacity-70' : ''} ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/10' : ''}`}>
-                    {isAdmin && (
+                {sortedClients.map((client) => {
+                  const isDup = duplicateInfo.duplicateIds.has(client.id);
+                  const dupReason = duplicateInfo.duplicateReasons.get(client.id) || '';
+                  return (
+                    <tr 
+                      key={client.id} 
+                      className={`hover:bg-[#d4a853]/5 transition-colors group ${
+                        client.blocked 
+                          ? 'grayscale bg-slate-50 opacity-70' 
+                          : isDup 
+                            ? 'bg-amber-50/40 hover:bg-amber-100/30 border-l-4 border-amber-400' 
+                            : ''
+                      } ${selectedClientIds.includes(client.id) ? 'bg-[#d4a853]/10' : ''}`}
+                    >
+                      {isAdmin && (
+                        <td className="px-4 lg:px-8 py-4 lg:py-5">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedClientIds.includes(client.id)}
+                            onChange={() => toggleSelectClient(client.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 lg:px-8 py-4 lg:py-5">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedClientIds.includes(client.id)}
-                          onChange={() => toggleSelectClient(client.id)}
-                          className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
-                        />
-                      </td>
-                    )}
-                    <td className="px-4 lg:px-8 py-4 lg:py-5">
-                      <div className="flex items-center space-x-4">
-                        <div className="relative">
-                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-lg">{client.name[0]}</div>
-                          {client.blocked && (
-                            <div className="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-1 rounded-full border-2 border-white shadow-sm">
-                              <ShieldOff className="w-3 h-3" />
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                             <p className="font-black text-slate-900 text-xs lg:text-sm uppercase">{client.name}</p>
-                             {client.blocked && (
-                                <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm" title={`Motivo: ${client.blockReason}`}>BLOQUEADO</span>
-                             )}
+                        <div className="flex items-center space-x-4">
+                          <div className="relative">
+                            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-slate-900 text-[#d4a853] flex items-center justify-center font-black shadow-lg">{client.name[0]}</div>
+                            {client.blocked && (
+                              <div className="absolute -top-1.5 -right-1.5 bg-red-600 text-white p-1 rounded-full border-2 border-white shadow-sm">
+                                <ShieldOff className="w-3 h-3" />
+                              </div>
+                            )}
                           </div>
-                          <p className="text-sm lg:text-lg text-black font-black uppercase tracking-widest mt-0.5 lg:mt-1">{client.phone}</p>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                               <p className="font-black text-slate-900 text-xs lg:text-sm uppercase">{client.name}</p>
+                               {client.blocked && (
+                                  <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm" title={`Motivo: ${client.blockReason}`}>BLOQUEADO</span>
+                                )}
+                               {isDup && (
+                                  <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-sm flex items-center" title={`Duplicidade encontrada: ${dupReason}`}>
+                                     <AlertTriangle className="w-2.5 h-2.5 mr-1" />
+                                     DUPLICADO
+                                  </span>
+                               )}
+                            </div>
+                            <p className="text-sm lg:text-lg text-black font-black uppercase tracking-widest mt-0.5 lg:mt-1">{client.phone}</p>
                           {client.spouseName && (
                             <p className="text-[9px] text-[#d4a853] font-black uppercase tracking-tighter mt-0.5">
                               Esposa: {client.spouseName} {client.spousePhone && `(${client.spousePhone})`}
@@ -1186,7 +1364,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
