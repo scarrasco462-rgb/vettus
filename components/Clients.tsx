@@ -796,35 +796,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
       }
     };
 
-    const nameMap = new Map<string, string[]>();
     const phoneMap = new Map<string, string[]>();
 
     filteredClients.forEach(c => {
       if (c.deleted) return;
-      const normName = c.name.toLowerCase().trim();
       const normPhone = c.phone.replace(/[^\d]/g, '');
-
-      if (normName) {
-        if (!nameMap.has(normName)) {
-          nameMap.set(normName, []);
-        }
-        nameMap.get(normName)!.push(c.id);
-      }
 
       if (normPhone && normPhone.length >= 8) {
         if (!phoneMap.has(normPhone)) {
           phoneMap.set(normPhone, []);
         }
         phoneMap.get(normPhone)!.push(c.id);
-      }
-    });
-
-    nameMap.forEach(ids => {
-      if (ids.length > 1) {
-        const first = ids[0];
-        for (let i = 1; i < ids.length; i++) {
-          union(first, ids[i]);
-        }
       }
     });
 
@@ -922,20 +904,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
   }, [clients, printBrokerFilter, printStatusFilter, isAdmin, currentUser]);
 
   const duplicateInfo = useMemo(() => {
-    const nameMap = new Map<string, string[]>();
     const phoneMap = new Map<string, string[]>();
 
     clients.forEach(c => {
       if (c.deleted) return;
-      const normName = c.name.toLowerCase().trim();
       const normPhone = c.phone.replace(/[^\d]/g, '');
-
-      if (normName) {
-        if (!nameMap.has(normName)) {
-          nameMap.set(normName, []);
-        }
-        nameMap.get(normName)!.push(c.id);
-      }
 
       if (normPhone && normPhone.length >= 8) {
         if (!phoneMap.has(normPhone)) {
@@ -948,21 +921,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const duplicateIds = new Set<string>();
     const duplicateReasons = new Map<string, string>();
 
-    nameMap.forEach((ids, name) => {
-      if (ids.length > 1) {
-        ids.forEach(id => {
-          duplicateIds.add(id);
-          duplicateReasons.set(id, 'Nome Duplicado');
-        });
-      }
-    });
-
     phoneMap.forEach((ids, phone) => {
       if (ids.length > 1) {
         ids.forEach(id => {
           duplicateIds.add(id);
-          const existingReason = duplicateReasons.get(id);
-          duplicateReasons.set(id, existingReason ? 'Nome e Telefone Duplicados' : 'Telefone Duplicado');
+          duplicateReasons.set(id, 'Telefone Duplicado');
         });
       }
     });
@@ -1002,34 +965,16 @@ export const ClientView: React.FC<ClientViewProps> = ({
     };
 
     const activeClients = clients.filter(c => !c.deleted);
-    const nameMap = new Map<string, string[]>();
     const phoneMap = new Map<string, string[]>();
 
     activeClients.forEach(c => {
-      const normName = c.name.toLowerCase().trim();
       const normPhone = c.phone.replace(/[^\d]/g, '');
-
-      if (normName) {
-        if (!nameMap.has(normName)) {
-          nameMap.set(normName, []);
-        }
-        nameMap.get(normName)!.push(c.id);
-      }
 
       if (normPhone && normPhone.length >= 8) {
         if (!phoneMap.has(normPhone)) {
           phoneMap.set(normPhone, []);
         }
         phoneMap.get(normPhone)!.push(c.id);
-      }
-    });
-
-    nameMap.forEach(ids => {
-      if (ids.length > 1) {
-        const first = ids[0];
-        for (let i = 1; i < ids.length; i++) {
-          union(first, ids[i]);
-        }
       }
     });
 
@@ -1054,22 +999,9 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const result: { rootId: string; reason: string; clients: Client[] }[] = [];
     groups.forEach((groupClients, rootId) => {
       if (groupClients.length > 1) {
-        const names = new Set(groupClients.map(c => c.name.toLowerCase().trim()));
-        const phones = new Set(groupClients.map(c => c.phone.replace(/[^\d]/g, '')));
-        let reason = 'Duplicidade';
-        if (names.size === 1 && phones.size === 1) {
-          reason = 'Nome e Telefone Duplicados';
-        } else if (names.size === 1) {
-          reason = 'Nome Duplicado';
-        } else if (phones.size === 1) {
-          reason = 'Telefone Duplicado';
-        } else {
-          reason = 'Nome ou Telefone Relacionados';
-        }
-
         result.push({
           rootId,
-          reason,
+          reason: 'Telefone Duplicado',
           clients: groupClients
         });
       }

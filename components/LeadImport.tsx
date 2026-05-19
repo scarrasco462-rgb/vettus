@@ -52,20 +52,11 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
 
   const duplicateInfo = useMemo(() => {
     const listToCheck = allClients || unassignedLeads || [];
-    const nameMap = new Map<string, string[]>();
     const phoneMap = new Map<string, string[]>();
 
     listToCheck.forEach(c => {
       if (c.deleted) return;
-      const normName = c.name.toLowerCase().trim();
       const normPhone = c.phone.replace(/[^\d]/g, '');
-
-      if (normName) {
-        if (!nameMap.has(normName)) {
-          nameMap.set(normName, []);
-        }
-        nameMap.get(normName)!.push(c.id);
-      }
 
       if (normPhone && normPhone.length >= 8) {
         if (!phoneMap.has(normPhone)) {
@@ -78,21 +69,11 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
     const duplicateIds = new Set<string>();
     const duplicateReasons = new Map<string, string>();
 
-    nameMap.forEach((ids, name) => {
-      if (ids.length > 1) {
-        ids.forEach(id => {
-          duplicateIds.add(id);
-          duplicateReasons.set(id, 'Nome Duplicado');
-        });
-      }
-    });
-
     phoneMap.forEach((ids, phone) => {
       if (ids.length > 1) {
         ids.forEach(id => {
           duplicateIds.add(id);
-          const existingReason = duplicateReasons.get(id);
-          duplicateReasons.set(id, existingReason ? 'Nome e Telefone Duplicados' : 'Telefone Duplicado');
+          duplicateReasons.set(id, 'Telefone Duplicado');
         });
       }
     });
