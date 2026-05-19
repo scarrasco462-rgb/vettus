@@ -97,7 +97,10 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockSelectMotive, setBlockSelectMotive] = useState('');
   const [blockDescriptionText, setBlockDescriptionText] = useState('');
-  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia' | 'impressao' | 'bloqueados'>('carteira');
+  const [activeTab, setActiveTab] = useState<'carteira' | 'planilhas' | 'fluxos' | 'transferencia' | 'impressao' | 'bloqueados' | 'duplicados'>('carteira');
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedMergeClientIds, setSelectedMergeClientIds] = useState<string[]>([]);
+  const [masterClientId, setMasterClientId] = useState<string>('');
   const [spreadsheetSubTab, setSpreadsheetSubTab] = useState<'active' | 'blocked'>('active');
   const [spreadsheetMode, setSpreadsheetMode] = useState<'groups' | 'leads'>('groups');
   const [spreadsheetBrokerFilter, setSpreadsheetBrokerFilter] = useState<string>('all');
@@ -967,6 +970,155 @@ export const ClientView: React.FC<ClientViewProps> = ({
     return { duplicateIds, duplicateReasons };
   }, [clients]);
 
+  const duplicateGroupsList = useMemo(() => {
+    const parent = new Map<string, string>();
+    const find = (id: string): string => {
+      if (!parent.has(id)) {
+        parent.set(id, id);
+        return id;
+      }
+      let root = id;
+      let currVal = parent.get(root);
+      while (currVal !== undefined && root !== currVal) {
+        root = currVal;
+        currVal = parent.get(root);
+      }
+      let curr = id;
+      let nextVal = parent.get(curr);
+      while (nextVal !== undefined && curr !== root) {
+        parent.set(curr, root);
+        curr = nextVal;
+        nextVal = parent.get(curr);
+      }
+      return root;
+    };
+
+    const union = (id1: string, id2: string) => {
+      const r1 = find(id1);
+      const r2 = find(id2);
+      if (r1 !== r2) {
+        parent.set(r1, r2);
+      }
+    };
+
+    const activeClients = clients.filter(c => !c.deleted);
+    const nameMap = new Map<string, string[]>();
+    const phoneMap = new Map<string, string[]>();
+
+    activeClients.forEach(c => {
+      const normName = c.name.toLowerCase().trim();
+      const normPhone = c.phone.replace(/[^\d]/g, '');
+
+      if (normName) {
+        if (!nameMap.has(normName)) {
+          nameMap.set(normName, []);
+        }
+        nameMap.get(normName)!.push(c.id);
+      }
+
+      if (normPhone && normPhone.length >= 8) {
+        if (!phoneMap.has(normPhone)) {
+          phoneMap.set(normPhone, []);
+        }
+        phoneMap.get(normPhone)!.push(c.id);
+      }
+    });
+
+    nameMap.forEach(ids => {
+      if (ids.length > 1) {
+        const first = ids[0];
+        for (let i = 1; i < ids.length; i++) {
+          union(first, ids[i]);
+        }
+      }
+    });
+
+    phoneMap.forEach(ids => {
+      if (ids.length > 1) {
+        const first = ids[0];
+        for (let i = 1; i < ids.length; i++) {
+          union(first, ids[i]);
+        }
+      }
+    });
+
+    const groups = new Map<string, Client[]>();
+    activeClients.forEach(c => {
+      const r = find(c.id);
+      if (!groups.has(r)) {
+        groups.set(r, []);
+      }
+      groups.get(r)!.push(c);
+    });
+
+    const result: { rootId: string; reason: string; clients: Client[] }[] = [];
+    groups.forEach((groupClients, rootId) => {
+      if (groupClients.length > 1) {
+        const names = new Set(groupClients.map(c => c.name.toLowerCase().trim()));
+        const phones = new Set(groupClients.map(c => c.phone.replace(/[^\d]/g, '')));
+        let reason = 'Duplicidade';
+        if (names.size === 1 && phones.size === 1) {
+          reason = 'Nome e Telefone Duplicados';
+        } else if (names.size === 1) {
+          reason = 'Nome Duplicado';
+        } else if (phones.size === 1) {
+          reason = 'Telefone Duplicado';
+        } else {
+          reason = 'Nome ou Telefone Relacionados';
+        }
+
+        result.push({
+          rootId,
+          reason,
+          clients: groupClients
+        });
+      }
+    });
+
+    return result;
+  }, [clients]);
+
+  const handleMergeClients = (principalId: string, otherIds: string[]) => {
+    const principal = clients.find(c => c.id === principalId);
+    if (!principal) return;
+
+    const others = clients.filter(c => otherIds.includes(c.id));
+
+    const updatedPrincipal: Client = { ...principal };
+
+    others.forEach(other => {
+      if (!updatedPrincipal.email && other.email) updatedPrincipal.email = other.email;
+      if (!updatedPrincipal.phone && other.phone) updatedPrincipal.phone = other.phone;
+      if (!updatedPrincipal.preference && other.preference) updatedPrincipal.preference = other.preference;
+      if (!updatedPrincipal.desiredPropertyType && other.desiredPropertyType) updatedPrincipal.desiredPropertyType = other.desiredPropertyType;
+      if (!updatedPrincipal.spouseName && other.spouseName) updatedPrincipal.spouseName = other.spouseName;
+      if (!updatedPrincipal.spousePhone && other.spousePhone) updatedPrincipal.spousePhone = other.spousePhone;
+      if (other.budget > updatedPrincipal.budget) updatedPrincipal.budget = other.budget;
+      updatedPrincipal.updatedAt = new Date().toISOString();
+    });
+
+    const now = new Date().toISOString();
+    const mergedNamesText = others.map(o => o.name).join(', ');
+    
+    onUpdateClient(updatedPrincipal);
+    onDeleteClients(otherIds);
+
+    onAddActivity({
+      id: Math.random().toString(36).substr(2, 9),
+      brokerId: currentUser.id,
+      brokerName: currentUser.name,
+      type: 'System',
+      clientName: updatedPrincipal.name,
+      description: `CONTATOS UNIFICADOS: Os dados de [${mergedNamesText}] foram unificados sob o cadastro de ${updatedPrincipal.name}.`,
+      date: now.split('T')[0],
+      time: new Date().toLocaleTimeString('pt-BR'),
+      updatedAt: now
+    });
+
+    setSelectedGroupId(null);
+    setSelectedMergeClientIds([]);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1118,6 +1270,22 @@ export const ClientView: React.FC<ClientViewProps> = ({
         >
           <ShieldAlert className="w-3.5 h-3.5" />
           <span>Bloqueados</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('duplicados')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'duplicados' 
+            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+            : 'text-slate-500 hover:bg-white hover:text-slate-900'
+          }`}
+        >
+          <Repeat className="w-3.5 h-3.5" />
+          <span>Contatos Duplicados</span>
+          {duplicateGroupsList.length > 0 && (
+            <span className="bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 ml-1 animate-pulse">
+              {duplicateGroupsList.length}
+            </span>
+          )}
         </button>
         {isAdmin && (
           <button
@@ -1890,6 +2058,266 @@ export const ClientView: React.FC<ClientViewProps> = ({
                  </table>
               </div>
            </div>
+        </div>
+      )}
+
+      {activeTab === 'duplicados' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-300">
+          {/* Coluna Esquerda: Lista de Grupos de Duplicados */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-1">
+                Grupos Identificados
+              </h3>
+              <p className="text-xs text-slate-500">
+                Selecione um grupo para comparar, unificar ou excluir os cadastros duplicados.
+              </p>
+            </div>
+
+            {duplicateGroupsList.length === 0 ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-8 text-center bg-white border-slate-200">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 animate-pulse" />
+                <h4 className="text-sm font-black text-emerald-950 uppercase tracking-wider mb-1">Tudo Organizado!</h4>
+                <p className="text-xs text-emerald-600 font-medium">Não há nenhum contato duplicado (por nome ou telefone) atualmente.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 no-scrollbar">
+                {duplicateGroupsList.map(group => {
+                  const isSelected = selectedGroupId === group.rootId;
+                  return (
+                    <button
+                      key={group.rootId}
+                      onClick={() => {
+                        setSelectedGroupId(group.rootId);
+                        setSelectedMergeClientIds(group.clients.map(c => c.id));
+                        setMasterClientId(group.clients[0].id);
+                      }}
+                      className={`w-full text-left p-5 rounded-3xl border transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-[#0f172a] text-[#d4a853] border-[#d4a853] shadow-md scale-[1.02]' 
+                          : 'bg-white border-slate-200 text-slate-800 hover:border-[#d4a853] hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className={`inline-block text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mb-2 ${
+                            isSelected ? 'bg-[#d4a853]/10 text-[#d4a853]' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {group.reason}
+                          </span>
+                          <h4 className="font-bold text-xs lg:text-sm uppercase tracking-tight line-clamp-1">{group.clients[0].name}</h4>
+                          <p className={`text-xs mt-1 font-mono ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {group.clients[0].phone}
+                          </p>
+                        </div>
+                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${
+                          isSelected ? 'bg-[#d4a853]/20 text-[#d4a853]' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {group.clients.length} Leads
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Coluna Direita: Detalhes, Comparação, Unificação e Exclusão */}
+          <div className="lg:col-span-8">
+            {!selectedGroupId ? (
+              <div className="bg-white border border-slate-200 rounded-[2.5rem] p-16 text-center space-y-4 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-[#d4a853] border border-slate-100 shadow-sm animate-bounce">
+                  <AlertTriangle className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Nenhum Grupo Selecionado</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-2 font-medium">
+                    Escolha um dos grupos com duplicidades na coluna ao lado para iniciar o processo de unificação/exclusão.
+                  </p>
+                </div>
+              </div>
+            ) : (() => {
+              const currentGroup = duplicateGroupsList.find(g => g.rootId === selectedGroupId);
+              if (!currentGroup) return null;
+
+              return (
+                <div className="space-y-6">
+                  {/* Cabeçalho do Grupo */}
+                  <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                            {currentGroup.reason}
+                          </span>
+                          <span className="bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                            Grupo de {currentGroup.clients.length} Contatos
+                          </span>
+                        </div>
+                        <h3 className="text-base lg:text-lg font-black text-slate-900 uppercase tracking-tight mt-2 flex items-center">
+                          {currentGroup.clients[0].name}
+                        </h3>
+                      </div>
+                      
+                      <button 
+                        onClick={() => {
+                          setSelectedGroupId(null);
+                          setSelectedMergeClientIds([]);
+                        }}
+                        className="text-slate-400 hover:text-slate-600 p-2 border border-slate-100 rounded-full hover:bg-slate-50 transition-colors self-start md:self-center"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Aba interna para Unificar ou Excluir */}
+                  <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm space-y-6">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-1 flex items-center space-x-2">
+                        <Sparkles className="w-4 h-4 text-[#d4a853]" />
+                        <span>Compare e marque os contatos que deseja Unificar ou Excluir</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 font-medium font-medium">
+                        Os contatos marcados poderão ser fundidos em um único cadastro ou excluídos de uma vez em lote.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {currentGroup.clients.map(client => {
+                        const isSelected = selectedMergeClientIds.includes(client.id);
+                        const isMaster = masterClientId === client.id;
+                        return (
+                          <div 
+                            key={client.id}
+                            className={`p-6 rounded-3xl border transition-all relative ${
+                              isSelected 
+                                ? isMaster 
+                                  ? 'border-[#d4a853] bg-amber-50/20 shadow-sm' 
+                                  : 'border-blue-300 bg-blue-50/10'
+                                : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'
+                            }`}
+                          >
+                            {/* Checkbox de seleção */}
+                            <div className="absolute top-4 right-4 flex items-center space-x-2">
+                              {isSelected && (
+                                <button
+                                  onClick={() => setMasterClientId(client.id)}
+                                  className={`text-[8px] font-black uppercase px-2 py-1 rounded-full border transition-all ${
+                                    isMaster 
+                                      ? 'bg-amber-100 text-amber-800 border-amber-200' 
+                                      : 'bg-white text-slate-500 border-slate-200 hover:bg-amber-50'
+                                  }`}
+                                  title="Marcar este contato como Principal para reter seus dados"
+                                >
+                                  {isMaster ? '★ PRINCIPAL' : '★ DEFINIR PRINCIPAL'}
+                                </button>
+                              )}
+                              <input 
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  if (isSelected) {
+                                    const nextSelection = selectedMergeClientIds.filter(id => id !== client.id);
+                                    setSelectedMergeClientIds(nextSelection);
+                                    if (masterClientId === client.id && nextSelection.length > 0) {
+                                      setMasterClientId(nextSelection[0]);
+                                    }
+                                  } else {
+                                    const nextSelection = [...selectedMergeClientIds, client.id];
+                                    setSelectedMergeClientIds(nextSelection);
+                                    if (nextSelection.length === 1) {
+                                      setMasterClientId(client.id);
+                                    }
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-slate-300 text-[#d4a853] focus:ring-[#d4a853]"
+                              />
+                            </div>
+
+                            <p className="text-xs font-black text-slate-900 uppercase mb-2 mr-32 truncate">{client.name}</p>
+                            
+                            <div className="space-y-1 text-[11px] text-slate-500 font-medium">
+                              <p className="flex items-center"><Phone className="w-3 h-3 mr-1.5 text-slate-400" /> <span className="font-mono text-slate-700">{client.phone}</span></p>
+                              {client.email && <p className="flex items-center"><Mail className="w-3 h-3 mr-1.5 text-slate-400" /> <span className="truncate">{client.email}</span></p>}
+                              <p className="flex items-center"><Clock className="w-3 h-3 mr-1.5 text-slate-400" /> <span>Estágio: <span className="font-bold text-slate-800">{client.status}</span></span></p>
+                              <p className="flex items-center"><User className="w-3 h-3 mr-1.5 text-slate-400" /> <span>Vendedor: <span className="font-bold text-slate-800">{brokers.find(b => b.id === client.brokerId)?.name || 'Sem vendedor'}</span></span></p>
+                              
+                              {client.budget > 0 && <p className="text-emerald-500 font-bold mt-1">Orçamento: {formatCurrencyBRL(client.budget)}</p>}
+                              {client.preference && <p className="text-slate-400 italic line-clamp-2 mt-1">"{client.preference}"</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Barra de Ações Rápidas de Unificação/Exclusão */}
+                    {selectedMergeClientIds.length >= 2 ? (
+                      <div className="bg-slate-900 text-slate-100 p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-[#d4a853]">Ações para {selectedMergeClientIds.length} Contatos Selecionados</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Principal: <span className="font-black text-white">{currentGroup.clients.find(c => c.id === masterClientId)?.name}</span>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3 font-medium">
+                          <button
+                            onClick={() => {
+                              const otherIds = selectedMergeClientIds.filter(id => id !== masterClientId);
+                              const masterName = currentGroup.clients.find(c => c.id === masterClientId)?.name || '';
+                              
+                              setConfirmModal({
+                                show: true,
+                                title: 'Confirmar Unificação de Leads',
+                                message: `Deseja UNIFICAR estes ${selectedMergeClientIds.length} leads sob o cadastro de "${masterName}"? As informações de preferência, e-mail e orçamento serão integradas a este lead e os outros ${otherIds.length} cadastros serão movidos para a lixeira.`,
+                                type: 'success',
+                                confirmText: 'Sim, Unificar',
+                                cancelText: 'Cancelar',
+                                onConfirm: () => handleMergeClients(masterClientId, otherIds)
+                              });
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-md"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Unificar Contatos</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setConfirmModal({
+                                show: true,
+                                title: 'Confirmar Exclusão em Lote',
+                                message: `Deseja EXCLUIR permanentemente estes ${selectedMergeClientIds.length} leads selecionados? Esta ação enviará todos para a lixeira do CRM.`,
+                                type: 'danger',
+                                confirmText: 'Sim, Excluir',
+                                cancelText: 'Cancelar',
+                                onConfirm: () => {
+                                  onDeleteClients(selectedMergeClientIds);
+                                  setSelectedGroupId(null);
+                                  setSelectedMergeClientIds([]);
+                                }
+                              });
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-md"
+                          >
+                            <Trash className="w-3.5 h-3.5" />
+                            <span>Excluir Selecionados</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-50 text-amber-800 p-4 rounded-3xl text-xs font-bold text-center border border-amber-100 flex items-center justify-center space-x-2 shadow-sm">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 animate-pulse" />
+                        <span>Selecione pelo menos 2 contatos no grupo acima para habilitar as ações de Unificação ou Exclusão em lote.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
 
