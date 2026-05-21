@@ -1908,6 +1908,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                           <th className="px-8 py-6">Lead</th>
                           <th className="px-8 py-6">Responsável Atual</th>
                           <th className="px-8 py-6">Status Comercial</th>
+                          <th className="px-8 py-6 text-right">Ações</th>
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1942,6 +1943,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
                                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${client.blocked ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
                                             {client.blocked ? 'Bloqueado' : 'Ativo'}
                                          </span>
+                                         {duplicateInfo.duplicateIds.has(client.id) && (
+                                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">
+                                               Telefone Duplicado
+                                            </span>
+                                         )}
                                       </div>
                                       <p className="text-lg text-black font-black uppercase tracking-widest mt-1">{client.phone}</p>
                                    </div>
@@ -1983,6 +1989,51 @@ export const ClientView: React.FC<ClientViewProps> = ({
                                     <option key={status} value={status} className="bg-white text-slate-900 font-bold uppercase">{status}</option>
                                   ))}
                                 </select>
+                             </td>
+                             <td className="px-8 py-6 text-right">
+                                {duplicateInfo.duplicateIds.has(client.id) ? (
+                                   <button
+                                      onClick={() => {
+                                         setConfirmModal({
+                                            show: true,
+                                            title: 'Descartar Duplicado',
+                                            message: `Deseja EXCLUIR permanentemente o lead "${client.name}" (${client.phone})? Esta ação descartará apenas esta instância duplicada, mantendo o outro cadastro com este mesmo número.`,
+                                            confirmText: 'Excluir Este Contato',
+                                            cancelText: 'Cancelar',
+                                            type: 'danger',
+                                            onConfirm: () => {
+                                               onDeleteClient(client.id);
+                                               setSelectedClientIds(prev => prev.filter(id => id !== client.id));
+                                               const now = new Date().toISOString();
+                                               onAddActivity({
+                                                  id: Math.random().toString(36).substr(2, 9),
+                                                  brokerId: currentUser.id,
+                                                  brokerName: currentUser.name,
+                                                  type: 'System',
+                                                  clientName: client.name,
+                                                  description: `DUPLICADO DESCARTADO: Cadastro duplicado de ${client.name} (${client.phone}) foi descartado via Painel de Transferência.`,
+                                                  date: now.split('T')[0],
+                                                  time: new Date().toLocaleTimeString('pt-BR'),
+                                                  updatedAt: now
+                                               });
+                                               setConfirmModal({
+                                                  show: true,
+                                                  title: 'Sucesso',
+                                                  message: 'Cadastro duplicado descartado com sucesso.',
+                                                  type: 'success'
+                                               });
+                                            }
+                                         });
+                                      }}
+                                      title="Descartar este duplicado (excluir este e manter o outro)"
+                                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-lg border border-red-100 transition-all cursor-pointer font-black text-[9px] uppercase tracking-wider"
+                                   >
+                                      <Trash className="w-3.5 h-3.5" />
+                                      <span>Descartar</span>
+                                   </button>
+                                ) : (
+                                   <span className="text-slate-300 text-[10px] font-bold">—</span>
+                                )}
                              </td>
                           </tr>
                        ))}
