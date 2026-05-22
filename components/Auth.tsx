@@ -95,8 +95,36 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
 
     authChannel.postMessage({ type: 'AUTH_REQUEST', email, password });
 
-    function proceedToRemoteAuth() {
-       // 3. ACESSO REMOTO RESILIENTE (MESH): Consulta Master ou Outros Nós Ativos
+    async function proceedToRemoteAuth() {
+       // 3. AUTENTICAÇÃO VIA API CENTRAL EXPRESS (RÁPIDO & SEGURO)
+       setStatusMsg('Consultando autenticação central...');
+       try {
+          const res = await fetch('/api/login', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ email: emailTrim, password })
+          });
+          if (res.ok) {
+             const data = await res.json();
+             if (data.success) {
+                setStatusMsg('Acesso Autorizado! Sincronizando base...');
+                onUpdateInitialData(data.fullData);
+                setTimeout(() => {
+                   onLogin({ ...data.user, networkId: networkId.toUpperCase() });
+                }, 1000);
+                return;
+             } else {
+                setError(data.message);
+                setIsSyncing(false);
+                setStatusMsg('');
+                return;
+             }
+          }
+       } catch (e) {
+          console.warn('Erro ao autenticar pelo servidor central:', e);
+       }
+
+       // 4. ACESSO REMOTO RESILIENTE (MESH fallback): Consulta Master ou Outros Nós Ativos
        setStatusMsg(`Localizando Master da Unidade ${networkId.toUpperCase()}...`);
        const tempId = `vettus-auth-temp-${Math.random().toString(36).substr(7)}`;
        

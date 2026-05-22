@@ -484,88 +484,94 @@ const App: React.FC = () => {
   };
 
   const handleIncomingData = async (conn: DataConnection, d: any) => {
-    if (!d) return;
+    try {
+      if (!d) return;
 
-    if (d.type === 'DATA_CHUNK') {
-      const { chunkId, index, total, data } = d;
-      let record = pendingChunks.current.get(chunkId);
-      if (!record) {
-        record = { total, chunks: new Array(total).fill(null) };
-        pendingChunks.current.set(chunkId, record);
+      if (d.type === 'DATA_CHUNK') {
+        const { chunkId, index, total, data } = d;
+        let record = pendingChunks.current.get(chunkId);
+        if (!record) {
+          record = { total, chunks: new Array(total).fill(null) };
+          pendingChunks.current.set(chunkId, record);
+        }
+        
+        record.chunks[index] = data;
+        
+        const receivedCount = record.chunks.filter(c => c !== null).length;
+        if (receivedCount === total) {
+          try {
+            const completeData = JSON.parse(record.chunks.join(''));
+            pendingChunks.current.delete(chunkId);
+            await handleIncomingData(conn, completeData);
+          } catch (e) {
+            console.error('Kernel P2P: Erro ao reconstruir chunk:', e);
+            pendingChunks.current.delete(chunkId);
+          }
+        }
+        return;
       }
-      
-      record.chunks[index] = data;
-      
-      const receivedCount = record.chunks.filter(c => c !== null).length;
-      if (receivedCount === total) {
-        try {
-          const completeData = JSON.parse(record.chunks.join(''));
-          pendingChunks.current.delete(chunkId);
-          await handleIncomingData(conn, completeData);
-        } catch (e) {
-          console.error('Kernel P2P: Erro ao reconstruir chunk:', e);
-          pendingChunks.current.delete(chunkId);
+
+      if (d.type === 'GREETING') {
+        console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
+        peerIdentities.current.set(conn.peer, d.payload);
+        
+        if (currentUser?.role === 'Admin') {
+          const filtered = filterPayloadForPeer(stateRef.current, d.payload);
+          await safeSend(conn, { 
+            type: 'DATA_UPDATE', 
+            payload: filtered,
+            messageId: `welcome-back-${myAppId.current}-${Date.now()}`,
+            senderAppId: myAppId.current
+          });
         }
       }
-      return;
-    }
 
-    if (d.type === 'GREETING') {
-      console.log(`Kernel P2P: Conexão identificada -> ${d.payload.name} (${d.payload.role})`);
-      peerIdentities.current.set(conn.peer, d.payload);
-      
-      if (currentUser?.role === 'Admin') {
-        const filtered = filterPayloadForPeer(stateRef.current, d.payload);
+      if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) {
+        await mergeData(d.payload, d.messageId);
+      }
+
+      if (d.type === 'SYNC_REQUEST') {
+        const identity = peerIdentities.current.get(conn.peer);
+        const payload = (currentUser?.role === 'Admin' && identity)
+          ? filterPayloadForPeer(stateRef.current, identity)
+          : stateRef.current;
+
         await safeSend(conn, { 
           type: 'DATA_UPDATE', 
-          payload: filtered,
-          messageId: `welcome-back-${myAppId.current}-${Date.now()}`,
-          senderAppId: myAppId.current
+          payload, 
+          messageId: `sync-resp-${myAppId.current}-${Date.now()}`,
+          senderAppId: myAppId.current 
         });
       }
-    }
 
-    if (d.type === 'DATA_UPDATE' && d.senderAppId !== myAppId.current) mergeData(d.payload, d.messageId);
+      if (d.type === 'PING') await safeSend(conn, { type: 'PONG' });
 
-    if (d.type === 'SYNC_REQUEST') {
-      const identity = peerIdentities.current.get(conn.peer);
-      const payload = (currentUser?.role === 'Admin' && identity)
-        ? filterPayloadForPeer(stateRef.current, identity)
-        : stateRef.current;
-
-      await safeSend(conn, { 
-        type: 'DATA_UPDATE', 
-        payload, 
-        messageId: `sync-resp-${myAppId.current}-${Date.now()}`,
-        senderAppId: myAppId.current 
-      });
-    }
-
-    if (d.type === 'PING') await safeSend(conn, { type: 'PONG' });
-
-    if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email))) {
-      const { email, password } = d.payload;
-      console.log(`Kernel Auth: Recebida solicitação de login remoto para ${email}`);
-      const emailClean = email.toLowerCase().trim();
-      const passwordClean = (password || '').trim();
-      const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
-      
-      if (broker) {
-        if (broker.password === passwordClean || (!broker.password && !passwordClean)) {
-          if (broker.blocked) {
-            await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema.' });
+      if (d.type === 'REMOTE_AUTH_REQUEST' && (currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email))) {
+        const { email, password } = d.payload;
+        console.log(`Kernel Auth: Recebida solicitação de login remoto para ${email}`);
+        const emailClean = email.toLowerCase().trim();
+        const passwordClean = (password || '').trim();
+        const broker = stateRef.current.brokers.find(b => b.email.toLowerCase().trim() === emailClean && !b.deleted);
+        
+        if (broker) {
+          if (broker.password === passwordClean || (!broker.password && !passwordClean)) {
+            if (broker.blocked) {
+              await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'ACESSO SUSPENSO: Seu usuário está marcado como "Bloqueado" no sistema.' });
+            } else {
+              // Filtrar os dados para o corretor antes de enviar
+              const filteredData = filterPayloadForPeer(stateRef.current, broker);
+              await safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: filteredData } });
+            }
           } else {
-            // Filtrar os dados para o corretor antes de enviar
-            const filteredData = filterPayloadForPeer(stateRef.current, broker);
-            await safeSend(conn, { type: 'REMOTE_AUTH_SUCCESS', payload: { user: broker, fullData: filteredData } });
+            await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'Senha incorreta para este e-mail.' });
           }
         } else {
-          await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'Senha incorreta para este e-mail.' });
+          console.warn(`Kernel Auth: E-mail ${email} não encontrado na base ativa.`);
+          await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'E-mail não cadastrado nesta Unidade.' });
         }
-      } else {
-        console.warn(`Kernel Auth: E-mail ${email} não encontrado na base ativa.`);
-        await safeSend(conn, { type: 'REMOTE_AUTH_FAILURE', message: 'E-mail não cadastrado nesta Unidade.' });
       }
+    } catch (e) {
+      console.warn('Erro ao processar mensagem recebida (handleIncomingData):', e);
     }
   };
 
