@@ -133,8 +133,10 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       const total = (prop?.signalValue || 0) + (prop?.downPaymentValue || 0) + mensais + baloes;
       return acc + total;
     }, 0);
+    const commissionPending = wonData.filter(c => c.status === 'Pending').reduce((acc, c) => acc + (c.amount || 0), 0);
+    const commissionPaid = wonData.filter(c => c.status === 'Paid').reduce((acc, c) => acc + (c.amount || 0), 0);
 
-    return { totalVgv, totalDuringConstruction, activeContracts: wonData.length };
+    return { totalVgv, totalDuringConstruction, commissionPending, commissionPaid, activeContracts: wonData.length };
   }, [paymentData]);
 
   const projectOptions = useMemo(() => {
@@ -576,22 +578,18 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
       {activeSubTab === 'spreadsheet' ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
              <div className="bg-[#050810] p-7 rounded-[2rem] text-white shadow-2xl border-b-4 border-[#d4a853]">
                 <p className="text-[9px] font-black uppercase text-[#d4a853] mb-2 tracking-widest">VGV Total Auditado</p>
                 <p className="text-2xl font-black">{formatCurrency(stats.totalVgv)}</p>
              </div>
-             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md">
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">Aportes Período Obra</p>
-                <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.totalDuringConstruction)}</p>
+             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md border-b-4 border-amber-500">
+                <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Valor Comissão a Receber</p>
+                <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.commissionPending)}</p>
              </div>
-             <div className="bg-[#d4a853]/10 p-7 rounded-[2rem] border border-[#d4a853]/20 shadow-md">
-                <p className="text-[9px] font-black text-[#8a6d3b] uppercase mb-2 tracking-widest">% de Integralização</p>
-                <p className="text-2xl font-black text-[#8a6d3b]">{stats.totalVgv > 0 ? ((stats.totalDuringConstruction / stats.totalVgv) * 100).toFixed(1) : 0}%</p>
-             </div>
-             <div className="bg-emerald-50 p-7 rounded-[2rem] border border-emerald-100 shadow-md">
-                <p className="text-[9px] font-black text-emerald-600 uppercase mb-2 tracking-widest">Saldo Pós Obra</p>
-                <p className="text-2xl font-black text-emerald-700">{formatCurrency(stats.totalVgv - stats.totalDuringConstruction)}</p>
+             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md border-b-4 border-emerald-500">
+                <p className="text-[9px] font-black text-emerald-600 uppercase mb-2 tracking-widest">Valor Comissão Recebida</p>
+                <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.commissionPaid)}</p>
              </div>
           </div>
 
