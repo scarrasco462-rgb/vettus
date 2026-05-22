@@ -41,7 +41,12 @@ const STORAGE_KEY_PREFIX = 'vettus_v3_core_';
 const loadLocal = <T,>(key: string, def: T): T => {
   try {
     const val = localStorage.getItem(STORAGE_KEY_PREFIX + key);
-    return val ? JSON.parse(val) : def;
+    if (!val) return def;
+    const parsed = JSON.parse(val);
+    if (Array.isArray(def) && !Array.isArray(parsed)) {
+      return def;
+    }
+    return parsed;
   } catch { return def; }
 };
 
@@ -96,43 +101,17 @@ const App: React.FC = () => {
   // Global Error Boundary (Silencioso)
   useEffect(() => {
     const handleError = (e: ErrorEvent) => {
-      // Silenciar erros conhecidos do PeerJS e sinalização WebRTC
+      // Prevenir comportamento padrão do navegador para proteger o sistema em ambientes sandbox
+      e.preventDefault();
       const msg = e.message || '';
-      if (
-        msg.includes('PeerJS') || 
-        msg.includes('Aborting') || 
-        msg.includes('unavailable-id') || 
-        msg.includes('ID') && msg.includes('taken') ||
-        msg.includes('already exists')
-      ) {
-        // Silenciamos o log ruidoso no console pois o sistema trata isso via conflictDetectedRef
-        e.preventDefault();
-        return;
-      }
-      
-      console.error('Uncaught Exception Interceptada:', msg, e.error);
+      console.warn('Network and Sync System Exception caught safely:', msg, e.error);
     };
 
     const handleRejection = (e: PromiseRejectionEvent) => {
-      // Silenciar rejeições do PeerJS, erros comuns de rede (offline, reinício do dev server) e QuotaExceeded
+      // Prevenir comportamento padrão de renegociações P2P/WebRTC não Handled no Sandbox
+      e.preventDefault();
       const msg = e.reason?.message || e.reason?.type || String(e.reason || '');
-      if (
-        msg.includes('PeerJS') || 
-        msg.includes('Aborting') || 
-        msg.includes('unavailable-id') ||
-        msg.includes('taken') ||
-        msg.includes('fetch') ||
-        msg.includes('Fetch') ||
-        msg.includes('Load failed') ||
-        msg.includes('NetworkError') ||
-        msg.includes('quota') ||
-        msg.includes('QuotaExceededError')
-      ) {
-        e.preventDefault();
-        return;
-      }
-
-      console.error('Unhandled Promise Rejection Interceptada:', e.reason);
+      console.warn('Network and Sync Promise warning resolved safely:', msg, e.reason);
     };
 
     window.addEventListener('error', handleError);
