@@ -616,6 +616,8 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">VGV Total</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/5">Durante Obra</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/10 text-emerald-400">Pós Obra</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Comissão Imob</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Comissão Corretor</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Data Gatilho</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Receb. Comissão</th>
                   </tr>
@@ -697,6 +699,26 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                              </div>
                           </td>
                           <td className="px-8 py-6 text-center">
+                             <div className="inline-block relative group/cell">
+                                <input 
+                                  type="text" 
+                                  defaultValue={formatNumberToInputBRL(sale.agencyAmount !== undefined ? sale.agencyAmount : (sale.salePrice ? (sale.salePrice * 0.06 * 0.6) : 0))}
+                                  onBlur={(e) => handleUpdateMainField(sale, 'agencyAmount', parseCurrencyToNumber(e.target.value))}
+                                  className="w-28 bg-white border border-slate-100 group-hover/cell:border-[#d4a853] text-right text-[12px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-xl px-2.5 py-1.5 transition-all shadow-sm"
+                                />
+                             </div>
+                          </td>
+                          <td className="px-8 py-6 text-center">
+                             <div className="inline-block relative group/cell">
+                                <input 
+                                  type="text" 
+                                  defaultValue={formatNumberToInputBRL(sale.brokerAmount !== undefined ? sale.brokerAmount : (sale.salePrice ? (sale.salePrice * 0.06 * 0.4) : 0))}
+                                  onBlur={(e) => handleUpdateMainField(sale, 'brokerAmount', parseCurrencyToNumber(e.target.value))}
+                                  className="w-28 bg-white border border-slate-100 group-hover/cell:border-[#d4a853] text-right text-[12px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-xl px-2.5 py-1.5 transition-all shadow-sm"
+                                />
+                             </div>
+                          </td>
+                          <td className="px-8 py-6 text-center">
                              <span className="text-xs font-bold text-slate-600">{sale.triggerDate ? new Date(sale.triggerDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
                           </td>
                           <td className="px-8 py-6 text-center">
@@ -706,7 +728,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
                         {isExpanded && (
                           <tr className="bg-slate-100/50">
-                             <td colSpan={7} className="px-12 py-12">
+                             <td colSpan={9} className="px-12 py-12">
                                 <div className="bg-white rounded-[3rem] border-2 border-slate-200 shadow-2xl overflow-hidden animate-in slide-in-from-top-4 duration-500">
                                    <div className="p-7 bg-[#050810] text-white flex items-center justify-between border-b-4 border-[#d4a853]">
                                       <div className="flex items-center space-x-4">
