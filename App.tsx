@@ -114,13 +114,19 @@ const App: React.FC = () => {
     };
 
     const handleRejection = (e: PromiseRejectionEvent) => {
-      // Silenciar rejeições do PeerJS
-      const msg = e.reason?.message || e.reason?.type || '';
+      // Silenciar rejeições do PeerJS, erros comuns de rede (offline, reinício do dev server) e QuotaExceeded
+      const msg = e.reason?.message || e.reason?.type || String(e.reason || '');
       if (
         msg.includes('PeerJS') || 
         msg.includes('Aborting') || 
         msg.includes('unavailable-id') ||
-        msg.includes('taken')
+        msg.includes('taken') ||
+        msg.includes('fetch') ||
+        msg.includes('Fetch') ||
+        msg.includes('Load failed') ||
+        msg.includes('NetworkError') ||
+        msg.includes('quota') ||
+        msg.includes('QuotaExceededError')
       ) {
         e.preventDefault();
         return;
@@ -231,98 +237,181 @@ const App: React.FC = () => {
   const seenMessages = useRef<Set<string>>(new Set());
 
   const mergeData = useCallback(async (payload: any, messageId?: string) => {
-    if (!payload) return;
-    
-    // Evita processar a mesma mensagem múltiplas vezes
-    if (messageId) {
-      if (seenMessages.current.has(messageId)) return;
-      seenMessages.current.add(messageId);
-      // Limpeza periódica do set de mensagens vistas
-      if (seenMessages.current.size > 1000) {
-        const arr = Array.from(seenMessages.current);
-        seenMessages.current = new Set(arr.slice(500));
-      }
-    }
-
-    let dataChanged = false;
-
-    const updateCollection = (prev: any[], next: any[]) => {
-      if (!next) return prev;
-      const map = new Map(prev.map(item => [item.id, item]));
-      let collectionChanged = false;
+    try {
+      if (!payload) return;
       
-      next.forEach(item => {
-        const existing = map.get(item.id);
-        const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
-        const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
-
-        // Critérios de atualização:
-        // 1. Item não existe localmente
-        // 2. Item recebido é mais recente (Timestamp superior)
-        // 3. Timestamps iguais mas conteúdo diferente (Garante convergência em updates rápidos)
-        const isNewer = itemDate > existingDate;
-        const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
-
-        if (!existing || isNewer || isDifferentEqualDate) {
-           map.set(item.id, item);
-           collectionChanged = true;
-           dataChanged = true;
-           isInternalUpdateRef.current = true;
+      // Evita processar a mesma mensagem múltiplas vezes
+      if (messageId) {
+        if (seenMessages.current.has(messageId)) return;
+        seenMessages.current.add(messageId);
+        // Limpeza periódica do set de mensagens vistas
+        if (seenMessages.current.size > 1000) {
+          const arr = Array.from(seenMessages.current);
+          seenMessages.current = new Set(arr.slice(500));
         }
-      });
-      return collectionChanged ? Array.from(map.values()) : prev;
-    };
-
-    if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
-    if (payload.clients) setClients(p => updateCollection(p, payload.clients));
-    if (payload.properties) setProperties(p => updateCollection(p, payload.properties));
-    if (payload.launches) setLaunches(p => updateCollection(p, payload.launches));
-    if (payload.activities) setActivities(p => updateCollection(p, payload.activities));
-    if (payload.reminders) setReminders(p => updateCollection(p, payload.reminders));
-    if (payload.commissions) setCommissions(p => updateCollection(p, payload.commissions));
-    if (payload.commissionForecasts) setCommissionForecasts(p => updateCollection(p, payload.commissionForecasts));
-    if (payload.documents) setDocuments(p => updateCollection(p, payload.documents));
-    if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
-    if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
-    if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
-    if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
-
-    // Propaga para outras conexões (GOSSIP protocol simplificado)
-    if (dataChanged && messageId && activeConnections.current.size > 0) {
-      activeConnections.current.forEach(async (conn) => {
-        if (conn.open) {
-          try {
-            const identity = peerIdentities.current.get(conn.peer);
-            const filteredPayload = (currentUser?.role === 'Admin' && identity) 
-              ? filterPayloadForPeer(payload, identity)
-              : payload;
-
-            await safeSend(conn, { 
-              type: 'DATA_UPDATE', 
-              payload: filteredPayload, 
-              messageId,
-              senderId: peerRef.current?.id, 
-              senderAppId: myAppId.current 
-            });
-          } catch (e) {}
-        }
-      });
-    }
-
-    if (dataChanged && currentUser?.role === 'Admin') {
-      try {
-        localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
-      } catch (e) {
-        console.warn('Falha ao salvar backup local (Quota Exceeded?):', e);
       }
-    }
 
-    if (isInternalUpdateRef.current) {
-      setTimeout(() => {
-        isInternalUpdateRef.current = false;
-      }, 800);
+      let dataChanged = false;
+
+      const updateCollection = (prev: any[], next: any[]) => {
+        if (!next) return prev;
+        const safePrev = Array.isArray(prev) ? prev : [];
+        const map = new Map(safePrev.map(item => [item.id, item]));
+        let collectionChanged = false;
+        
+        next.forEach(item => {
+          if (!item || !item.id) return;
+          const existing = map.get(item.id);
+          const itemDate = new Date(item.updatedAt || item.date || 0).getTime();
+          const existingDate = existing ? new Date(existing.updatedAt || existing.date || 0).getTime() : -1;
+
+          // Critérios de atualização:
+          // 1. Item não existe localmente
+          // 2. Item recebido é mais recente (Timestamp superior)
+          // 3. Timestamps iguais mas conteúdo diferente (Garante convergência em updates rápidos)
+          const isNewer = itemDate > existingDate;
+          const isDifferentEqualDate = itemDate === existingDate && JSON.stringify(item) !== JSON.stringify(existing);
+
+          if (!existing || isNewer || isDifferentEqualDate) {
+             map.set(item.id, item);
+             collectionChanged = true;
+             dataChanged = true;
+             isInternalUpdateRef.current = true;
+          }
+        });
+        return collectionChanged ? Array.from(map.values()) : prev;
+      };
+
+      if (payload.brokers) setBrokers(p => updateCollection(p, payload.brokers));
+      if (payload.clients) setClients(p => updateCollection(p, payload.clients));
+      if (payload.properties) setProperties(p => updateCollection(p, payload.properties));
+      if (payload.launches) setLaunches(p => updateCollection(p, payload.launches));
+      if (payload.activities) setActivities(p => updateCollection(p, payload.activities));
+      if (payload.reminders) setReminders(p => updateCollection(p, payload.reminders));
+      if (payload.commissions) setCommissions(p => updateCollection(p, payload.commissions));
+      if (payload.commissionForecasts) setCommissionForecasts(p => updateCollection(p, payload.commissionForecasts));
+      if (payload.documents) setDocuments(p => updateCollection(p, payload.documents));
+      if (payload.constructionCompanies) setConstructionCompanies(p => updateCollection(p, payload.constructionCompanies));
+      if (payload.campaigns) setCampaigns(p => updateCollection(p, payload.campaigns));
+      if (payload.rentals) setRentals(p => updateCollection(p, payload.rentals));
+      if (payload.expenses) setExpenses(p => updateCollection(p, payload.expenses));
+
+      // Propaga para outras conexões (GOSSIP protocol simplificado)
+      if (dataChanged && messageId && activeConnections.current.size > 0) {
+        activeConnections.current.forEach(async (conn) => {
+          if (conn.open) {
+            try {
+              const identity = peerIdentities.current.get(conn.peer);
+              const filteredPayload = (currentUser?.role === 'Admin' && identity) 
+                ? filterPayloadForPeer(payload, identity)
+                : payload;
+
+              await safeSend(conn, { 
+                type: 'DATA_UPDATE', 
+                payload: filteredPayload, 
+                messageId,
+                senderId: peerRef.current?.id, 
+                senderAppId: myAppId.current 
+              });
+            } catch (e) {}
+          }
+        });
+      }
+
+      if (dataChanged && currentUser?.role === 'Admin') {
+        try {
+          localStorage.setItem(STORAGE_KEY_PREFIX + 'last_sync_backup', JSON.stringify(stateRef.current));
+        } catch (e) {
+          console.warn('Falha ao salvar backup local (Quota Exceeded?):', e);
+        }
+      }
+
+      if (isInternalUpdateRef.current) {
+        setTimeout(() => {
+          isInternalUpdateRef.current = false;
+        }, 800);
+      }
+    } catch (e) {
+      console.warn('Erro ao mesclar dados (mergeData):', e);
     }
   }, [currentUser]);
+
+  // Sincronização central via API HTTP (Full-Stack)
+  const isSyncingRef = useRef(false);
+
+  const syncWithServer = useCallback(async (localChanges?: Record<string, any[]>) => {
+    if (!currentUser) return;
+    if (isSyncingRef.current && !localChanges) return;
+    
+    try {
+      if (localChanges) {
+        // Envia alterações locais para o servidor central em tempo real
+        const res = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localChanges)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.payload) {
+            isInternalUpdateRef.current = true;
+            await mergeData(data.payload);
+            setSyncStatus('synced');
+          }
+        }
+      } else {
+        // Busca periódica do servidor central
+        isSyncingRef.current = true;
+        const res = await fetch('/api/data');
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload && typeof payload === 'object' && Object.keys(payload).length > 0) {
+            isInternalUpdateRef.current = true;
+            await mergeData(payload);
+            setSyncStatus('synced');
+          } else {
+            // Se o servidor está vazio, provisiona com os dados existentes do LocalStorage
+            const localState = {
+              brokers: loadLocal('brokers', MOCK_BROKERS),
+              properties: loadLocal('properties', []),
+              clients: loadLocal('clients', []),
+              activities: loadLocal('activities', []),
+              reminders: loadLocal('reminders', []),
+              commissions: loadLocal('commissions', []),
+              commissionForecasts: loadLocal('commissionForecasts', []),
+              documents: loadLocal('documents', []),
+              constructionCompanies: loadLocal('constructionCompanies', []),
+              launches: loadLocal('launches', []),
+              campaigns: loadLocal('campaigns', []),
+              rentals: loadLocal('rentals', []),
+              expenses: loadLocal('expenses', [])
+            };
+            await fetch('/api/data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(localState)
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Erro na sincronização centrada HTTP:', e);
+      setSyncStatus('disconnected');
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [currentUser, mergeData]);
+
+  // Polling de sincronização periódica de 3s
+  useEffect(() => {
+    if (currentUser) {
+      syncWithServer();
+      const interval = setInterval(() => {
+        syncWithServer();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser, syncWithServer]);
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
@@ -523,6 +612,9 @@ const App: React.FC = () => {
         channel.close();
       } catch (e) {}
 
+      // Sincroniza em tempo real com o servidor central HTTP Express
+      syncWithServer(changedCollections);
+
       if (activeConnections.current.size > 0) {
         const timeout = setTimeout(() => {
           activeConnections.current.forEach(async (conn) => {
@@ -549,7 +641,7 @@ const App: React.FC = () => {
         return () => clearTimeout(timeout);
       }
     }
-  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses]);
+  }, [brokers, properties, clients, activities, reminders, commissions, commissionForecasts, documents, constructionCompanies, launches, campaigns, rentals, expenses, syncWithServer]);
 
   // Resposta automática para solicitações de login de outras abas (mesmo PC)
   useEffect(() => {
