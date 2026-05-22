@@ -316,6 +316,12 @@ const App: React.FC = () => {
         console.warn('Falha ao salvar backup local (Quota Exceeded?):', e);
       }
     }
+
+    if (isInternalUpdateRef.current) {
+      setTimeout(() => {
+        isInternalUpdateRef.current = false;
+      }, 800);
+    }
   }, [currentUser]);
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
@@ -323,7 +329,7 @@ const App: React.FC = () => {
     const channel = new BroadcastChannel('vettus_internal_sync');
     channel.onmessage = (event) => {
       if (event.data.type === 'DATA_UPDATE' && event.data.senderAppId !== myAppId.current) {
-        mergeData(event.data.payload);
+        mergeData(event.data.payload, event.data.messageId);
       }
     };
     return () => channel.close();
