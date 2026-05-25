@@ -240,6 +240,8 @@ export interface Commission {
   proposalDetails?: string;
   structuredProposal?: PaymentProposal;
   isGanho?: boolean;
+  isManualAgency?: boolean;
+  isManualBroker?: boolean;
   updatedAt: string;
 }
 

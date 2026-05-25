@@ -77,9 +77,11 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     }
     
     // 2. Encontrar a construtora
-    const company = (companies || []).find(
-      c => c.name.toLowerCase().trim() === builderName.toLowerCase().trim()
-    );
+    const company = (companies || []).find(c => {
+      const cName = c.name.toLowerCase().trim();
+      const bName = builderName.toLowerCase().trim();
+      return bName && (cName === bName || cName.includes(bName) || bName.includes(cName));
+    });
     
     if (company) {
       return {
@@ -169,11 +171,23 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       const total = (prop?.signalValue || 0) + (prop?.downPaymentValue || 0) + mensais + baloes;
       return acc + total;
     }, 0);
-    const commissionPending = wonData.filter(c => c.status === 'Pending').reduce((acc, c) => acc + (c.amount || 0), 0);
-    const commissionPaid = wonData.filter(c => c.status === 'Paid').reduce((acc, c) => acc + (c.amount || 0), 0);
+    const commissionPending = wonData.filter(c => c.status === 'Pending').reduce((acc, c) => {
+      const rules = getCommissionRulesForProject(c.propertyTitle || '');
+      const amt = (rules.hasCompany && !c.isManualAgency) 
+        ? ((c.salePrice || 0) * rules.agencyPercent)
+        : (c.agencyAmount !== undefined ? c.agencyAmount : ((c.salePrice || 0) * rules.agencyPercent));
+      return acc + amt;
+    }, 0);
+    const commissionPaid = wonData.filter(c => c.status === 'Paid').reduce((acc, c) => {
+      const rules = getCommissionRulesForProject(c.propertyTitle || '');
+      const amt = (rules.hasCompany && !c.isManualAgency) 
+        ? ((c.salePrice || 0) * rules.agencyPercent)
+        : (c.agencyAmount !== undefined ? c.agencyAmount : ((c.salePrice || 0) * rules.agencyPercent));
+      return acc + amt;
+    }, 0);
 
     return { totalVgv, totalDuringConstruction, commissionPending, commissionPaid, activeContracts: wonData.length };
-  }, [paymentData]);
+  }, [paymentData, properties, launches, companies]);
 
   const projectOptions = useMemo(() => {
     const fromProps = properties.map(p => p.projectName || p.title).filter(Boolean);
@@ -218,6 +232,12 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       updatedSale.amount = currentPrice * rules.commissionRate;
       updatedSale.brokerAmount = currentPrice * rules.brokerPercent;
       updatedSale.agencyAmount = currentPrice * rules.agencyPercent;
+      updatedSale.isManualAgency = false;
+      updatedSale.isManualBroker = false;
+    } else if (field === 'agencyAmount') {
+      updatedSale.isManualAgency = true;
+    } else if (field === 'brokerAmount') {
+      updatedSale.isManualBroker = true;
     }
     
     onUpdateSale(updatedSale);
@@ -728,6 +748,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                           <td className="px-4 py-3 md:px-5 md:py-3.5 text-right">
                              <div className="inline-block relative group/cell">
                                 <input 
+                                  key={sale.id + '-vgv-' + total}
                                   type="text" 
                                   defaultValue={formatNumberToInputBRL(total)}
                                   onBlur={(e) => handleUpdateMainField(sale, 'salePrice', parseCurrencyToNumber(e.target.value))}
@@ -750,22 +771,54 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                           </td>
                           <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
                              <div className="inline-block relative group/cell">
-                                <input 
-                                  type="text" 
-                                  defaultValue={formatNumberToInputBRL(sale.agencyAmount !== undefined ? sale.agencyAmount : (sale.salePrice ? (sale.salePrice * getCommissionRulesForProject(sale.propertyTitle || '').agencyPercent) : 0))}
-                                  onBlur={(e) => handleUpdateMainField(sale, 'agencyAmount', parseCurrencyToNumber(e.target.value))}
-                                  className="w-24 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-[11px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1 transition-all shadow-sm"
-                                />
+                                {(() => {
+                                  const rules = getCommissionRulesForProject(sale.propertyTitle || '');
+                                  const fallbackRule = {
+                                    commissionRate: 0.06,
+                                    brokerPercent: 0.06 * 0.4,
+                                    agencyPercent: 0.06 * 0.6
+                                  };
+                                  
+                                  const displayAgencyVal = (rules.hasCompany && !sale.isManualAgency)
+                                    ? (sale.salePrice ? (sale.salePrice * rules.agencyPercent) : 0)
+                                    : (sale.agencyAmount !== undefined ? sale.agencyAmount : (sale.salePrice ? (sale.salePrice * fallbackRule.agencyPercent) : 0));
+                                  
+                                  return (
+                                    <input 
+                                      key={sale.id + '-agency-' + displayAgencyVal}
+                                      type="text" 
+                                      defaultValue={formatNumberToInputBRL(displayAgencyVal)}
+                                      onBlur={(e) => handleUpdateMainField(sale, 'agencyAmount', parseCurrencyToNumber(e.target.value))}
+                                      className="w-24 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-[11px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1 transition-all shadow-sm"
+                                    />
+                                  );
+                                })()}
                              </div>
                           </td>
                           <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
                              <div className="inline-block relative group/cell">
-                                <input 
-                                  type="text" 
-                                  defaultValue={formatNumberToInputBRL(sale.brokerAmount !== undefined ? sale.brokerAmount : (sale.salePrice ? (sale.salePrice * getCommissionRulesForProject(sale.propertyTitle || '').brokerPercent) : 0))}
-                                  onBlur={(e) => handleUpdateMainField(sale, 'brokerAmount', parseCurrencyToNumber(e.target.value))}
-                                  className="w-24 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-[11px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1 transition-all shadow-sm"
-                                />
+                                {(() => {
+                                  const rules = getCommissionRulesForProject(sale.propertyTitle || '');
+                                  const fallbackRule = {
+                                    commissionRate: 0.06,
+                                    brokerPercent: 0.06 * 0.4,
+                                    agencyPercent: 0.06 * 0.6
+                                  };
+                                  
+                                  const displayBrokerVal = (rules.hasCompany && !sale.isManualBroker)
+                                    ? (sale.salePrice ? (sale.salePrice * rules.brokerPercent) : 0)
+                                    : (sale.brokerAmount !== undefined ? sale.brokerAmount : (sale.salePrice ? (sale.salePrice * fallbackRule.brokerPercent) : 0));
+                                  
+                                  return (
+                                    <input 
+                                      key={sale.id + '-broker-' + displayBrokerVal}
+                                      type="text" 
+                                      defaultValue={formatNumberToInputBRL(displayBrokerVal)}
+                                      onBlur={(e) => handleUpdateMainField(sale, 'brokerAmount', parseCurrencyToNumber(e.target.value))}
+                                      className="w-24 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-[11px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1 transition-all shadow-sm"
+                                    />
+                                  );
+                                })()}
                              </div>
                           </td>
                           <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
