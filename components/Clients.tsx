@@ -2345,7 +2345,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       )}
 
       {activeTab === 'impressao' && (
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500 print:p-0 print:border-none print:shadow-none print:rounded-none print:static print:bg-transparent">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden p-8 animate-in slide-in-from-bottom duration-500 print:p-0 print:border-none print:shadow-none print:rounded-none print:static print:bg-transparent print-container">
            {/* Dynamic Print Orientation Style */}
            <style>
               {`

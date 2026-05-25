@@ -104,6 +104,25 @@ export const Layout: React.FC<LayoutProps> = ({
     return saved === 'true';
   });
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [aiQuotaExceeded, setAiQuotaExceeded] = useState(() => {
+    try {
+      return localStorage.getItem('vettus_ai_quota_exceeded') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleStatusChange = () => {
+      try {
+        setAiQuotaExceeded(localStorage.getItem('vettus_ai_quota_exceeded') === 'true');
+      } catch (e) {}
+    };
+    window.addEventListener('vettus_ai_status_change', handleStatusChange);
+    return () => {
+      window.removeEventListener('vettus_ai_status_change', handleStatusChange);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -327,8 +346,36 @@ export const Layout: React.FC<LayoutProps> = ({
         </div>
       </aside>
 
-      <main className={`flex-1 transition-all duration-300 min-h-screen pt-16 lg:pt-0 print:m-0 print:p-0 print:pt-0 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      <main className={`flex-1 transition-all duration-300 min-h-screen pt-16 lg:pt-0 print:m-0 print:p-0 print:pt-0 print:ml-0 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-4 md:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto print:p-0 print:max-w-none">
+          {aiQuotaExceeded && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-3xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500 print:hidden">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg">
+                  <AlertCircle className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 font-mono">Modo de Contingência Vettus AI</span>
+                  <p className="text-slate-700 text-xs font-semibold leading-relaxed mt-0.5">
+                    A cota da chave gratuita do Gemini no AI Studio foi excedida. Ativamos o fallback automático inteligente do Vettus AI para que você continue trabalhando sem interrupções!
+                    <br />
+                    <span className="text-[10px] text-slate-500 font-medium">💡 Para habilitar o potencial máximo dinâmico e ilimitado de IA, cadastre uma chave própria válida em <b>Settings &gt; Secrets</b> no painel de controle.</span>
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('vettus_ai_quota_exceeded');
+                    setAiQuotaExceeded(false);
+                  } catch (e) {}
+                }}
+                className="text-[10px] font-black text-amber-700 hover:text-amber-900 uppercase border border-amber-300 rounded-xl px-4 py-2 hover:bg-amber-100 transition-all shrink-0 cursor-pointer"
+              >
+                Dispensar
+              </button>
+            </div>
+          )}
           {children}
         </div>
       </main>

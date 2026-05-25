@@ -11,18 +11,23 @@ body {
   body {
     background: white !important;
     color: black !important;
-    -webkit-print-color-adjust: economy !important;
-    print-color-adjust: economy !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
   * {
     box-shadow: none !important;
     text-shadow: none !important;
-    border-shadow: none !important;
     filter: none !important;
     backdrop-filter: none !important;
-    transition: none !important;
+  }
+
+  /* Force all entry animated elements and transition wrappers to be fully visible in print */
+  [class*="animate-"], [class*="transition-"], .animate-in, .fade-in, .slide-in-from-bottom {
     animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   .print-hidden, .no-print, header, aside, button, .gold-gradient {
@@ -31,6 +36,35 @@ body {
 
   .print-only {
     display: block !important;
+  }
+
+  /* Make sure the main layout fits exactly without sidebar margins */
+  html, body, #root, main, .print-container {
+    background: white !important;
+    color: black !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .print-container {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .print-container * {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
   }
 
   .print-card {
