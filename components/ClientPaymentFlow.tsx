@@ -649,17 +649,35 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       {activeSubTab === 'spreadsheet' ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="bg-[#050810] p-7 rounded-[2rem] text-white shadow-2xl border-b-4 border-[#d4a853]">
-                <p className="text-[9px] font-black uppercase text-[#d4a853] mb-2 tracking-widest">VGV Total Auditado</p>
-                <p className="text-2xl font-black">{formatCurrency(stats.totalVgv)}</p>
+             <div className="bg-[#050810] p-7 rounded-[2rem] text-white shadow-2xl border-b-4 border-[#d4a853] flex flex-col justify-between min-h-[140px]">
+                <div>
+                   <p className="text-[9px] font-black uppercase text-[#d4a853] mb-2 tracking-widest">VGV Total Auditado</p>
+                   <p className="text-2xl font-black">{formatCurrency(stats.totalVgv)}</p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-white/10 flex justify-between items-center text-[9px] font-bold text-white/50 uppercase tracking-wider">
+                   <span>Ativos:</span>
+                   <span className="font-black text-[#d4a853]">{stats.activeContracts} Contratos</span>
+                </div>
              </div>
-             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md border-b-4 border-amber-500">
-                <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Valor Comissão a Receber</p>
-                <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.commissionPending)}</p>
+             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md border-b-4 border-amber-500 flex flex-col justify-between min-h-[140px]">
+                <div>
+                   <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Comissão a Receber (Imobiliária)</p>
+                   <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.commissionPending)}</p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                   <span>Já Recebida:</span>
+                   <span className="font-black text-emerald-600">{formatCurrency(stats.commissionPaid)}</span>
+                </div>
              </div>
-             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md border-b-4 border-emerald-500">
-                <p className="text-[9px] font-black text-emerald-600 uppercase mb-2 tracking-widest">Valor Comissão Recebida</p>
-                <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.commissionPaid)}</p>
+             <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-md border-b-4 border-emerald-500 flex flex-col justify-between min-h-[140px]">
+                <div>
+                   <p className="text-[9px] font-black text-emerald-600 uppercase mb-2 tracking-widest">Comissão Recebida (Imobiliária)</p>
+                   <p className="text-2xl font-black text-slate-900">{formatCurrency(stats.commissionPaid)}</p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                   <span>A Receber:</span>
+                   <span className="font-black text-amber-600">{formatCurrency(stats.commissionPending)}</span>
+                </div>
              </div>
           </div>
 

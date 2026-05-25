@@ -101,8 +101,12 @@ app.post('/api/gemini/suggestions', async (req, res) => {
     });
     res.json({ text: response.text || "Sem sugestões no momento." });
   } catch (err: any) {
-    console.error('Erro em suggestions:', err);
     const formatted = formatGeminiError(err);
+    if (formatted.status === 429) {
+      console.warn(`[Gemini Quota Exceeded] Suggestions api rate-limited gracefully: ${formatted.message}`);
+    } else {
+      console.error('Erro em suggestions:', err);
+    }
     res.status(formatted.status).json({ error: formatted.message, code: formatted.code });
   }
 });
@@ -127,8 +131,12 @@ app.post('/api/gemini/extract-property', async (req, res) => {
     const jsonStr = jsonMatch ? jsonMatch[0] : "{}";
     res.json(JSON.parse(jsonStr));
   } catch (err: any) {
-    console.error('Erro em extract-property:', err);
     const formatted = formatGeminiError(err);
+    if (formatted.status === 429) {
+      console.warn(`[Gemini Quota Exceeded] Extract-property rate-limited gracefully: ${formatted.message}`);
+    } else {
+      console.error('Erro em extract-property:', err);
+    }
     res.status(formatted.status).json({ error: formatted.message, code: formatted.code });
   }
 });
@@ -174,8 +182,12 @@ app.post('/api/gemini/edit-image', async (req, res) => {
     }
     throw new Error('A IA não retornou uma imagem editada');
   } catch (err: any) {
-    console.error('Erro em edit-image:', err);
     const formatted = formatGeminiError(err);
+    if (formatted.status === 429) {
+      console.warn(`[Gemini Quota Exceeded] Edit-image rate-limited gracefully: ${formatted.message}`);
+    } else {
+      console.error('Erro em edit-image:', err);
+    }
     res.status(formatted.status).json({ error: formatted.message, code: formatted.code });
   }
 });
@@ -193,12 +205,19 @@ function readDB(): any {
   return {};
 }
 
-// Helper para escrever no banco de dados
+// Helper para escrever no banco de dados de maneira atômica e segura
 function writeDB(data: any) {
+  const tempPath = DB_PATH + '.tmp';
   try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempPath, DB_PATH);
   } catch (e) {
     console.error('Erro ao gravar database.json:', e);
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch (_) {}
   }
 }
 

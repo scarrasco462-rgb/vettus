@@ -107,7 +107,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
   
   // Estados para Impressão de Planilha
   const [printBrokerFilter, setPrintBrokerFilter] = useState<string>('all');
-  const [printStatusFilter, setPrintStatusFilter] = useState<'active' | 'blocked' | 'all'>('active');
+  const [printStatusFilter, setPrintStatusFilter] = useState<string>('active');
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
   
   // Estados para Registro de Atendimento
@@ -147,6 +147,27 @@ export const ClientView: React.FC<ClientViewProps> = ({
   });
 
   const isAdmin = currentUser.role === 'Admin';
+
+  // Sincronizar filtros da tela principal de clientes com os filtros de impressão automaticamente
+  useEffect(() => {
+    if (selectedBrokerFilter) {
+      setPrintBrokerFilter(selectedBrokerFilter);
+    }
+  }, [selectedBrokerFilter]);
+
+  useEffect(() => {
+    if (selectedStatusFilter) {
+      if (selectedStatusFilter === 'all') {
+        setPrintStatusFilter('active');
+      } else if (selectedStatusFilter === 'Bloqueado') {
+        setPrintStatusFilter('blocked');
+      } else if (selectedStatusFilter === 'Excluído') {
+        setPrintStatusFilter('all');
+      } else {
+        setPrintStatusFilter(selectedStatusFilter);
+      }
+    }
+  }, [selectedStatusFilter]);
 
   const handleOpenGanhos = (client: Client) => {
     setSelectedClient(client);
@@ -908,11 +929,19 @@ export const ClientView: React.FC<ClientViewProps> = ({
       const matchesStatus = 
         printStatusFilter === 'all' || 
         (printStatusFilter === 'active' && !c.blocked) || 
-        (printStatusFilter === 'blocked' && c.blocked);
+        (printStatusFilter === 'blocked' && c.blocked) ||
+        (c.status === printStatusFilter);
+
+      const matchesSpreadsheet = !selectedImportFilter || c.importId === selectedImportFilter;
+
+      const matchesSearch = !searchTerm || 
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        c.phone.includes(searchTerm) ||
+        c.email.toLowerCase().includes(searchTerm.toLowerCase());
         
-      return matchesBroker && matchesStatus;
+      return matchesBroker && matchesStatus && matchesSpreadsheet && matchesSearch;
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, printBrokerFilter, printStatusFilter, isAdmin, currentUser, brokers]);
+  }, [clients, printBrokerFilter, printStatusFilter, selectedImportFilter, searchTerm, isAdmin, currentUser, brokers]);
 
   const duplicateInfo = useMemo(() => {
     const phoneMap = new Map<string, string[]>();
@@ -1064,7 +1093,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Central de Clientes Vettus</h1>
           <p className="text-slate-500 font-medium">Gestão de leads, histórico de atendimento e controle de planilhas.</p>
@@ -1158,7 +1187,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-2xl w-fit">
+      <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-2xl w-fit print:hidden">
         <button
           onClick={() => setActiveTab('carteira')}
           className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
@@ -2336,7 +2365,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                     <h1 className="text-2xl font-black text-slate-900 uppercase">Relatório de Clientes</h1>
                     <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">
                        Filtrado por: {printBrokerFilter === 'all' ? 'Toda a Equipe' : brokers.find(b => b.id === printBrokerFilter)?.name} | 
-                       Status: {printStatusFilter === 'active' ? 'Ativos' : printStatusFilter === 'blocked' ? 'Bloqueados' : 'Todos'} |
+                       Status: {printStatusFilter === 'active' ? 'Ativos' : printStatusFilter === 'blocked' ? 'Bloqueados' : printStatusFilter === 'all' ? 'Todos' : printStatusFilter} |
                        Orientação: {printOrientation === 'landscape' ? 'Horizontal' : 'Vertical'}
                     </p>
                  </div>
@@ -2380,6 +2409,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
                        className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
                     >
                        <option value="active" className="text-black">Clientes Ativos</option>
+                       <option value={ClientStatus.LEAD} className="text-black">Fase: Lead</option>
+                       <option value={ClientStatus.COLD} className="text-black">Fase: Ligação</option>
+                       <option value={ClientStatus.WARM} className="text-black">Fase: Agendamento</option>
+                       <option value={ClientStatus.PROPOSAL} className="text-black">Fase: Proposta</option>
+                       <option value={ClientStatus.HOT} className="text-black">Fase: Apresentação</option>
+                       <option value={ClientStatus.WON} className="text-black">Fase: Ganho</option>
                        <option value="blocked" className="text-black">Clientes Bloqueados</option>
                        <option value="all" className="text-black">Todos (Ativos + Bloq)</option>
                     </select>
