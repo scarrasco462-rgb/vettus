@@ -29,6 +29,61 @@ function getAI() {
   return aiInstance;
 }
 
+// Formata erros do SDK Gemini em mensagens amigáveis em português
+function formatGeminiError(err: any): { status: number; message: string; code: string } {
+  const errMsg = err?.message || '';
+  const errStr = String(err);
+  
+  if (
+    errStr.includes('429') || 
+    errMsg.includes('429') || 
+    errStr.toLowerCase().includes('quota') || 
+    errMsg.toLowerCase().includes('quota') || 
+    errStr.includes('RESOURCE_EXHAUSTED') || 
+    errMsg.includes('RESOURCE_EXHAUSTED')
+  ) {
+    return {
+      status: 429,
+      code: 'QUOTA_EXCEEDED',
+      message: 'A cota de requisições de Inteligência Artificial foi excedida para esta chave do Gemini. Por favor, configure uma chave API paga no painel Settings do AI Studio ou aguarde um pouco para novas consultas.'
+    };
+  }
+  
+  if (
+    errStr.toLowerCase().includes('api key') || 
+    errMsg.toLowerCase().includes('api key') || 
+    errStr.includes('API_KEY') || 
+    errMsg.includes('API_KEY') ||
+    errStr.includes('key is required') ||
+    errMsg.includes('key is required')
+  ) {
+    return {
+      status: 401,
+      code: 'INVALID_API_KEY',
+      message: 'Chave de API do Gemini não configurada ou inválida no servidor. Por favor, configure uma chave de API válida no painel Settings do AI Studio.'
+    };
+  }
+
+  if (
+    errStr.toLowerCase().includes('blocked') || 
+    errMsg.toLowerCase().includes('blocked') || 
+    errStr.toLowerCase().includes('safety') || 
+    errMsg.toLowerCase().includes('safety')
+  ) {
+    return {
+      status: 400,
+      code: 'SAFETY_BLOCKED',
+      message: 'O conteúdo solicitado foi bloqueado pelos filtros de segurança automáticos da Inteligência Artificial. Por favor, tente reformular a requisição.'
+    };
+  }
+  
+  return {
+    status: 500,
+    code: 'AI_ERROR',
+    message: errMsg || 'Ocorreu um erro ao processar a requisição de Inteligência Artificial.'
+  };
+}
+
 // API: Gemini suggestions
 app.post('/api/gemini/suggestions', async (req, res) => {
   const { prompt } = req.body || {};
@@ -47,7 +102,8 @@ app.post('/api/gemini/suggestions', async (req, res) => {
     res.json({ text: response.text || "Sem sugestões no momento." });
   } catch (err: any) {
     console.error('Erro em suggestions:', err);
-    res.status(500).json({ error: err.message || 'Erro ao gerar conteúdo' });
+    const formatted = formatGeminiError(err);
+    res.status(formatted.status).json({ error: formatted.message, code: formatted.code });
   }
 });
 
@@ -72,7 +128,8 @@ app.post('/api/gemini/extract-property', async (req, res) => {
     res.json(JSON.parse(jsonStr));
   } catch (err: any) {
     console.error('Erro em extract-property:', err);
-    res.status(500).json({ error: err.message || 'Erro ao extrair imóvel' });
+    const formatted = formatGeminiError(err);
+    res.status(formatted.status).json({ error: formatted.message, code: formatted.code });
   }
 });
 
@@ -118,7 +175,8 @@ app.post('/api/gemini/edit-image', async (req, res) => {
     throw new Error('A IA não retornou uma imagem editada');
   } catch (err: any) {
     console.error('Erro em edit-image:', err);
-    res.status(500).json({ error: err.message || 'Erro ao editar imagem' });
+    const formatted = formatGeminiError(err);
+    res.status(formatted.status).json({ error: formatted.message, code: formatted.code });
   }
 });
 

@@ -62,6 +62,7 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingImages, setProcessingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -293,6 +294,7 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
   const handleExtract = async () => {
     if (!url) return;
     setLoading(true);
+    setExtractError(null);
     try {
       const data: any = await extractPropertyFromUrl(url);
       if (data && typeof data === 'object') {
@@ -306,8 +308,9 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
         if ('rentPrice' in data) setDisplayRentPrice(formatCurrencyBRL(data.rentPrice));
         setCurrentStep(2);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro na extração:", error);
+      setExtractError(error.message || "Não foi possível extrair os dados do imóvel. Verifique o link e tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -464,6 +467,12 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                         <span>Extrair</span>
                       </button>
                     </div>
+                    {extractError && (
+                      <p className="text-[10px] text-red-500 font-bold leading-relaxed bg-red-50/50 p-2.5 rounded-lg border border-red-100 mt-2 flex items-start space-x-1.5 animate-in fade-in duration-300">
+                        <span>●</span>
+                        <span>{extractError}</span>
+                      </p>
+                    )}
                   </div>
                  )}
 

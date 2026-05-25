@@ -11,13 +11,20 @@ export const getAISuggestions = async (prompt: string): Promise<string> => {
       body: JSON.stringify({ prompt }),
     });
     if (!response.ok) {
-      throw new Error(`Erro na resposta do servidor: ${response.status}`);
+      let apiError = `Erro na resposta do servidor: ${response.status}`;
+      try {
+        const errData = await response.json();
+        if (errData && errData.error) {
+          apiError = errData.error;
+        }
+      } catch (inner) {}
+      throw new Error(apiError);
     }
     const data = await response.json();
     return data.text || "Sem sugestões no momento.";
   } catch (error: any) {
     console.error("AI Error:", error);
-    return "O assistente de IA está temporariamente ocupado. Por favor, tente novamente em instantes.";
+    return `IA temporariamente indisponível: ${error.message || 'Erro desconhecido'}`;
   }
 };
 
@@ -29,7 +36,14 @@ export const extractPropertyFromUrl = async (url: string): Promise<any> => {
       body: JSON.stringify({ url }),
     });
     if (!response.ok) {
-      throw new Error(`Erro na resposta do servidor: ${response.status}`);
+      let apiError = `Erro na resposta do servidor: ${response.status}`;
+      try {
+        const errData = await response.json();
+        if (errData && errData.error) {
+          apiError = errData.error;
+        }
+      } catch (inner) {}
+      throw new Error(apiError);
     }
     return await response.json();
   } catch (error: any) {
@@ -46,7 +60,14 @@ export const editImageWithAI = async (base64Image: string, prompt: string): Prom
       body: JSON.stringify({ base64Image, prompt }),
     });
     if (!response.ok) {
-      throw new Error(`Erro na resposta do servidor: ${response.status}`);
+      let apiError = `Erro na resposta do servidor: ${response.status}`;
+      try {
+        const errData = await response.json();
+        if (errData && errData.error) {
+          apiError = errData.error;
+        }
+      } catch (inner) {}
+      throw new Error(apiError);
     }
     const data = await response.json();
     return data.image;

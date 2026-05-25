@@ -861,12 +861,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
   }, [filteredClients]);
 
   const spreadsheetLeads = useMemo(() => {
+    const selectedBroker = brokers.find(b => b.id === spreadsheetBrokerFilter);
+    const brokerName = selectedBroker?.name.toLowerCase().trim();
+
     return clients.filter(c => 
       !c.deleted && 
       (spreadsheetSubTab === 'active' ? !c.blocked : c.blocked) &&
-      (spreadsheetBrokerFilter === 'all' || c.brokerId === spreadsheetBrokerFilter)
+      (spreadsheetBrokerFilter === 'all' || 
+       c.brokerId === spreadsheetBrokerFilter || 
+       (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName))
     ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }, [clients, spreadsheetSubTab, spreadsheetBrokerFilter]);
+  }, [clients, spreadsheetSubTab, spreadsheetBrokerFilter, brokers]);
 
   const spreadsheetGroups = useMemo(() => {
     const groups: Record<string, { id: string, name: string, count: number, date: string }> = {};
@@ -885,6 +890,9 @@ export const ClientView: React.FC<ClientViewProps> = ({
   }, [spreadsheetLeads]);
 
   const printLeads = useMemo(() => {
+    const selectedBroker = brokers.find(b => b.id === printBrokerFilter);
+    const brokerName = selectedBroker?.name.toLowerCase().trim();
+
     return clients.filter(c => {
       if (c.deleted) return false;
       
@@ -893,7 +901,10 @@ export const ClientView: React.FC<ClientViewProps> = ({
       const canSee = isAdmin || isAssigned;
       if (!canSee) return false;
 
-      const matchesBroker = printBrokerFilter === 'all' || c.brokerId === printBrokerFilter;
+      const matchesBroker = printBrokerFilter === 'all' || 
+        c.brokerId === printBrokerFilter ||
+        (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName);
+
       const matchesStatus = 
         printStatusFilter === 'all' || 
         (printStatusFilter === 'active' && !c.blocked) || 
@@ -901,7 +912,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         
       return matchesBroker && matchesStatus;
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, printBrokerFilter, printStatusFilter, isAdmin, currentUser]);
+  }, [clients, printBrokerFilter, printStatusFilter, isAdmin, currentUser, brokers]);
 
   const duplicateInfo = useMemo(() => {
     const phoneMap = new Map<string, string[]>();

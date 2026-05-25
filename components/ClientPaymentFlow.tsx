@@ -9,7 +9,7 @@ import {
   ArrowDownWideNarrow, Zap, ChevronDown, ChevronUp, AlertCircle,
   Star, Printer
 } from 'lucide-react';
-import { Commission, Broker, Client, PaymentProposal, Property, LaunchProject } from '../types.ts';
+import { Commission, Broker, Client, PaymentProposal, Property, LaunchProject, ConstructionCompany } from '../types.ts';
 import * as XLSX from 'xlsx';
 
 interface ClientPaymentFlowProps {
@@ -18,6 +18,7 @@ interface ClientPaymentFlowProps {
   clients: Client[];
   properties: Property[];
   launches: LaunchProject[];
+  companies?: ConstructionCompany[];
   currentUser?: Broker;
   onUpdateSale?: (sale: Commission) => void;
   onAddSale?: (sale: Commission) => void;
@@ -58,10 +59,45 @@ const parseCurrencyToNumber = (value: string): number => {
 };
 
 export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({ 
-  commissions, brokers, clients, properties, launches, currentUser, onUpdateSale, onAddSale, onDeleteSale,
+  commissions, brokers, clients, properties, launches, companies = [], currentUser, onUpdateSale, onAddSale, onDeleteSale,
   preselectedClientId, preselectedTab, onClearPreselection
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry'>('spreadsheet');
+
+  const getCommissionRulesForProject = (propertyTitle: string) => {
+    // 1. Encontrar o empreendimento (Propriedade ou Lançamento)
+    const propertyMatch = properties.find(p => p.projectName === propertyTitle || p.title === propertyTitle);
+    const launchMatch = launches.find(l => l.name === propertyTitle);
+    
+    let builderName = '';
+    if (propertyMatch && propertyMatch.constructionCompany) {
+      builderName = propertyMatch.constructionCompany;
+    } else if (launchMatch && launchMatch.builder) {
+      builderName = launchMatch.builder;
+    }
+    
+    // 2. Encontrar a construtora
+    const company = (companies || []).find(
+      c => c.name.toLowerCase().trim() === builderName.toLowerCase().trim()
+    );
+    
+    if (company) {
+      return {
+        commissionRate: company.commissionRate,
+        brokerPercent: company.brokerPercent,
+        agencyPercent: company.agencyPercent,
+        hasCompany: true
+      };
+    }
+    
+    // Fallback padrão se não encontrar construtora correspondente (6% com split de 60/40)
+    return {
+      commissionRate: 0.06,
+      brokerPercent: 0.06 * 0.4, // 2.4% do VGV total
+      agencyPercent: 0.06 * 0.6, // 3.6% do VGV total
+      hasCompany: false
+    };
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [selectedInstallmentIndices, setSelectedInstallmentIndices] = useState<number[]>([]);
@@ -172,7 +208,19 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
   const handleUpdateMainField = (sale: Commission, field: string, val: any) => {
     if (!onUpdateSale) return;
-    onUpdateSale({ ...sale, [field]: val, updatedAt: new Date().toISOString() });
+    const updatedSale = { ...sale, [field]: val, updatedAt: new Date().toISOString() };
+    
+    if (field === 'salePrice' || field === 'propertyTitle') {
+      const currentTitle = field === 'propertyTitle' ? val : sale.propertyTitle;
+      const currentPrice = field === 'salePrice' ? val : (sale.salePrice || 0);
+      
+      const rules = getCommissionRulesForProject(currentTitle);
+      updatedSale.amount = currentPrice * rules.commissionRate;
+      updatedSale.brokerAmount = currentPrice * rules.brokerPercent;
+      updatedSale.agencyAmount = currentPrice * rules.agencyPercent;
+    }
+    
+    onUpdateSale(updatedSale);
   };
 
   const handleBatchUpdateInstallments = (sale: Commission) => {
@@ -505,6 +553,8 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     if (!onAddSale) return;
 
     const salePriceNum = parseCurrencyToNumber(formEntry.salePrice);
+    const rules = getCommissionRulesForProject(formEntry.propertyTitle || '');
+
     const newSale: Commission = {
       id: Math.random().toString(36).substr(2, 9),
       brokerId: formEntry.brokerId,
@@ -512,9 +562,9 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       clientName: formEntry.clientName || 'Não Informado',
       unitNumber: formEntry.unitNumber,
       salePrice: salePriceNum,
-      amount: salePriceNum * 0.06, 
-      brokerAmount: (salePriceNum * 0.06) * 0.4,
-      agencyAmount: (salePriceNum * 0.06) * 0.6,
+      amount: salePriceNum * rules.commissionRate, 
+      brokerAmount: salePriceNum * rules.brokerPercent,
+      agencyAmount: salePriceNum * rules.agencyPercent,
       status: 'Pending',
       date: new Date().toISOString().split('T')[0],
       triggerDate: formEntry.triggerDate,
@@ -611,15 +661,15 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
               <table className="w-full text-left">
                 <thead className="bg-[#050810] text-white">
                   <tr>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#d4a853]">Contrato / Corretor</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em]">Empreendimento</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-right">VGV Total</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/5">Durante Obra</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center bg-white/10 text-emerald-400">Pós Obra</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Comissão Imob</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Comissão Corretor</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Data Gatilho</th>
-                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-center">Receb. Comissão</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-[#d4a853] min-w-[200px]">Contrato / Corretor</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider min-w-[150px]">Empreendimento</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-right min-w-[120px]">VGV Total</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center bg-white/5 min-w-[120px]">Durante Obra</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center bg-white/10 text-emerald-400 min-w-[120px]">Pós Obra</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[120px]">Comissão Imob</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[120px]">Comissão Corretor</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[100px]">Data Gatilho</th>
+                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[100px]">Receb. Comissão</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -633,21 +683,21 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                     return (
                       <React.Fragment key={sale.id}>
                         <tr className={`hover:bg-slate-50 transition-all ${isExpanded ? 'bg-[#d4a853]/5' : idx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'}`}>
-                          <td className="px-8 py-6">
-                             <div className="flex items-center space-x-4">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5">
+                             <div className="flex items-center space-x-2">
                                 <button 
                                   onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)} 
-                                  className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center shadow-sm ${isExpanded ? 'bg-[#050810] text-[#d4a853]' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900'}`}
+                                  className={`w-8 h-8 rounded-lg transition-all flex items-center justify-center shadow-sm ${isExpanded ? 'bg-[#050810] text-[#d4a853]' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900'}`}
                                   title={isExpanded ? "Fechar Edição" : "Editar Fluxo"}
                                 >
-                                   {isExpanded ? <ChevronUp size={18} /> : <Edit3 size={18} />}
+                                   {isExpanded ? <ChevronUp size={14} /> : <Edit3 size={14} />}
                                 </button>
                                 <button 
                                   onClick={() => onUpdateSale?.({...sale, isGanho: !sale.isGanho, updatedAt: new Date().toISOString()})}
-                                  className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center shadow-sm border ${sale.isGanho ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500'}`}
+                                  className={`w-8 h-8 rounded-lg transition-all flex items-center justify-center shadow-sm border ${sale.isGanho ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500'}`}
                                   title={sale.isGanho ? "Remover de Ganhos" : "Marcar como Ganho (Computar no VGV)"}
                                 >
-                                   <CheckCircle size={16} />
+                                   <CheckCircle size={13} />
                                 </button>
                                 {currentUser?.role === 'Admin' && (
                                   <button 
@@ -655,74 +705,74 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                       e.stopPropagation();
                                       handleDeleteEntry(sale.id);
                                     }} 
-                                    className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm border border-red-100"
+                                    className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all shadow-sm border border-red-100"
                                     title="Excluir Fluxo"
                                   >
-                                     <Trash2 size={16} />
+                                     <Trash2 size={13} />
                                   </button>
                                 )}
-                                <div>
-                                   <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{sale.clientName}</p>
-                                   <div className="flex items-center space-x-2 mt-0.5">
-                                      <span className="text-[9px] text-[#d4a853] font-black uppercase bg-[#050810] px-2 py-0.5 rounded shadow-sm">{getBrokerName(sale.brokerId)}</span>
+                                <div className="pl-1">
+                                   <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{sale.clientName}</p>
+                                   <div className="flex items-center mt-0.5">
+                                      <span className="text-[8px] text-[#d4a853] font-black uppercase bg-[#050810] px-1.5 py-0.5 rounded shadow-sm">{getBrokerName(sale.brokerId)}</span>
                                    </div>
                                 </div>
                              </div>
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5">
                              <div className="flex flex-col">
-                                <span className="text-xs font-black text-slate-700 uppercase tracking-tighter">{sale.propertyTitle}</span>
-                                <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">UND: {sale.unitNumber || 'TBD'}</span>
+                                <span className="text-[11px] md:text-xs font-black text-slate-700 uppercase tracking-tighter">{sale.propertyTitle}</span>
+                                <span className="text-[8px] text-slate-500 font-black uppercase mt-0.5">UND: {sale.unitNumber || 'TBD'}</span>
                              </div>
                           </td>
-                          <td className="px-8 py-6 text-right">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-right">
                              <div className="inline-block relative group/cell">
                                 <input 
                                   type="text" 
                                   defaultValue={formatNumberToInputBRL(total)}
                                   onBlur={(e) => handleUpdateMainField(sale, 'salePrice', parseCurrencyToNumber(e.target.value))}
-                                  className="w-36 bg-white border border-slate-100 group-hover/cell:border-[#d4a853] text-right text-[13px] font-black text-slate-900 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-xl px-3 py-2 transition-all shadow-sm"
+                                  className="w-28 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-xs font-black text-slate-900 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1.5 transition-all shadow-sm"
                                 />
-                                <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-300 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
+                                <DollarSign className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-slate-300 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
                              </div>
                           </td>
-                          <td className="px-8 py-6 text-center bg-amber-50/50">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-center bg-amber-50/30">
                              <div className="flex flex-col items-center">
-                                <span className="text-[13px] font-black text-[#8a6d3b]">{formatCurrency(duringVal)}</span>
-                                <span className="text-[8px] font-black text-[#8a6d3b]/60 uppercase mt-1 tracking-widest">Integralizado</span>
+                                <span className="text-xs font-black text-[#8a6d3b]">{formatCurrency(duringVal)}</span>
+                                <span className="text-[8px] font-black text-[#8a6d3b]/60 uppercase mt-0.5 tracking-wider">Integralizado</span>
                              </div>
                           </td>
-                          <td className="px-8 py-6 text-center bg-emerald-50/50">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-center bg-emerald-50/30">
                              <div className="flex flex-col items-center">
-                                <span className="text-[13px] font-black text-emerald-700">{formatCurrency(postVal)}</span>
-                                <span className="text-[8px] font-black text-emerald-700/60 uppercase mt-1 tracking-widest">Financiamento</span>
+                                <span className="text-xs font-black text-emerald-700">{formatCurrency(postVal)}</span>
+                                <span className="text-[8px] font-black text-emerald-700/60 uppercase mt-0.5 tracking-wider">Financiamento</span>
                              </div>
                           </td>
-                          <td className="px-8 py-6 text-center">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
                              <div className="inline-block relative group/cell">
                                 <input 
                                   type="text" 
-                                  defaultValue={formatNumberToInputBRL(sale.agencyAmount !== undefined ? sale.agencyAmount : (sale.salePrice ? (sale.salePrice * 0.06 * 0.6) : 0))}
+                                  defaultValue={formatNumberToInputBRL(sale.agencyAmount !== undefined ? sale.agencyAmount : (sale.salePrice ? (sale.salePrice * getCommissionRulesForProject(sale.propertyTitle || '').agencyPercent) : 0))}
                                   onBlur={(e) => handleUpdateMainField(sale, 'agencyAmount', parseCurrencyToNumber(e.target.value))}
-                                  className="w-28 bg-white border border-slate-100 group-hover/cell:border-[#d4a853] text-right text-[12px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-xl px-2.5 py-1.5 transition-all shadow-sm"
+                                  className="w-24 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-[11px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1 transition-all shadow-sm"
                                 />
                              </div>
                           </td>
-                          <td className="px-8 py-6 text-center">
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
                              <div className="inline-block relative group/cell">
                                 <input 
                                   type="text" 
-                                  defaultValue={formatNumberToInputBRL(sale.brokerAmount !== undefined ? sale.brokerAmount : (sale.salePrice ? (sale.salePrice * 0.06 * 0.4) : 0))}
+                                  defaultValue={formatNumberToInputBRL(sale.brokerAmount !== undefined ? sale.brokerAmount : (sale.salePrice ? (sale.salePrice * getCommissionRulesForProject(sale.propertyTitle || '').brokerPercent) : 0))}
                                   onBlur={(e) => handleUpdateMainField(sale, 'brokerAmount', parseCurrencyToNumber(e.target.value))}
-                                  className="w-28 bg-white border border-slate-100 group-hover/cell:border-[#d4a853] text-right text-[12px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-xl px-2.5 py-1.5 transition-all shadow-sm"
+                                  className="w-24 bg-white border border-slate-200 group-hover/cell:border-[#d4a853] text-right text-[11px] font-black text-slate-800 outline-none focus:ring-4 focus:ring-[#d4a853]/10 rounded-lg px-2 py-1 transition-all shadow-sm"
                                 />
                              </div>
                           </td>
-                          <td className="px-8 py-6 text-center">
-                             <span className="text-xs font-bold text-slate-600">{sale.triggerDate ? new Date(sale.triggerDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
+                             <span className="text-[11px] font-bold text-slate-600">{sale.triggerDate ? new Date(sale.triggerDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
                           </td>
-                          <td className="px-8 py-6 text-center">
-                             <span className="text-xs font-bold text-slate-600">{sale.commissionReceiptDate ? new Date(sale.commissionReceiptDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                          <td className="px-4 py-3 md:px-5 md:py-3.5 text-center">
+                             <span className="text-[11px] font-bold text-slate-600">{sale.commissionReceiptDate ? new Date(sale.commissionReceiptDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
                           </td>
                         </tr>
 

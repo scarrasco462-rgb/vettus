@@ -143,7 +143,7 @@ const App: React.FC = () => {
            
            if (isQuotaError && k === 'activities') {
               console.warn('Kernel Storage: Limpando logs antigos para liberar espaço...');
-              setActivities(prev => prev.slice(0, 50)); 
+              setActivities(prev => { if (prev.length <= 50) return prev; return prev.slice(0, 50); }) 
            }
         }
       }
@@ -580,7 +580,6 @@ const App: React.FC = () => {
 
     if (hasChanges) {
       if (isInternalUpdateRef.current) {
-        isInternalUpdateRef.current = false;
         return;
       }
 
@@ -1173,6 +1172,7 @@ const App: React.FC = () => {
           clients={clients.filter(c => !c.deleted)}
           properties={properties.filter(p => !p.deleted)}
           launches={launches}
+          companies={constructionCompanies}
           currentUser={currentUser}
           onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? {...s, updatedAt: new Date().toISOString()} : x))}
           onAddSale={s => setCommissions(v => [{...s, updatedAt: new Date().toISOString()}, ...v])}
