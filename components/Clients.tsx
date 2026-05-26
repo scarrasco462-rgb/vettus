@@ -743,6 +743,11 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const filteredClients = useMemo(() => {
     let filtered = clients;
     
+    // Filtro básico de excluídos (remoção de soft delete por padrão), a não ser que o filtro de Status seja explicitamente 'Excluído'
+    if (selectedStatusFilter !== 'Excluído') {
+      filtered = filtered.filter(c => !c.deleted);
+    }
+    
     // Filtro de Corretor
     if (isAdmin && selectedBrokerFilter !== 'all') {
       const selectedBroker = brokers.find(b => b.id === selectedBrokerFilter);
