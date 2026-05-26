@@ -8,40 +8,44 @@ body {
 }
 
 @media print {
-  body {
-    background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  /* Force system/browser to render in light mode */
+  html, body {
+    color-scheme: light !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
   }
-  
-  * {
+
+  /* Strip all shadows, text-shadows, transforms, filters and animations from every element to guarantee elite sharpness */
+  *, *::before, *::after {
     box-shadow: none !important;
     text-shadow: none !important;
     filter: none !important;
+    -webkit-filter: none !important;
     backdrop-filter: none !important;
-  }
-
-  /* Force all entry animated elements and transition wrappers to be fully visible in print */
-  [class*="animate-"], [class*="transition-"], .animate-in, .fade-in, .slide-in-from-bottom {
+    -webkit-backdrop-filter: none !important;
     animation: none !important;
     transition: none !important;
-    opacity: 1 !important;
     transform: none !important;
   }
 
-  .print-hidden, .no-print, header, aside, button, .gold-gradient {
+  /* Hide UI elements */
+  .print-hidden, .no-print, header, aside, button, .gold-gradient, nav {
     display: none !important;
   }
 
+  /* Force display of printed elements */
   .print-only {
     display: block !important;
   }
 
-  /* Make sure the main layout fits exactly without sidebar margins */
-  html, body, #root, main, .print-container {
-    background: white !important;
-    color: black !important;
+  /* Fit structure cleanly on printable sheets */
+  #root, main, .print-container {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     overflow: visible !important;
     height: auto !important;
     min-height: auto !important;
@@ -51,7 +55,6 @@ body {
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
-    box-shadow: none !important;
   }
 
   .print-container {
@@ -59,41 +62,33 @@ body {
     visibility: visible !important;
   }
 
-  .print-container * {
-    opacity: 1 !important;
-    visibility: visible !important;
-    transform: none !important;
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .print-card {
-    background: white !important;
-    border: 1pt solid #000 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
+  /* Clean up tables, cells and borders */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    border: 1pt solid #000 !important;
+    border: 1.5pt solid #000000 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
   }
 
   th, td {
-    border: 0.5pt solid #000 !important;
-    color: black !important;
-    padding: 5pt !important;
-    background: white !important;
+    border: 1pt solid #000000 !important;
+    padding: 6pt !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    opacity: 1 !important;
   }
 
   th {
     background-color: #f1f5f9 !important;
+    background: #f1f5f9 !important;
+    color: #000000 !important;
     font-weight: bold !important;
     text-transform: uppercase !important;
   }
 
+  /* Set printing page margins */
   @page {
-    margin: 1cm;
+    margin: 1.2cm !important;
   }
 }
