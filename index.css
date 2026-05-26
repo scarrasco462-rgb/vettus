@@ -8,17 +8,54 @@ body {
 }
 
 @media print {
-  /* Force system/browser to render in light mode */
+  /* Establish clean page margins and layout */
+  @page {
+    margin: 1.2cm !important;
+  }
+
+  /* Core resets - ensure light color scheme and simple block layout */
   html, body {
     color-scheme: light !important;
     background: #ffffff !important;
     background-color: #ffffff !important;
     color: #000000 !important;
-    -webkit-print-color-adjust: economy !important;
-    print-color-adjust: economy !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Strip all shadows, text-shadows, filters, etc. from every element to guarantee elite sharpness */
+  /* Reset all potential container parents to natural block structure so height is auto and overflow is visible */
+  #root,
+  #root > div,
+  main,
+  main > div,
+  main > div > div,
+  .print-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  /* Stripping all shadows, filters, borders from overall containers */
   *, *::before, *::after {
     box-shadow: none !important;
     text-shadow: none !important;
@@ -28,8 +65,26 @@ body {
     -webkit-backdrop-filter: none !important;
   }
 
-  /* Force all entry animated/transitioned elements or print containers to be fully opaque and visible */
-  [class*="animate-"], [class*="transition-"], .animate-in, .fade-in, .slide-in-from-bottom, .print-container, .print-container * {
+  /* Hide headers, menus, panels, sidebars, buttons, etc. */
+  header, 
+  aside, 
+  button, 
+  nav, 
+  footer,
+  .no-print, 
+  .print-hidden, 
+  .gold-gradient, 
+  [role="dialog"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure all wrappers are visible and do not hide contents or freeze opacity at 0 */
+  [class*="animate-"], 
+  [class*="transition-"], 
+  .animate-in, 
+  .fade-in, 
+  .slide-in-from-bottom {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -37,7 +92,7 @@ body {
     visibility: visible !important;
   }
 
-  /* Force all general text elements inside the printable container to render in crisp black */
+  /* Force all general text elements inside print-container to be visible and crisp black */
   .print-container,
   .print-container div,
   .print-container span,
@@ -47,15 +102,18 @@ body {
   .print-container h3,
   .print-container table,
   .print-container tr,
-  .print-container td {
+  .print-container td,
+  .print-container th {
     color: #000000 !important;
     background-color: transparent !important;
     background: transparent !important;
+    opacity: 1 !important;
+    visibility: visible !important;
     --tw-text-opacity: 1 !important;
     text-shadow: none !important;
   }
 
-  /* Explicitly handle preserved color accents like statuses */
+  /* Specific high-contrast overrides for status tags inside print-container */
   .print-container .text-emerald-600,
   .print-container [class*="text-emerald-600"],
   .print-container span[class*="text-emerald-600"] {
@@ -68,64 +126,34 @@ body {
     color: #b91c1c !important; /* Proper high-contrast red */
   }
 
-  /* Hide UI elements */
-  .print-hidden, .no-print, header, aside, button, .gold-gradient, nav {
-    display: none !important;
-  }
-
-  /* Force display of printed elements */
-  .print-only {
-    display: block !important;
-  }
-
-  /* Fit structure cleanly on printable sheets */
-  #root, main, .print-container {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    overflow: visible !important;
-    height: auto !important;
-    min-height: auto !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    display: block !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* Clean up tables, cells and borders */
-  table, .print-container table {
+  /* Strict table border structure for print */
+  .print-container table {
     width: 100% !important;
     border-collapse: collapse !important;
     border: 1.5pt solid #000000 !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
     color: #000000 !important;
+    margin-top: 10pt !important;
   }
 
-  th, td, .print-container th, .print-container td {
+  .print-container th, 
+  .print-container td {
     border: 1pt solid #000000 !important;
     padding: 6pt !important;
     opacity: 1 !important;
+    visibility: visible !important;
   }
 
-  td, .print-container td {
+  .print-container td {
     background-color: #ffffff !important;
     background: #ffffff !important;
-    color: #000000 !important;
   }
 
-  th, .print-container th {
+  .print-container th {
     background-color: #e2e8f0 !important;
     background: #e2e8f0 !important;
-    color: #000000 !important;
     font-weight: bold !important;
     text-transform: uppercase !important;
-  }
-
-  /* Set printing page margins */
-  @page {
-    margin: 1.2cm !important;
   }
 }
