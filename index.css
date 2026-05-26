@@ -13,7 +13,7 @@ body {
     margin: 1.2cm !important;
   }
 
-  /* Core resets - ensure light color scheme and simple block layout */
+  /* Core resets - force system browser to render in pure light layout */
   html, body {
     color-scheme: light !important;
     background: #ffffff !important;
@@ -29,12 +29,45 @@ body {
     print-color-adjust: exact !important;
   }
 
-  /* Reset all potential container parents to natural block structure so height is auto and overflow is visible */
+  /* Hide all generic fixed/absolute backdrop overlays, dialogs, alerts, sidebar panels, and interactive controls */
+  header, 
+  aside, 
+  button, 
+  nav, 
+  footer,
+  .no-print, 
+  .print-hidden, 
+  .gold-gradient, 
+  [role="dialog"],
+  .fixed,
+  .absolute,
+  [class*="backdrop-"],
+  [class*="bg-black/"],
+  [class*="bg-slate-900/"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  /* Stripping all conceivable drop shadows, text shadows, filters which render as dark smudges or shades */
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Ensure all layout wrapper structures are completely flat, visible, and white */
   #root,
   #root > div,
   main,
   main > div,
-  main > div > div,
+  main div,
   .print-container {
     display: block !important;
     position: static !important;
@@ -50,93 +83,45 @@ body {
     color: #000000 !important;
     opacity: 1 !important;
     visibility: visible !important;
-    transform: none !important;
-    box-shadow: none !important;
-    animation: none !important;
   }
 
-  /* Stripping all shadows, filters, borders from overall containers */
-  *, *::before, *::after {
-    box-shadow: none !important;
-    text-shadow: none !important;
-    filter: none !important;
-    -webkit-filter: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* Hide headers, menus, panels, sidebars, buttons, etc. */
-  header, 
-  aside, 
-  button, 
-  nav, 
-  footer,
-  .no-print, 
-  .print-hidden, 
-  .gold-gradient, 
-  [role="dialog"] {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
-  /* Ensure all wrappers are visible and do not hide contents or freeze opacity at 0 */
-  [class*="animate-"], 
-  [class*="transition-"], 
-  .animate-in, 
-  .fade-in, 
-  .slide-in-from-bottom {
-    animation: none !important;
-    transition: none !important;
-    transform: none !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  /* Force all general text elements inside print-container to be visible and crisp black */
-  .print-container,
-  .print-container div,
-  .print-container span,
-  .print-container p,
-  .print-container h1,
-  .print-container h2,
-  .print-container h3,
-  .print-container table,
-  .print-container tr,
-  .print-container td,
-  .print-container th {
+  /* Core Wildcard Reset: Force absolute light theme rendering on every text and table-related element */
+  div, span, p, h1, h2, h3, h4, h5, h6, table, tbody, tr, td, th {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
     opacity: 1 !important;
     visibility: visible !important;
-    --tw-text-opacity: 1 !important;
     text-shadow: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    transition: none !important;
+    animation: none !important;
   }
 
-  /* Specific high-contrast overrides for status tags inside print-container */
-  .print-container .text-emerald-600,
-  .print-container [class*="text-emerald-600"],
-  .print-container span[class*="text-emerald-600"] {
-    color: #047857 !important; /* Proper high-contrast green */
+  /* Specific high-contrast overrides for status tags inside print container */
+  span.text-emerald-600,
+  span[class*="text-emerald-600"] {
+    color: #047857 !important; /* High contrast dark green */
     -webkit-text-fill-color: #047857 !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
     font-weight: bold !important;
   }
 
-  .print-container .text-red-600,
-  .print-container [class*="text-red-600"],
-  .print-container span[class*="text-red-600"] {
-    color: #b91c1c !important; /* Proper high-contrast red */
+  span.text-red-600,
+  span[class*="text-red-600"] {
+    color: #b91c1c !important; /* High contrast dark red */
     -webkit-text-fill-color: #b91c1c !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
     font-weight: bold !important;
   }
 
-  /* Strict table border structure for print */
-  .print-container table {
+  /* Clear, razor-sharp black table structure */
+  table {
     width: 100% !important;
     border-collapse: collapse !important;
     border: 1.5pt solid #000000 !important;
@@ -146,22 +131,16 @@ body {
     margin-top: 10pt !important;
   }
 
-  .print-container th, 
-  .print-container td {
+  th, td {
     border: 1pt solid #000000 !important;
     padding: 6pt !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
-  .print-container td {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-  }
-
-  .print-container th {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
+  th {
     font-weight: bold !important;
     text-transform: uppercase !important;
   }
