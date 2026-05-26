@@ -161,7 +161,38 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
 
   const confirmImport = () => {
     const importId = `import-${Date.now()}`;
-    const importName = file?.name || 'Importação Manual';
+    const originalName = file?.name || 'Importação Manual';
+    
+    // Procura por numeração de planilha existente
+    let nextNum = 1;
+    const existingImportIds = new Set<string>();
+    let maxPlanilhaNum = 0;
+    
+    if (allClients) {
+      allClients.forEach(c => {
+        if (c.importId) {
+          existingImportIds.add(c.importId);
+        }
+        if (c.importName && !c.deleted) {
+          const matchPlanilha = c.importName.match(/^Planilha\s+(\d+)/i);
+          if (matchPlanilha) {
+            const num = parseInt(matchPlanilha[1], 10);
+            if (num > maxPlanilhaNum) {
+              maxPlanilhaNum = num;
+            }
+          }
+        }
+      });
+      
+      if (maxPlanilhaNum > 0) {
+        nextNum = maxPlanilhaNum + 1;
+      } else {
+        nextNum = existingImportIds.size + 1;
+      }
+    }
+    
+    const planilhaLabel = `Planilha ${nextNum}`;
+    const importName = `${planilhaLabel} - ${originalName}`;
     
     const finalLeads: Client[] = previewLeads.map(lead => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -172,7 +203,7 @@ export const LeadImport: React.FC<LeadImportProps> = ({ onImportLeads, onUpdateL
       status: ClientStatus.LEAD, 
       lastContact: new Date().toISOString().split('T')[0],
       budget: lead.budget || 0,
-      assignedAgent: '',
+      assignedAgent: planilhaLabel,
       preference: lead.preference || '',
       importId,
       importName,
