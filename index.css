@@ -105,8 +105,9 @@ body {
   .print-container td,
   .print-container th {
     color: #000000 !important;
-    background-color: transparent !important;
-    background: transparent !important;
+    -webkit-text-fill-color: #000000 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
     opacity: 1 !important;
     visibility: visible !important;
     --tw-text-opacity: 1 !important;
@@ -118,12 +119,20 @@ body {
   .print-container [class*="text-emerald-600"],
   .print-container span[class*="text-emerald-600"] {
     color: #047857 !important; /* Proper high-contrast green */
+    -webkit-text-fill-color: #047857 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    font-weight: bold !important;
   }
 
   .print-container .text-red-600,
   .print-container [class*="text-red-600"],
   .print-container span[class*="text-red-600"] {
     color: #b91c1c !important; /* Proper high-contrast red */
+    -webkit-text-fill-color: #b91c1c !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    font-weight: bold !important;
   }
 
   /* Strict table border structure for print */
@@ -151,8 +160,8 @@ body {
   }
 
   .print-container th {
-    background-color: #e2e8f0 !important;
-    background: #e2e8f0 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
     font-weight: bold !important;
     text-transform: uppercase !important;
   }
