@@ -37,6 +37,37 @@ body {
     visibility: visible !important;
   }
 
+  /* Force all general text elements inside the printable container to render in crisp black */
+  .print-container,
+  .print-container div,
+  .print-container span,
+  .print-container p,
+  .print-container h1,
+  .print-container h2,
+  .print-container h3,
+  .print-container table,
+  .print-container tr,
+  .print-container td {
+    color: #000000 !important;
+    background-color: transparent !important;
+    background: transparent !important;
+    --tw-text-opacity: 1 !important;
+    text-shadow: none !important;
+  }
+
+  /* Explicitly handle preserved color accents like statuses */
+  .print-container .text-emerald-600,
+  .print-container [class*="text-emerald-600"],
+  .print-container span[class*="text-emerald-600"] {
+    color: #047857 !important; /* Proper high-contrast green */
+  }
+
+  .print-container .text-red-600,
+  .print-container [class*="text-red-600"],
+  .print-container span[class*="text-red-600"] {
+    color: #b91c1c !important; /* Proper high-contrast red */
+  }
+
   /* Hide UI elements */
   .print-hidden, .no-print, header, aside, button, .gold-gradient, nav {
     display: none !important;
@@ -64,25 +95,30 @@ body {
   }
 
   /* Clean up tables, cells and borders */
-  table {
+  table, .print-container table {
     width: 100% !important;
     border-collapse: collapse !important;
     border: 1.5pt solid #000000 !important;
     background-color: #ffffff !important;
+    background: #ffffff !important;
     color: #000000 !important;
   }
 
-  th, td {
+  th, td, .print-container th, .print-container td {
     border: 1pt solid #000000 !important;
     padding: 6pt !important;
-    background-color: #ffffff !important;
-    background: #ffffff !important;
     opacity: 1 !important;
   }
 
-  th {
-    background-color: #f1f5f9 !important;
-    background: #f1f5f9 !important;
+  td, .print-container td {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  th, .print-container th {
+    background-color: #e2e8f0 !important;
+    background: #e2e8f0 !important;
     color: #000000 !important;
     font-weight: bold !important;
     text-transform: uppercase !important;
