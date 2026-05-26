@@ -18,7 +18,7 @@ body {
     print-color-adjust: economy !important;
   }
 
-  /* Strip all shadows, text-shadows, transforms, filters and animations from every element to guarantee elite sharpness */
+  /* Strip all shadows, text-shadows, filters, etc. from every element to guarantee elite sharpness */
   *, *::before, *::after {
     box-shadow: none !important;
     text-shadow: none !important;
@@ -26,9 +26,15 @@ body {
     -webkit-filter: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+
+  /* Force all entry animated/transitioned elements or print containers to be fully opaque and visible */
+  [class*="animate-"], [class*="transition-"], .animate-in, .fade-in, .slide-in-from-bottom, .print-container, .print-container * {
     animation: none !important;
     transition: none !important;
     transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   /* Hide UI elements */
@@ -55,11 +61,6 @@ body {
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
-  }
-
-  .print-container {
-    opacity: 1 !important;
-    visibility: visible !important;
   }
 
   /* Clean up tables, cells and borders */
