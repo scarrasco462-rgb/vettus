@@ -82,7 +82,7 @@ interface LayoutProps {
   currentUser: Broker;
   onLogout: () => void;
   pendingRemindersCount: number;
-  syncStatus?: 'synced' | 'syncing' | 'disconnected';
+  syncStatus?: 'synced' | 'syncing' | 'disconnected' | 'connecting';
   onForceReconnect?: () => void;
   lastSaved?: string;
 }
@@ -204,12 +204,24 @@ export const Layout: React.FC<LayoutProps> = ({
         onClick={() => onForceReconnect?.()}
         className={`p-2 rounded-xl transition-all border border-white/5 flex items-center justify-center ${
           syncStatus === 'synced' ? 'text-[#d4a853] bg-[#d4a853]/5' : 
-          syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 
+          syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse bg-[#d4a853]/5' : 
+          syncStatus === 'connecting' ? 'text-[#d4a853] animate-pulse bg-[#d4a853]/5' : 
           'text-red-500 bg-red-500/5'
         }`}
-        title={syncStatus === 'synced' ? 'Conexão Estável' : syncStatus === 'syncing' ? 'Sincronizando...' : 'Offline - Clique para Resetar'}
+        title={
+          syncStatus === 'synced' ? 'Conexão Estável - Em Tempo Real' : 
+          syncStatus === 'syncing' ? 'Sincronizando Alterações...' : 
+          syncStatus === 'connecting' ? 'Reconectando Canal de Comunicação...' : 
+          'Conexão Oscilando - Clique para Forçar Re-sincronia'
+        }
       >
-        {syncStatus === 'synced' ? <Wifi size={16} /> : syncStatus === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> : <WifiOff size={16} />}
+        {syncStatus === 'synced' ? (
+          <Wifi size={16} />
+        ) : (syncStatus === 'syncing' || syncStatus === 'connecting') ? (
+          <RefreshCw size={16} className="animate-spin" />
+        ) : (
+          <WifiOff size={16} />
+        )}
       </button>
     </div>
   );
@@ -237,9 +249,20 @@ export const Layout: React.FC<LayoutProps> = ({
              </button>
              <button 
                 onClick={() => onForceReconnect?.()}
-                className={`p-2 rounded-xl transition-all ${syncStatus === 'synced' ? 'text-[#d4a853]' : syncStatus === 'syncing' ? 'text-[#d4a853] animate-pulse' : 'text-red-500'}`}
+                className={`p-2 rounded-xl transition-all ${
+                  syncStatus === 'synced' ? 'text-[#d4a853]' : 
+                  (syncStatus === 'syncing' || syncStatus === 'connecting') ? 'text-[#d4a853] animate-pulse' : 
+                  'text-red-500'
+                }`}
+                title="Sincronização"
              >
-                {syncStatus === 'synced' ? <Wifi size={18} /> : syncStatus === 'syncing' ? <RefreshCw size={18} className="animate-spin" /> : <WifiOff size={18} />}
+                {syncStatus === 'synced' ? (
+                  <Wifi size={18} />
+                ) : (syncStatus === 'syncing' || syncStatus === 'connecting') ? (
+                  <RefreshCw size={18} className="animate-spin" />
+                ) : (
+                  <WifiOff size={18} />
+                )}
              </button>
           </div>
         </div>

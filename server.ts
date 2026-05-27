@@ -265,12 +265,205 @@ app.post('/api/gemini/edit-image', async (req, res) => {
   }
 });
 
+// Helper para unificar corretores duplicados por e-mail e remapear referências
+function deduplicateAndUnifyBrokers(db: any): any {
+  if (!db || !Array.isArray(db.brokers)) return db;
+
+  const brokers: any[] = db.brokers;
+  const emailMap = new Map<string, any[]>();
+
+  // Agrupa corretores por e-mail (normalizado, minúsculo, sem espaços extras)
+  brokers.forEach(b => {
+    if (!b || !b.email) return;
+    const emailClean = b.email.toLowerCase().trim();
+    if (!emailMap.has(emailClean)) {
+      emailMap.set(emailClean, []);
+    }
+    emailMap.get(emailClean)!.push(b);
+  });
+
+  const unifiedBrokers: any[] = [];
+  const idRedirectionMap = new Map<string, string>(); // obsoleteId -> masterId
+  const masterIdToBrokerName = new Map<string, string>();
+
+  emailMap.forEach((group, email) => {
+    if (group.length === 1) {
+      unifiedBrokers.push(group[0]);
+      masterIdToBrokerName.set(group[0].id, group[0].name);
+      return;
+    }
+
+    // Se houver múltiplos cadastros para o mesmo e-mail, elege o "Master"
+    // Critérios para ordenação (o melhor/mais ativo fica em primeiro lugar [0]):
+    group.sort((a, b) => {
+      const aDel = a.deleted === true ? 1 : 0;
+      const bDel = b.deleted === true ? 1 : 0;
+      if (aDel !== bDel) return aDel - bDel; // Não deletados primeiro
+
+      const aBlocked = a.blocked === true ? 1 : 0;
+      const bBlocked = b.blocked === true ? 1 : 0;
+      if (aBlocked !== bBlocked) return aBlocked - bBlocked; // Não bloqueados primeiro
+
+      const aAdmin = a.role === 'Admin' ? 1 : 0;
+      const bAdmin = b.role === 'Admin' ? 1 : 0;
+      if (aAdmin !== bAdmin) return bAdmin - aAdmin; // Administrador primeiro
+
+      const aHasPass = a.password ? 1 : 0;
+      const bHasPass = b.password ? 1 : 0;
+      if (aHasPass !== bHasPass) return bHasPass - aHasPass; // Usuários com senha configurada primeiro
+
+      const aTime = new Date(a.updatedAt || a.joinDate || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.joinDate || 0).getTime();
+      return bTime - aTime; // Registro mais recentemente atualizado primeiro
+    });
+
+    const master = { ...group[0] };
+    
+    // Se o master escolhido estiver marcado como deletado por engano de merge antigo, restaura
+    if (master.deleted) {
+      const activeOne = group.find(item => !item.deleted);
+      if (activeOne) {
+        master.deleted = false;
+        if (activeOne.password) master.password = activeOne.password;
+        if (activeOne.role) master.role = activeOne.role;
+      }
+    }
+
+    // Mescla permissões e outras informações dos duplicados
+    group.forEach((dup, index) => {
+      if (index === 0) return;
+      
+      idRedirectionMap.set(dup.id, master.id);
+      
+      if (Array.isArray(dup.permissions) && Array.isArray(master.permissions)) {
+        master.permissions = Array.from(new Set([...master.permissions, ...dup.permissions]));
+      }
+
+      if (!master.password && dup.password) {
+        master.password = dup.password;
+      }
+
+      const dupTime = new Date(dup.updatedAt || 0).getTime();
+      const masterTime = new Date(master.updatedAt || 0).getTime();
+      if (dup.password && dupTime > masterTime) {
+        master.password = dup.password;
+      }
+    });
+
+    master.updatedAt = new Date().toISOString();
+    unifiedBrokers.push(master);
+    masterIdToBrokerName.set(master.id, master.name);
+  });
+
+  db.brokers = unifiedBrokers;
+
+  // Atualiza as referências em outras tabelas se houve alguma unificação
+  if (idRedirectionMap.size > 0) {
+    console.log(`[Deduplicador Central] Redirecionando ${idRedirectionMap.size} IDs obsoletos da equipe para seus respectivos cadastros unificados.`);
+
+    // 1. Clientes (Lead / Fila / Atendimento)
+    if (Array.isArray(db.clients)) {
+      db.clients = db.clients.map((c: any) => {
+        if (c && c.brokerId && idRedirectionMap.has(c.brokerId)) {
+          const newId = idRedirectionMap.get(c.brokerId)!;
+          const name = masterIdToBrokerName.get(newId) || c.assignedAgent;
+          return { ...c, brokerId: newId, assignedAgent: name, updatedAt: new Date().toISOString() };
+        }
+        return c;
+      });
+    }
+
+    // 2. Imóveis
+    if (Array.isArray(db.properties)) {
+      db.properties = db.properties.map((p: any) => {
+        if (p && p.brokerId && idRedirectionMap.has(p.brokerId)) {
+          const newId = idRedirectionMap.get(p.brokerId)!;
+          const name = masterIdToBrokerName.get(newId) || p.brokerName;
+          return { ...p, brokerId: newId, brokerName: name, updatedAt: new Date().toISOString() };
+        }
+        return p;
+      });
+    }
+
+    // 3. Atividades / Agenda de histórico
+    if (Array.isArray(db.activities)) {
+      db.activities = db.activities.map((a: any) => {
+        if (a && a.brokerId && idRedirectionMap.has(a.brokerId)) {
+          const newId = idRedirectionMap.get(a.brokerId)!;
+          const name = masterIdToBrokerName.get(newId) || a.brokerName;
+          return { ...a, brokerId: newId, brokerName: name, updatedAt: new Date().toISOString() };
+        }
+        return a;
+      });
+    }
+
+    // 4. Lembretes
+    if (Array.isArray(db.reminders)) {
+      db.reminders = db.reminders.map((r: any) => {
+        if (r && r.brokerId && idRedirectionMap.has(r.brokerId)) {
+          const newId = idRedirectionMap.get(r.brokerId)!;
+          const name = masterIdToBrokerName.get(newId) || r.brokerName;
+          return { ...r, brokerId: newId, brokerName: name, updatedAt: new Date().toISOString() };
+        }
+        return r;
+      });
+    }
+
+    // 5. Comissões / Fluxo de Vendas
+    if (Array.isArray(db.commissions)) {
+      db.commissions = db.commissions.map((c: any) => {
+        if (c && c.brokerId && idRedirectionMap.has(c.brokerId)) {
+          const newId = idRedirectionMap.get(c.brokerId)!;
+          return { ...c, brokerId: newId, updatedAt: new Date().toISOString() };
+        }
+        return c;
+      });
+    }
+
+    // 6. Despesas
+    if (Array.isArray(db.expenses)) {
+      db.expenses = db.expenses.map((e: any) => {
+        if (e && e.brokerId && idRedirectionMap.has(e.brokerId)) {
+          const newId = idRedirectionMap.get(e.brokerId)!;
+          return { ...e, brokerId: newId, updatedAt: new Date().toISOString() };
+        }
+        return e;
+      });
+    }
+
+    // 7. Contratos de Locação
+    if (Array.isArray(db.rentals)) {
+      db.rentals = db.rentals.map((r: any) => {
+        if (r && r.brokerId && idRedirectionMap.has(r.brokerId)) {
+          const newId = idRedirectionMap.get(r.brokerId)!;
+          return { ...r, brokerId: newId, updatedAt: new Date().toISOString() };
+        }
+        return r;
+      });
+    }
+  }
+
+  return db;
+}
+
 // Helper para ler o banco de dados
 function readDB(): any {
   try {
     if (fs.existsSync(DB_PATH)) {
       const data = fs.readFileSync(DB_PATH, 'utf-8');
-      return JSON.parse(data);
+      const db = JSON.parse(data);
+      
+      // Auto-reduplica corretores duplicados ao ler e executa migração automática caso necessário
+      const initialBrokersCount = (db.brokers || []).length;
+      const deduplicatedDB = deduplicateAndUnifyBrokers(db);
+      const finalBrokersCount = (deduplicatedDB.brokers || []).length;
+      
+      if (initialBrokersCount !== finalBrokersCount) {
+        console.log(`[Deduplicador Central] Unificação preventiva executada na inicialização (${initialBrokersCount} -> ${finalBrokersCount} corretores). Salvando base limpa...`);
+        writeDB(deduplicatedDB);
+      }
+      
+      return deduplicatedDB;
     }
   } catch (e) {
     console.error('Erro ao ler database.json:', e);
@@ -282,7 +475,8 @@ function readDB(): any {
 function writeDB(data: any) {
   const tempPath = DB_PATH + '.tmp';
   try {
-    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    const cleanData = deduplicateAndUnifyBrokers(data);
+    fs.writeFileSync(tempPath, JSON.stringify(cleanData, null, 2), 'utf-8');
     fs.renameSync(tempPath, DB_PATH);
   } catch (e) {
     console.error('Erro ao gravar database.json:', e);
@@ -422,7 +616,10 @@ app.get('/api/live-sync', (req, res) => {
   // Ping a cada 10 segundos para manter conexões Cloud Run ativas e prevenir timeout
   const pingInterval = setInterval(() => {
     try {
+      // 1. Envia o tick de comentário padrão para o proxy/nginx
       res.write(':\n\n');
+      // 2. Envia um evento explícito JSON PING para que o cliente monitorize a atividade real da rede
+      res.write(`data: ${JSON.stringify({ type: 'PING' })}\n\n`);
     } catch (_) {}
   }, 10000);
 

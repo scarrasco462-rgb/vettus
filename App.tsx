@@ -208,6 +208,180 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
+  const runDeduplication = useCallback(() => {
+    if (!brokers || brokers.length === 0) return false;
+
+    // Normalizar e agrupar por e-mail
+    const emailMap = new Map<string, Broker[]>();
+    brokers.forEach(b => {
+      if (!b || !b.email) return;
+      const emailClean = b.email.toLowerCase().trim();
+      if (!emailMap.has(emailClean)) {
+        emailMap.set(emailClean, []);
+      }
+      emailMap.get(emailClean)!.push(b);
+    });
+
+    let hasDuplicates = false;
+    emailMap.forEach(group => {
+      if (group.length > 1) {
+        hasDuplicates = true;
+      }
+    });
+
+    if (!hasDuplicates) return false;
+
+    const unifiedBrokers: Broker[] = [];
+    const idRedirectionMap = new Map<string, string>(); // obsoleteId -> masterId
+    const masterIdToBrokerName = new Map<string, string>();
+
+    emailMap.forEach((group) => {
+      if (group.length === 1) {
+        unifiedBrokers.push(group[0]);
+        masterIdToBrokerName.set(group[0].id, group[0].name);
+        return;
+      }
+
+      // Escolhe o master (melhor cadastro ativo)
+      group.sort((a, b) => {
+        const aDel = a.deleted === true ? 1 : 0;
+        const bDel = b.deleted === true ? 1 : 0;
+        if (aDel !== bDel) return aDel - bDel;
+
+        const aBlocked = a.blocked === true ? 1 : 0;
+        const bBlocked = b.blocked === true ? 1 : 0;
+        if (aBlocked !== bBlocked) return aBlocked - bBlocked;
+
+        const aAdmin = a.role === 'Admin' ? 1 : 0;
+        const bAdmin = b.role === 'Admin' ? 1 : 0;
+        if (aAdmin !== bAdmin) return bAdmin - aAdmin;
+
+        const aHasPass = a.password ? 1 : 0;
+        const bHasPass = b.password ? 1 : 0;
+        if (aHasPass !== bHasPass) return bHasPass - aHasPass;
+
+        const aTime = new Date(a.updatedAt || a.joinDate || 0).getTime();
+        const bTime = new Date(b.updatedAt || b.joinDate || 0).getTime();
+        return bTime - aTime;
+      });
+
+      const master = { ...group[0] };
+
+      if (master.deleted) {
+        const activeOne = group.find(item => !item.deleted);
+        if (activeOne) {
+          master.deleted = false;
+          if (activeOne.password) master.password = activeOne.password;
+          if (activeOne.role) master.role = activeOne.role;
+        }
+      }
+
+      group.forEach((dup, index) => {
+        if (index === 0) return;
+        idRedirectionMap.set(dup.id, master.id);
+
+        if (Array.isArray(dup.permissions) && Array.isArray(master.permissions)) {
+          master.permissions = Array.from(new Set([...master.permissions, ...dup.permissions]));
+        }
+
+        if (!master.password && dup.password) {
+          master.password = dup.password;
+        }
+
+        const dupTime = new Date(dup.updatedAt || 0).getTime();
+        const masterTime = new Date(master.updatedAt || 0).getTime();
+        if (dup.password && dupTime > masterTime) {
+          master.password = dup.password;
+        }
+      });
+
+      master.updatedAt = new Date().toISOString();
+      unifiedBrokers.push(master);
+      masterIdToBrokerName.set(master.id, master.name);
+    });
+
+    console.log(`[Deduplicador Cliente] Identificados e unificados corretores duplicados em tempo de execução (${brokers.length} -> ${unifiedBrokers.length}).`);
+
+    // Atualiza estados do React de forma atômica
+    setBrokers(unifiedBrokers);
+
+    setClients(prev => prev.map(c => {
+      if (c && c.brokerId && idRedirectionMap.has(c.brokerId)) {
+        const newId = idRedirectionMap.get(c.brokerId)!;
+        const name = masterIdToBrokerName.get(newId) || c.assignedAgent;
+        return { ...c, brokerId: newId, assignedAgent: name, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    }));
+
+    setProperties(prev => prev.map(p => {
+      if (p && p.brokerId && idRedirectionMap.has(p.brokerId)) {
+        const newId = idRedirectionMap.get(p.brokerId)!;
+        const name = masterIdToBrokerName.get(newId) || p.brokerName;
+        return { ...p, brokerId: newId, brokerName: name, updatedAt: new Date().toISOString() };
+      }
+      return p;
+    }));
+
+    setActivities(prev => prev.map(a => {
+      if (a && a.brokerId && idRedirectionMap.has(a.brokerId)) {
+        const newId = idRedirectionMap.get(a.brokerId)!;
+        const name = masterIdToBrokerName.get(newId) || a.brokerName;
+        return { ...a, brokerId: newId, brokerName: name, updatedAt: new Date().toISOString() };
+      }
+      return a;
+    }));
+
+    setReminders(prev => prev.map(r => {
+      if (r && r.brokerId && idRedirectionMap.has(r.brokerId)) {
+        const newId = idRedirectionMap.get(r.brokerId)!;
+        const name = masterIdToBrokerName.get(newId) || r.brokerName;
+        return { ...r, brokerId: newId, brokerName: name, updatedAt: new Date().toISOString() };
+      }
+      return r;
+    }));
+
+    setCommissions(prev => prev.map(c => {
+      if (c && c.brokerId && idRedirectionMap.has(c.brokerId)) {
+        const newId = idRedirectionMap.get(c.brokerId)!;
+        return { ...c, brokerId: newId, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    }));
+
+    setExpenses(prev => prev.map(e => {
+      if (e && e.brokerId && idRedirectionMap.has(e.brokerId)) {
+        const newId = idRedirectionMap.get(e.brokerId)!;
+        return { ...e, brokerId: newId, updatedAt: new Date().toISOString() };
+      }
+      return e;
+    }));
+
+    setRentals(prev => prev.map(r => {
+      if (r && r.brokerId && idRedirectionMap.has(r.brokerId)) {
+        const newId = idRedirectionMap.get(r.brokerId)!;
+        return { ...r, brokerId: newId, updatedAt: new Date().toISOString() };
+      }
+      return r;
+    }));
+
+    if (currentUser && idRedirectionMap.has(currentUser.id)) {
+      const newId = idRedirectionMap.get(currentUser.id)!;
+      const masterBroker = unifiedBrokers.find(b => b.id === newId);
+      if (masterBroker) {
+        console.log(`[Deduplicador Cliente] Sincronizando usuário ativo ${currentUser.email} com ID unificado.`);
+        setCurrentUser(masterBroker);
+      }
+    }
+
+    return true;
+  }, [brokers, currentUser]);
+
+  // Executa a deduplicação automaticamente sempre que brokers muda ou monta
+  useEffect(() => {
+    runDeduplication();
+  }, [brokers, runDeduplication]);
+
   const isInternalUpdateRef = useRef(false);
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
   const seenMessages = useRef<Set<string>>(new Set());
@@ -515,26 +689,39 @@ const App: React.FC = () => {
 
     let eventSource: EventSource | null = null;
     let reconnectTimeout: any = null;
+    let keepAliveInterval: any = null;
     let active = true;
+    let lastSeenSseMsg = Date.now();
 
     const connectSSE = () => {
       if (!active) return;
       console.log('⚡ [SSE Live Sync] Iniciando canal de comunicação de tempo real...');
+      lastSeenSseMsg = Date.now();
+
+      if (eventSource) {
+        try { eventSource.close(); } catch (_) {}
+      }
+
       eventSource = new EventSource('/api/live-sync');
 
       eventSource.onopen = () => {
         console.log('⚡ [SSE Live Sync]: Canal de comunicação SSE estabelecido com sucesso!');
         isSSEConnectedRef.current = true;
         setSyncStatus('synced');
+        lastSeenSseMsg = Date.now();
       };
 
       eventSource.onmessage = async (event) => {
+        lastSeenSseMsg = Date.now();
         try {
           const data = JSON.parse(event.data);
           if (data && data.type === 'DATA_UPDATE' && data.payload) {
              console.log('⚡ [SSE Live Sync]: Dados recebidos e sincronizados instantaneamente do servidor central!');
              isInternalUpdateRef.current = true;
              await mergeData(data.payload);
+             setSyncStatus('synced');
+          } else if (data && data.type === 'PING') {
+             // Ping explícito recebido com sucesso. Mantendo canal ativo.
              setSyncStatus('synced');
           }
         } catch (e) {
@@ -552,22 +739,40 @@ const App: React.FC = () => {
           setSyncStatus('disconnected');
         }
         
-        // Tenta reconectar a cada 5 segundos de forma resiliente
+        // Tenta reconectar a cada 3 segundos de forma super agressiva
         if (active) {
-          reconnectTimeout = setTimeout(connectSSE, 5000);
+          if (reconnectTimeout) clearTimeout(reconnectTimeout);
+          reconnectTimeout = setTimeout(connectSSE, 3000);
         }
       };
     };
 
     connectSSE();
 
+    // Monitor Ativo: se a conexão SSE ficar sem mensagens ou pings por mais de 25 segundos,
+    // significa que a internet oscilou e a conexão ficou "fantasma/congelada". Forçamos a reconexão imediata.
+    keepAliveInterval = setInterval(() => {
+      if (active) {
+        const secondsSinceLastMsg = (Date.now() - lastSeenSseMsg) / 1000;
+        if (secondsSinceLastMsg > 25) {
+          console.warn(`⚡ [SSE Live Sync Monitor]: Sem resposta há ${secondsSinceLastMsg.toFixed(0)}s. Reconectando canal de forma resiliente...`);
+          // Força sincronização REST via HTTP para descarregar qualquer dado acumulado durante a queda
+          syncWithServer();
+          forceFullSync();
+          // Reconecta o canal SSE
+          connectSSE();
+        }
+      }
+    }, 5000);
+
     return () => {
       active = false;
       isSSEConnectedRef.current = false;
       if (eventSource) eventSource.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
     };
-  }, [currentUser, mergeData]);
+  }, [currentUser, mergeData, syncWithServer, forceFullSync]);
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
