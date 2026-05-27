@@ -750,13 +750,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
     
     // Filtro de Corretor
     if (isAdmin && selectedBrokerFilter !== 'all') {
-      const selectedBroker = brokers.find(b => b.id === selectedBrokerFilter);
-      const brokerName = selectedBroker?.name.toLowerCase().trim();
-      
-      filtered = filtered.filter(c => 
-        c.brokerId === selectedBrokerFilter || 
-        (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName)
-      );
+      if (selectedBrokerFilter === 'unassigned') {
+        filtered = filtered.filter(c => c.brokerId === 'unassigned');
+      } else {
+        const selectedBroker = brokers.find(b => b.id === selectedBrokerFilter);
+        const brokerName = selectedBroker?.name.toLowerCase().trim();
+        
+        filtered = filtered.filter(c => 
+          c.brokerId === selectedBrokerFilter || 
+          (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName)
+        );
+      }
     }
 
     // Filtro de Bloqueados vs Ativos por Tab
@@ -890,13 +894,21 @@ export const ClientView: React.FC<ClientViewProps> = ({
     const selectedBroker = brokers.find(b => b.id === spreadsheetBrokerFilter);
     const brokerName = selectedBroker?.name.toLowerCase().trim();
 
-    return clients.filter(c => 
-      !c.deleted && 
-      (spreadsheetSubTab === 'active' ? !c.blocked : c.blocked) &&
-      (spreadsheetBrokerFilter === 'all' || 
-       c.brokerId === spreadsheetBrokerFilter || 
-       (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName))
-    ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return clients.filter(c => {
+      if (c.deleted) return false;
+      const matchesSubTab = spreadsheetSubTab === 'active' ? !c.blocked : c.blocked;
+      if (!matchesSubTab) return false;
+
+      if (spreadsheetBrokerFilter === 'unassigned') {
+        return c.brokerId === 'unassigned';
+      }
+
+      return (
+        spreadsheetBrokerFilter === 'all' || 
+        c.brokerId === spreadsheetBrokerFilter || 
+        (brokerName && c.assignedAgent && c.assignedAgent.toLowerCase().trim() === brokerName)
+      );
+    }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [clients, spreadsheetSubTab, spreadsheetBrokerFilter, brokers]);
 
   const spreadsheetGroups = useMemo(() => {
@@ -1147,6 +1159,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                 className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer pr-4"
               >
                 <option value="all">Todos os Corretores</option>
+                <option value="unassigned">Leads em Espera (Planilhas)</option>
                 {brokers.filter(b => !b.deleted).map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -1646,6 +1659,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                      className="bg-transparent text-[11px] font-black text-slate-700 uppercase outline-none cursor-pointer pr-4"
                    >
                      <option value="all">Toda a Equipe</option>
+                     <option value="unassigned">Leads em Espera</option>
                      {brokers.filter(b => !b.deleted).map(b => (
                        <option key={b.id} value={b.id}>{b.name}</option>
                      ))}
