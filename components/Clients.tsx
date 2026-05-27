@@ -40,6 +40,7 @@ interface ClientViewProps {
   onOpenAddModal?: () => void;
   onOpenImport?: () => void;
   onOpenFlow?: (clientId: string, tab?: 'spreadsheet' | 'entry') => void;
+  onForceSync?: () => Promise<void>;
 }
 
 const formatCurrencyBRL = (value: number) => {
@@ -88,8 +89,11 @@ const parseCurrencyToNumber = (value: string): number => {
 export const ClientView: React.FC<ClientViewProps> = ({ 
   clients, activities, properties, commissions = [], constructionCompanies = [], commissionForecasts = [], 
   onUpdateClient, onDeleteClient, onDeleteClients, onEditClient, onAddActivity, onAddActivities, onUpdateActivitiesByClient, onAddReminder, onAddSale, 
-  onUpdateProperty, onAddForecasts, currentUser, brokers, onOpenAddModal, onOpenImport, onOpenFlow
+  onUpdateProperty, onAddForecasts, currentUser, brokers, onOpenAddModal, onOpenImport, onOpenFlow, onForceSync
 }) => {
+  const [isSyncingState, setIsSyncingState] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showGanhosModal, setShowGanhosModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -1176,6 +1180,35 @@ export const ClientView: React.FC<ClientViewProps> = ({
               className="bg-white border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-xs font-bold text-slate-600 outline-none focus:border-[#d4a853] transition-all w-48"
             />
           </div>
+          {onForceSync && (
+            <button 
+              onClick={async () => {
+                setIsSyncingState(true);
+                setSyncSuccess(false);
+                try {
+                  await onForceSync();
+                  setSyncSuccess(true);
+                  setTimeout(() => setSyncSuccess(false), 3000);
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  setIsSyncingState(false);
+                }
+              }} 
+              disabled={isSyncingState}
+              className={`px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm border transition-all cursor-pointer ${
+                syncSuccess 
+                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' 
+                  : isSyncingState 
+                    ? 'bg-amber-500 text-white border-amber-500 animate-pulse' 
+                    : 'bg-[#0f172a] text-[#d4a853] border-slate-800 hover:bg-[#1e293b]'
+              }`}
+              title="Sincronizar todos os leads locais com o banco de dados central"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncingState ? 'animate-spin' : ''} ${syncSuccess ? 'text-white' : 'text-[#d4a853]'}`} />
+              <span>{syncSuccess ? 'Leads Sincronizados!' : isSyncingState ? 'Sincronizando...' : 'Atualizar & Sincronizar'}</span>
+            </button>
+          )}
           <button onClick={onOpenImport} className="bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-xl flex items-center space-x-2 text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors">
             <FileUp className="w-4 h-4 text-emerald-600" />
             <span>Importar</span>

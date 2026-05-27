@@ -381,6 +381,47 @@ const App: React.FC = () => {
     }
   }, [currentUser, mergeData]);
 
+  const forceFullSync = useCallback(async () => {
+    if (!currentUser) return;
+    setSyncStatus('syncing');
+    try {
+      const fullState = {
+        brokers: stateRef.current.brokers,
+        properties: stateRef.current.properties,
+        clients: stateRef.current.clients,
+        activities: stateRef.current.activities,
+        reminders: stateRef.current.reminders,
+        commissions: stateRef.current.commissions,
+        commissionForecasts: stateRef.current.commissionForecasts,
+        documents: stateRef.current.documents,
+        constructionCompanies: stateRef.current.constructionCompanies,
+        launches: stateRef.current.launches,
+        campaigns: stateRef.current.campaigns,
+        rentals: stateRef.current.rentals,
+        expenses: stateRef.current.expenses
+      };
+      
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fullState)
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.payload) {
+          isInternalUpdateRef.current = true;
+          await mergeData(data.payload);
+          setSyncStatus('synced');
+          console.log('Kernel Sync: Sincronização de força-bruta concluída com sucesso.');
+        }
+      }
+    } catch (e) {
+      console.warn('Erro na sincronização integral:', e);
+      setSyncStatus('disconnected');
+    }
+  }, [currentUser, mergeData]);
+
   // Polling de sincronização periódica de 3s
   useEffect(() => {
     if (currentUser) {
@@ -1032,6 +1073,7 @@ const App: React.FC = () => {
         reconnectAttemptsRef.current = 0;
         conflictDetectedRef.current = false;
         initPeer();
+        forceFullSync();
       }}
       lastSaved={lastSavedTime}
     >
@@ -1113,6 +1155,7 @@ const App: React.FC = () => {
           onOpenAddModal={() => { setClientToEdit(null); setIsClientModalOpen(true); }}
           onOpenImport={() => setCurrentView('lead_import')}
           onOpenFlow={(clientId, tab) => { setPreselectedClientForFlow(clientId); setPreselectedFlowTab(tab || 'entry'); setCurrentView('client_payment_flow'); }}
+          onForceSync={forceFullSync}
         />
       )}
 
