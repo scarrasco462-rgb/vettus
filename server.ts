@@ -92,13 +92,30 @@ app.post('/api/gemini/suggestions', async (req, res) => {
   }
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: "Você é um assistente de IA especialista em mercado imobiliário de luxo no Brasil da Vettus Imóveis. Ajude corretores a criar descrições persuasivas, analisar leads e sugerir estratégias de fechamento.",
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: "Você é um assistente de IA especialista em mercado imobiliário de luxo no Brasil da Vettus Imóveis. Ajude corretores a criar descrições persuasivas, analisar leads e sugerir estratégias de fechamento.",
+        }
+      });
+    } catch (modelErr: any) {
+      const errStr = String(modelErr).toLowerCase();
+      if (errStr.includes('not found') || errStr.includes('404') || errStr.includes('unsupported')) {
+        console.warn('[Gemini Model Fallback] gemini-3.5-flash returned 404 or unsupported; retrying with gemini-flash-latest...');
+        response = await ai.models.generateContent({
+          model: 'gemini-flash-latest',
+          contents: prompt,
+          config: {
+            systemInstruction: "Você é um assistente de IA especialista em mercado imobiliário de luxo no Brasil da Vettus Imóveis. Ajude corretores a criar descrições persuasivas, analisar leads e sugerir estratégias de fechamento.",
+          }
+        });
+      } else {
+        throw modelErr;
       }
-    });
+    }
     res.json({ text: response.text || "Sem sugestões no momento." });
   } catch (err: any) {
     const formatted = formatGeminiError(err);
@@ -119,13 +136,30 @@ app.post('/api/gemini/extract-property', async (req, res) => {
   }
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: `Extraia detalhadamente as informações do imóvel deste link: ${url}. Retorne APENAS um objeto JSON válido contendo: title, type (Apartamento|Casa|Cobertura|Terreno), price (número), address, area (número), bedrooms (número), bathrooms (número), description, status (Disponível|Lançamento).`,
-      config: {
-        tools: [{ googleSearch: {} }],
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: `Extraia detalhadamente as informações do imóvel deste link: ${url}. Retorne APENAS um objeto JSON válido contendo: title, type (Apartamento|Casa|Cobertura|Terreno), price (número), address, area (número), bedrooms (número), bathrooms (número), description, status (Disponível|Lançamento).`,
+        config: {
+          tools: [{ googleSearch: {} }],
+        }
+      });
+    } catch (modelErr: any) {
+      const errStr = String(modelErr).toLowerCase();
+      if (errStr.includes('not found') || errStr.includes('404') || errStr.includes('unsupported')) {
+        console.warn('[Gemini Model Fallback] gemini-3.5-flash returned 404 or unsupported; retrying extraction with gemini-flash-latest...');
+        response = await ai.models.generateContent({
+          model: 'gemini-flash-latest',
+          contents: `Extraia detalhadamente as informações do imóvel deste link: ${url}. Retorne APENAS um objeto JSON válido contendo: title, type (Apartamento|Casa|Cobertura|Terreno), price (número), address, area (número), bedrooms (número), bathrooms (número), description, status (Disponível|Lançamento).`,
+          config: {
+            tools: [{ googleSearch: {} }],
+          }
+        });
+      } else {
+        throw modelErr;
       }
-    });
+    }
     const text = response.text || "{}";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : "{}";

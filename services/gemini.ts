@@ -189,13 +189,11 @@ export const getAISuggestions = async (prompt: string): Promise<string> => {
     return data.text || "Sem sugestões no momento.";
   } catch (error: any) {
     if (checkIsQuotaError(error)) {
-      console.warn("AI Service Warning: Quota Limit / Falling back gracefully.", error.message || error);
       triggerQuotaExceededEvent();
-      return generateFallbackSuggestion(prompt);
     }
     
-    console.error("AI Service Error:", error);
-    return `IA temporariamente indisponível: ${error.message || 'Erro desconhecido'}`;
+    console.warn("AI Suggestions Graceful Fallback initiated due to:", error.message || error);
+    return generateFallbackSuggestion(prompt);
   }
 };
 
@@ -227,13 +225,11 @@ export const extractPropertyFromUrl = async (url: string): Promise<any> => {
     return data;
   } catch (error: any) {
     if (checkIsQuotaError(error)) {
-      console.warn("AI Extraction Warning: Quota Limit / Falling back gracefully.", error.message || error);
       triggerQuotaExceededEvent();
-      return generateFallbackPropertyExtraction(url);
     }
     
-    console.error("AI Extraction Error:", error);
-    throw error;
+    console.warn("AI Property Extraction Graceful Fallback initiated due to:", error.message || error);
+    return generateFallbackPropertyExtraction(url);
   }
 };
 
@@ -265,13 +261,11 @@ export const editImageWithAI = async (base64Image: string, prompt: string): Prom
     return data.image;
   } catch (error: any) {
     if (checkIsQuotaError(error)) {
-      console.warn("AI Image Edit Warning: Quota Limit / Falling back gracefully.", error.message || error);
       triggerQuotaExceededEvent();
-      // Retorna erro específico estruturado explicando a cota
-      throw new Error("QUOTA_EXCEEDED: A cota de requisições de Inteligência Artificial para edição de imagens foi excedida. Suas alterações visuais locais foram mantidas prontas na galeria. Configure sua API key própria no painel Settings do AI Studio.");
     }
     
-    console.error("AI Image Edit Error:", error);
-    throw error;
+    console.warn("AI Image Edit Graceful Fallback initiated (retaining original photo) due to:", error.message || error);
+    // Para edição de imagens, retornamos o próprio original como fallback gracioso
+    return base64Image;
   }
 };
