@@ -166,18 +166,14 @@ const App: React.FC = () => {
       } catch (e) {}
 
       if (!isSergioEmail(currentUser.email)) {
-         // Se temos brokers carregados (mais do que apenas o Sergio inicial), validamos a existência
-         // Damos uma carência maior (60s) para que o P2P sincronize a base antes de validar a sessão
-         const sessionAge = Date.now() - loginTimeRef.current;
-         if (brokers.length > 2 && sessionAge > 60000) { 
-           const stillExists = brokers.find(b => (b.id === currentUser.id || b.email.toLowerCase().trim() === currentUser.email?.toLowerCase().trim()) && !b.deleted);
-           if (!stillExists) {
-              console.warn(`Sessão Inválida: Usuário ${currentUser.email} não encontrado na base sincronizada (Size: ${brokers.length}).`);
-              handleLogout();
-           } else if (stillExists.blocked || stillExists.deleted) {
-              console.warn(`Sessão Inválida: Usuário ${currentUser.email} está bloqueado ou removido.`);
-              handleLogout();
-           }
+         // Verificação ultra-resiliente para internet oscilante: só deslogamos em caso de bloqueio ou exclusão explícita.
+         // Se a conexão oscilar ou a sincronização de brokers estiver incompleta, o corretor permanece logado perfeitamente!
+         const stillExists = brokers.find(b => (b.id === currentUser.id || b.email.toLowerCase().trim() === currentUser.email?.toLowerCase().trim()));
+         if (stillExists) {
+            if (stillExists.blocked || stillExists.deleted) {
+               console.warn(`Sessão Inválida: Usuário ${currentUser.email} está bloqueado ou removido.`);
+               handleLogout();
+            }
          }
       }
     }
