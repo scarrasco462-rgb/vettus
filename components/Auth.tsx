@@ -33,19 +33,36 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
     setStatusMsg('Iniciando protocolos de rede...');
     localStorage.setItem('vettus_remembered_email', email);
 
-    // REGRA MASTER: Sergio Carrasco Jr sempre tem acesso root local
+    // REGRA MASTER: Sergio Carrasco Jr sempre tem acesso root local com herança avançada de base online
     const isSergio = email.toLowerCase() === 'scarrasco462@gmail.com' || email.toLowerCase() === 'sergioconsultorimobiliario01@gmail.com';
     if (isSergio) {
-       onLogin({
-          id: 'admin-sergio',
-          name: 'Sergio Carrasco Junior',
-          email,
-          role: 'Admin',
-          joinDate: '2024-01-01',
-          performance: 100,
-          networkId: networkId.toUpperCase(),
-          permissions: ALL_PERMISSIONS
-       });
+       setStatusMsg('Conectando e puxando base do servidor central...');
+       fetch('/api/data')
+         .then(res => {
+            if (res.ok) return res.json();
+            throw new Error('Servidor central ocupado ou inacessível no momento.');
+         })
+         .then(payload => {
+            if (payload && typeof payload === 'object' && Object.keys(payload).length > 0) {
+               setStatusMsg('Sincronização de base realizada com sucesso!');
+               onUpdateInitialData(payload);
+            }
+         })
+         .catch(err => {
+            console.warn('Sergio Login: Sincronização inicial em modo offline/cacheado:', err);
+         })
+         .finally(() => {
+            onLogin({
+               id: 'admin-sergio',
+               name: 'Sergio Carrasco Junior',
+               email,
+               role: 'Admin',
+               joinDate: '2024-01-01',
+               performance: 100,
+               networkId: networkId.toUpperCase(),
+               permissions: ALL_PERMISSIONS
+            });
+         });
        return;
     }
 

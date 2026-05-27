@@ -92,6 +92,7 @@ const App: React.FC = () => {
   const statusDebounceRef = useRef<any>(null);
   const reconnectAttemptsRef = useRef(0);
   const conflictDetectedRef = useRef(false);
+  const isSSEConnectedRef = useRef(false);
   const stateRef = useRef({ 
     brokers, properties, clients, activities, reminders, 
     commissions, commissionForecasts, documents, 
@@ -525,6 +526,12 @@ const App: React.FC = () => {
       console.log('⚡ [SSE Live Sync] Iniciando canal de comunicação de tempo real...');
       eventSource = new EventSource('/api/live-sync');
 
+      eventSource.onopen = () => {
+        console.log('⚡ [SSE Live Sync]: Canal de comunicação SSE estabelecido com sucesso!');
+        isSSEConnectedRef.current = true;
+        setSyncStatus('synced');
+      };
+
       eventSource.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -540,10 +547,14 @@ const App: React.FC = () => {
       };
 
       eventSource.onerror = () => {
+        console.warn('⚠️ [SSE Live Sync]: Conexão perdida ou aguardando reconexão...');
+        isSSEConnectedRef.current = false;
         if (eventSource) {
           eventSource.close();
         }
-        setSyncStatus('disconnected');
+        if (!isSSEConnectedRef.current) {
+          setSyncStatus('disconnected');
+        }
         
         // Tenta reconectar a cada 5 segundos de forma resiliente
         if (active) {
@@ -556,6 +567,7 @@ const App: React.FC = () => {
 
     return () => {
       active = false;
+      isSSEConnectedRef.current = false;
       if (eventSource) eventSource.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
@@ -831,7 +843,7 @@ const App: React.FC = () => {
     if (!window.navigator.onLine && reconnectAttemptsRef.current < 5) {
       console.log('Kernel P2P: Navegador reporta offline, mas tentando forçar sinalização...');
     } else if (!window.navigator.onLine) {
-      setSyncStatus('disconnected');
+      if (!isSSEConnectedRef.current) setSyncStatus('disconnected');
       if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
       initTimeoutRef.current = setTimeout(initPeer, 5000);
       return;
@@ -1069,7 +1081,7 @@ const App: React.FC = () => {
     peer.on('error', (err) => {
       isInitializingRef.current = false;
       const errorType = err.type || (err as any).message || 'unknown';
-      setSyncStatus('disconnected');
+      if (!isSSEConnectedRef.current) setSyncStatus('disconnected');
       
       console.warn('Peer Protocol Alert:', errorType);
 
