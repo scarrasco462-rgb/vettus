@@ -512,6 +512,55 @@ const App: React.FC = () => {
     }
   }, [currentUser, syncWithServer, forceFullSync]);
 
+  // Sincronização Instantânea em Tempo Real via Server-Sent Events (SSE)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: any = null;
+    let active = true;
+
+    const connectSSE = () => {
+      if (!active) return;
+      console.log('⚡ [SSE Live Sync] Iniciando canal de comunicação de tempo real...');
+      eventSource = new EventSource('/api/live-sync');
+
+      eventSource.onmessage = async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.type === 'DATA_UPDATE' && data.payload) {
+             console.log('⚡ [SSE Live Sync]: Dados recebidos e sincronizados instantaneamente do servidor central!');
+             isInternalUpdateRef.current = true;
+             await mergeData(data.payload);
+             setSyncStatus('synced');
+          }
+        } catch (e) {
+          // Erro silencioso ou ping recebido
+        }
+      };
+
+      eventSource.onerror = () => {
+        if (eventSource) {
+          eventSource.close();
+        }
+        setSyncStatus('disconnected');
+        
+        // Tenta reconectar a cada 5 segundos de forma resiliente
+        if (active) {
+          reconnectTimeout = setTimeout(connectSSE, 5000);
+        }
+      };
+    };
+
+    connectSSE();
+
+    return () => {
+      active = false;
+      if (eventSource) eventSource.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    };
+  }, [currentUser, mergeData]);
+
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
     const channel = new BroadcastChannel('vettus_internal_sync');

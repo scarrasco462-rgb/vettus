@@ -42,6 +42,7 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
   const [decryptionKey, setDecryptionKey] = useState('');
   const [showPasteMode, setShowPasteMode] = useState(false);
   const [backupKeyInput, setBackupKeyInput] = useState(false);
+  const [forcePushStatus, setForcePushStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,6 +51,55 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
   }, []);
 
   const adminPath = "C:\\Users\\scarr\\OneDrive\\Desktop\\backup sistema";
+
+  const handleForcePushNotebookData = async () => {
+    setForcePushStatus('sending');
+    try {
+      // Coleta todo o estado atual no localStorage deste computador
+      const keysToCollect = [
+        'brokers', 'properties', 'clients', 'activities', 'reminders', 
+        'commissions', 'commissionForecasts', 'documents', 
+        'constructionCompanies', 'launches', 'campaigns', 'rentals', 'expenses'
+      ];
+      
+      const payload: Record<string, any[]> = {};
+      keysToCollect.forEach(key => {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY_PREFIX + key);
+          if (stored) {
+            payload[key] = JSON.parse(stored);
+          }
+        } catch (e) {
+          console.warn(`Backup: Erro ao coletar key ${key} para force-push:`, e);
+        }
+      });
+
+      // Se não temos clientes locais, avisa
+      if (!payload.clients || payload.clients.length === 0) {
+        alert('Nenhum dado de cliente localizado neste notebook para transmitir.');
+        setForcePushStatus('idle');
+        return;
+      }
+
+      const res = await fetch('/api/data/force-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setForcePushStatus('success');
+        alert('🔋 TRANSMISSÃO CONCLUÍDA COM SUCESSO!\n\nTodos os clientes e dados locais deste notebook foram integrados incondicionalmente no sistema central e já constam no painel do administrador Sergio Carrasco Jr. de forma instantânea!');
+        setTimeout(() => setForcePushStatus('idle'), 5000);
+      } else {
+        throw new Error('Retorno inválido do servidor');
+      }
+    } catch (e) {
+      console.error('Erro no force-push:', e);
+      setForcePushStatus('error');
+      alert('FALHA DE COMUNICAÇÃO: Não foi possível transmitir os dados locais para o servidor do Administrador. Verifique sua conexão com a internet.');
+    }
+  };
 
   const handleCopyPath = () => {
     navigator.clipboard.writeText(adminPath);
@@ -403,6 +453,43 @@ export const Backup: React.FC<BackupProps> = ({ currentUser, onManualBackup }) =
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* RECONCILIADOR DE CORRETOR (EMERGÊNCIA ADRIANA / RESILIENTE) */}
+          <div className="bg-amber-50/40 p-10 rounded-[3.5rem] border border-amber-200/60 shadow-xl flex flex-col justify-between group relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-[80px] -mr-48 -mt-48"></div>
+            <div className="relative z-10">
+              <div className="flex items-center space-x-4 mb-6">
+                <div className="w-16 h-16 bg-amber-500/10 text-amber-700 rounded-3xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                  <Zap className="w-8 h-8 animate-pulse text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-amber-900 tracking-tight">Sincronizador de Emergência (Corretores)</h3>
+                  <p className="text-amber-700/80 text-[10px] font-black uppercase tracking-[0.2em]">Corretor → Administrador (Notebook Adriana)</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-xs text-amber-800 leading-relaxed font-semibold">
+                  Se o Administrador (Sergio) estiver vendo menos clientes no painel dele do que o notebook dos corretores (especialmente da <strong>Adriana Bortoli Ribeiro</strong>), utilize esta ferramenta. Ela faz uma transmissão forçada incondicional dos dados locais deste notebook para o servidor central, resolvendo falhas de comunicação de imediato.
+                </p>
+
+                <button 
+                  onClick={handleForcePushNotebookData}
+                  disabled={forcePushStatus === 'sending'}
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-wider shadow-lg disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                >
+                  {forcePushStatus === 'sending' ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-5 h-5 text-white/90" />
+                  )}
+                  <span>
+                    {forcePushStatus === 'sending' ? 'Transmitindo e Consolidando...' : 'FORÇAR ENVIO DE DADOS DO NOTEBOOK LOCAL'}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 

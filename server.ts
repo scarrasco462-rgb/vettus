@@ -391,6 +391,51 @@ app.post('/api/login', (req, res) => {
   }
 });
 
+// Lista conexões SSE ativas para sincronização em tempo real
+const sseClients: any[] = [];
+
+// Função de broadcast instantâneo
+function notifyClientsOfUpdate(payload: any) {
+  sseClients.forEach(client => {
+    try {
+      client.res.write(`data: ${JSON.stringify({ type: 'DATA_UPDATE', payload })}\n\n`);
+    } catch (e) {
+      // Conexão pode estar quebrada, será removida pelo evento de close ou ping subsequente
+    }
+  });
+}
+
+// API: Live Sync SSE (Server-Sent Events) - Conexão persistente de tempo real
+app.get('/api/live-sync', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  const client = { id: Date.now(), res };
+  sseClients.push(client);
+
+  console.log(`[SSE Live Sync] Novo corretor ou administrador conectado (Total ativos: ${sseClients.length})`);
+
+  // Ping a cada 10 segundos para manter conexões Cloud Run ativas e prevenir timeout
+  const pingInterval = setInterval(() => {
+    try {
+      res.write(':\n\n');
+    } catch (_) {}
+  }, 10000);
+
+  req.on('close', () => {
+    clearInterval(pingInterval);
+    const index = sseClients.findIndex(c => c.id === client.id);
+    if (index !== -1) {
+      sseClients.splice(index, 1);
+      console.log(`[SSE Live Sync] Conexão encerrada (Total restantes: ${sseClients.length})`);
+    }
+  });
+});
+
 // API: Recebe atualizações e faz merge inteligente
 app.post('/api/data', (req, res) => {
   const incoming = req.body || {};
@@ -408,6 +453,51 @@ app.post('/api/data', (req, res) => {
   });
 
   writeDB(updated);
+  
+  // Propaga em tempo real para todos os outros notebooks conectados
+  notifyClientsOfUpdate(updated);
+  
+  res.json({ success: true, payload: updated });
+});
+
+// API: Reconciliador Geral e Forçado de Segurança (Force push incondicional dos corretores)
+app.post('/api/data/force-push', (req, res) => {
+  const incoming = req.body || {};
+  const current = readDB();
+  const updated: any = {};
+
+  const collections = [
+    'brokers', 'properties', 'clients', 'activities', 'reminders', 
+    'commissions', 'commissionForecasts', 'documents', 
+    'constructionCompanies', 'launches', 'campaigns', 'rentals', 'expenses'
+  ];
+
+  collections.forEach(key => {
+    const prevList = current[key] || [];
+    const nextList = incoming[key] || [];
+    const map = new Map(prevList.map((item: any) => [item.id, item]));
+
+    nextList.forEach((item: any) => {
+      if (!item || !item.id) return;
+      // Garante uma reconciliação incondicional atualizando o timestamp local para agora antes de mesclar
+      const existing = (map.get(item.id) || {}) as Record<string, any>;
+      const updatedItem = {
+        ...existing, // preserva dados anteriores se houver
+        ...(item as Record<string, any>), // sobrescreve com o do notebook do corretor (Adriana)
+        updatedAt: new Date().toISOString() // atualiza o timestamp do registro para derrotar cache/concorrentes
+      };
+      map.set(item.id, updatedItem);
+    });
+
+    updated[key] = Array.from(map.values());
+  });
+
+  writeDB(updated);
+  
+  // Transmite para todo mundo instantaneamente em tempo real
+  notifyClientsOfUpdate(updated);
+
+  console.log('[Force Push Reconciliador] Sincronização e transição incondicional dos notebooks executada com sucesso.');
   res.json({ success: true, payload: updated });
 });
 
