@@ -422,16 +422,37 @@ const App: React.FC = () => {
     }
   }, [currentUser, mergeData]);
 
-  // Polling de sincronização periódica de 3s
+  // Polling de sincronização periódica super rápida de 2s e reconciliação integral de 15s
   useEffect(() => {
     if (currentUser) {
+      // Sincronização e reconciliação inicial imediata
       syncWithServer();
-      const interval = setInterval(() => {
+      forceFullSync();
+
+      const intervalPoll = setInterval(() => {
         syncWithServer();
-      }, 3000);
-      return () => clearInterval(interval);
+      }, 2000);
+
+      const intervalFull = setInterval(() => {
+        forceFullSync();
+      }, 15000);
+
+      const handleImmediateSync = () => {
+        syncWithServer();
+        forceFullSync();
+      };
+
+      window.addEventListener('focus', handleImmediateSync);
+      window.addEventListener('online', handleImmediateSync);
+
+      return () => {
+        clearInterval(intervalPoll);
+        clearInterval(intervalFull);
+        window.removeEventListener('focus', handleImmediateSync);
+        window.removeEventListener('online', handleImmediateSync);
+      };
     }
-  }, [currentUser, syncWithServer]);
+  }, [currentUser, syncWithServer, forceFullSync]);
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
@@ -1010,6 +1031,8 @@ const App: React.FC = () => {
       // Visibility Handler: Apenas recriar se estiver desconectado e voltar a ficar visível
       const handleVisibility = () => {
         if (document.visibilityState === 'visible') {
+          syncWithServer();
+          forceFullSync();
           if (!peerRef.current || peerRef.current.disconnected || peerRef.current.destroyed) {
             initPeer();
           } else {
@@ -1155,7 +1178,6 @@ const App: React.FC = () => {
           onOpenAddModal={() => { setClientToEdit(null); setIsClientModalOpen(true); }}
           onOpenImport={() => setCurrentView('lead_import')}
           onOpenFlow={(clientId, tab) => { setPreselectedClientForFlow(clientId); setPreselectedFlowTab(tab || 'entry'); setCurrentView('client_payment_flow'); }}
-          onForceSync={forceFullSync}
         />
       )}
 
