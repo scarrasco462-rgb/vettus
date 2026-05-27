@@ -4,18 +4,24 @@
  * Inclui um robusto modo de contingência local estruturado para falhas de cota/key.
  */
 
-// Verifica se um erro é devido a limites de cota da API (Quota Exceeded / Rate Limit)
+// Verifica se um erro é devido a limites de cota da API (Quota Exceeded / Rate Limit) ou sobrecarga temporária (503)
 const checkIsQuotaError = (error: any): boolean => {
   const errText = String(error?.message || error || '').toLowerCase();
   return (
     errText.includes('429') ||
+    errText.includes('503') ||
     errText.includes('quota') ||
     errText.includes('cota') ||
     errText.includes('exceeded') ||
     errText.includes('excedida') ||
     errText.includes('resource_exhausted') ||
     errText.includes('api key') ||
-    errText.includes('limite')
+    errText.includes('limite') ||
+    errText.includes('unavailable') ||
+    errText.includes('high demand') ||
+    errText.includes('overloaded') ||
+    errText.includes('temporariamente') ||
+    errText.includes('indisponível')
   );
 };
 

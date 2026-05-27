@@ -339,15 +339,73 @@ const App: React.FC = () => {
           }
         }
       } else {
-        // Busca periódica do servidor central
+        // Busca periódica do servidor central com reconciliação bidirecional inteligente (Push-Pull)
         isSyncingRef.current = true;
         const res = await fetch('/api/data');
         if (res.ok) {
           const payload = await res.json();
           if (payload && typeof payload === 'object' && Object.keys(payload).length > 0) {
-            isInternalUpdateRef.current = true;
-            await mergeData(payload);
-            setSyncStatus('synced');
+            // Reconciliação inteligente: verifica se existem dados locais mais novos/inexistentes no servidor
+            const localOnlyChanges: Record<string, any[]> = {};
+            let hasLocalOnlyChanges = false;
+            const collectionsKeys = [
+              'brokers', 'properties', 'clients', 'activities', 'reminders', 
+              'commissions', 'commissionForecasts', 'documents', 
+              'constructionCompanies', 'launches', 'campaigns', 'rentals', 'expenses'
+            ];
+
+            collectionsKeys.forEach(key => {
+              const localList = stateRef.current[key as keyof typeof stateRef.current] || [];
+              const serverList = payload[key] || [];
+              const serverMap = new Map((serverList as any[]).map(item => [item.id, item]));
+
+              const itemsToPush: any[] = [];
+              (localList as any[]).forEach(localItem => {
+                if (!localItem || !localItem.id) return;
+                const serverItem = serverMap.get(localItem.id);
+                if (!serverItem) {
+                  // Item existe localmente mas não no servidor. Puxa imediatamente!
+                  itemsToPush.push(localItem);
+                } else {
+                  // Compara timestamps e se o conteúdo é realmente diferente
+                  const localDate = new Date(localItem.updatedAt || localItem.date || 0).getTime();
+                  const serverDate = new Date(serverItem.updatedAt || serverItem.date || 0).getTime();
+                  const localStr = JSON.stringify(localItem);
+                  const serverStr = JSON.stringify(serverItem);
+                  if (localDate > serverDate || (localDate === serverDate && localStr !== serverStr)) {
+                    itemsToPush.push(localItem);
+                  }
+                }
+              });
+
+              if (itemsToPush.length > 0) {
+                localOnlyChanges[key] = itemsToPush;
+                hasLocalOnlyChanges = true;
+              }
+            });
+
+            if (hasLocalOnlyChanges) {
+              console.log('Kernel Sync: Detectadas alterações locais não sincronizadas:', Object.keys(localOnlyChanges));
+              // Push automático para o servidor central antes de mesclar de volta
+              const pushRes = await fetch('/api/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(localOnlyChanges)
+              });
+              if (pushRes.ok) {
+                const pushData = await pushRes.json();
+                if (pushData.success && pushData.payload) {
+                  isInternalUpdateRef.current = true;
+                  await mergeData(pushData.payload);
+                  setSyncStatus('synced');
+                }
+              }
+            } else {
+              // Sem dados locais novos/divergentes, apenas mescla o estado do servidor
+              isInternalUpdateRef.current = true;
+              await mergeData(payload);
+              setSyncStatus('synced');
+            }
           } else {
             // Se o servidor está vazio, provisiona com os dados existentes do LocalStorage
             const localState = {

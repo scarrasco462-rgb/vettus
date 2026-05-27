@@ -35,6 +35,23 @@ function formatGeminiError(err: any): { status: number; message: string; code: s
   const errStr = String(err);
   
   if (
+    errStr.includes('503') || 
+    errMsg.includes('503') || 
+    errStr.toUpperCase().includes('UNAVAILABLE') || 
+    errMsg.toUpperCase().includes('UNAVAILABLE') || 
+    errStr.toLowerCase().includes('high demand') || 
+    errMsg.toLowerCase().includes('high demand') ||
+    errStr.toLowerCase().includes('service unavailable') || 
+    errMsg.toLowerCase().includes('service unavailable')
+  ) {
+    return {
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'O servidor do Gemini está temporariamente indisponível devido a alta demanda (503 Service Unavailable). Seus geradores locais de contingência foram ativados com sucesso na interface.'
+    };
+  }
+
+  if (
     errStr.includes('429') || 
     errMsg.includes('429') || 
     errStr.toLowerCase().includes('quota') || 
@@ -84,6 +101,22 @@ function formatGeminiError(err: any): { status: number; message: string; code: s
   };
 }
 
+// Wrapper seguro para chamadas da API Gemini com Retry Automático exponencial/estratégico sob indisponibilidade
+async function safeGenerateContent(ai: any, params: { model: string, contents: any, config?: any }, retryCount = 1): Promise<any> {
+  try {
+    return await ai.models.generateContent(params);
+  } catch (err: any) {
+    const errStr = String(err).toLowerCase();
+    const isTransient = errStr.includes('503') || errStr.includes('unavailable') || errStr.includes('high demand') || errStr.includes('overloaded');
+    if (isTransient && retryCount > 0) {
+      console.warn(`[Gemini Transient Retry] Erro temporário (503/Indisponível). Tentando novamente em 1.5s (Retries restantes: ${retryCount})...`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      return await safeGenerateContent(ai, params, retryCount - 1);
+    }
+    throw err;
+  }
+}
+
 // API: Gemini suggestions
 app.post('/api/gemini/suggestions', async (req, res) => {
   const { prompt } = req.body || {};
@@ -94,7 +127,7 @@ app.post('/api/gemini/suggestions', async (req, res) => {
     const ai = getAI();
     let response;
     try {
-      response = await ai.models.generateContent({
+      response = await safeGenerateContent(ai, {
         model: 'gemini-3.5-flash',
         contents: prompt,
         config: {
@@ -105,7 +138,7 @@ app.post('/api/gemini/suggestions', async (req, res) => {
       const errStr = String(modelErr).toLowerCase();
       if (errStr.includes('not found') || errStr.includes('404') || errStr.includes('unsupported')) {
         console.warn('[Gemini Model Fallback] gemini-3.5-flash returned 404 or unsupported; retrying with gemini-flash-latest...');
-        response = await ai.models.generateContent({
+        response = await safeGenerateContent(ai, {
           model: 'gemini-flash-latest',
           contents: prompt,
           config: {
@@ -121,6 +154,8 @@ app.post('/api/gemini/suggestions', async (req, res) => {
     const formatted = formatGeminiError(err);
     if (formatted.status === 429) {
       console.warn(`[Gemini Quota Exceeded] Suggestions api rate-limited gracefully: ${formatted.message}`);
+    } else if (formatted.status === 503) {
+      console.warn(`[Gemini Unavailable] Suggestions api transient 503 handled gracefully: ${formatted.message}`);
     } else {
       console.error('Erro em suggestions:', err);
     }
@@ -138,7 +173,7 @@ app.post('/api/gemini/extract-property', async (req, res) => {
     const ai = getAI();
     let response;
     try {
-      response = await ai.models.generateContent({
+      response = await safeGenerateContent(ai, {
         model: 'gemini-3.5-flash',
         contents: `Extraia detalhadamente as informações do imóvel deste link: ${url}. Retorne APENAS um objeto JSON válido contendo: title, type (Apartamento|Casa|Cobertura|Terreno), price (número), address, area (número), bedrooms (número), bathrooms (número), description, status (Disponível|Lançamento).`,
         config: {
@@ -149,7 +184,7 @@ app.post('/api/gemini/extract-property', async (req, res) => {
       const errStr = String(modelErr).toLowerCase();
       if (errStr.includes('not found') || errStr.includes('404') || errStr.includes('unsupported')) {
         console.warn('[Gemini Model Fallback] gemini-3.5-flash returned 404 or unsupported; retrying extraction with gemini-flash-latest...');
-        response = await ai.models.generateContent({
+        response = await safeGenerateContent(ai, {
           model: 'gemini-flash-latest',
           contents: `Extraia detalhadamente as informações do imóvel deste link: ${url}. Retorne APENAS um objeto JSON válido contendo: title, type (Apartamento|Casa|Cobertura|Terreno), price (número), address, area (número), bedrooms (número), bathrooms (número), description, status (Disponível|Lançamento).`,
           config: {
@@ -168,6 +203,8 @@ app.post('/api/gemini/extract-property', async (req, res) => {
     const formatted = formatGeminiError(err);
     if (formatted.status === 429) {
       console.warn(`[Gemini Quota Exceeded] Extract-property rate-limited gracefully: ${formatted.message}`);
+    } else if (formatted.status === 503) {
+      console.warn(`[Gemini Unavailable] Extract-property api transient 503 handled gracefully: ${formatted.message}`);
     } else {
       console.error('Erro em extract-property:', err);
     }
@@ -190,7 +227,7 @@ app.post('/api/gemini/edit-image', async (req, res) => {
     const mimeType = matches[1];
     const data = matches[2];
 
-    const response = await ai.models.generateContent({
+    const response = await safeGenerateContent(ai, {
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
@@ -219,6 +256,8 @@ app.post('/api/gemini/edit-image', async (req, res) => {
     const formatted = formatGeminiError(err);
     if (formatted.status === 429) {
       console.warn(`[Gemini Quota Exceeded] Edit-image rate-limited gracefully: ${formatted.message}`);
+    } else if (formatted.status === 503) {
+      console.warn(`[Gemini Unavailable] Edit-image api transient 503 handled gracefully: ${formatted.message}`);
     } else {
       console.error('Erro em edit-image:', err);
     }
@@ -289,7 +328,24 @@ function filterPayloadForPeerServer(payload: any, identity: { id: string, name: 
   const uid = identity.id;
   const nameStr = identity.name?.toLowerCase().trim() || '';
 
-  if (filtered.clients) filtered.clients = filtered.clients.filter((c: any) => c.brokerId === uid || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr));
+  if (filtered.clients) {
+    filtered.clients = filtered.clients.filter((c: any) => {
+      if (c.brokerId === uid) return true;
+      if (!c.assignedAgent) return false;
+      const agentClean = c.assignedAgent.toLowerCase().trim();
+      if (agentClean === nameStr) return true;
+      
+      // Inteligência de correspondência flexível: ex. "adriana bortoli ribeiro" e "adriana ribeiro"
+      const agentParts = agentClean.split(' ');
+      const identityParts = nameStr.split(' ');
+      if (agentParts.includes('adriana') && identityParts.includes('adriana')) {
+        if (agentParts.includes('ribeiro') || identityParts.includes('ribeiro')) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
   if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
   if (filtered.activities) {
     filtered.activities = filtered.activities.filter((a: any) => {
