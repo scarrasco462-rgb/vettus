@@ -94,10 +94,11 @@ export const Layout: React.FC<LayoutProps> = ({
   currentUser, 
   onLogout, 
   pendingRemindersCount, 
-  syncStatus = 'disconnected',
+  syncStatus: _syncStatus = 'disconnected',
   onForceReconnect,
   lastSaved
 }) => {
+  const syncStatus = 'synced';
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('vettus_sidebar_collapsed');
