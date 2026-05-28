@@ -647,7 +647,7 @@ export const MarketingView: React.FC<MarketingViewProps> = ({
                              <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                           </div>
                           <div className="flex flex-col">
-                             {emailImage && <div className="p-8 pb-0 relative group"><img src={emailImage} className="rounded-3xl max-h-64 object-cover" /><button onClick={() => setEmailImage(null)} className="absolute top-10 right-10 bg-white text-red-500 p-2 rounded-full shadow-lg"><X className="w-4 h-4" /></button></div>}
+                             {emailImage && <div className="p-8 pb-0 relative group"><img src={emailImage} onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800'; }} className="rounded-3xl max-h-64 object-cover" /><button onClick={() => setEmailImage(null)} className="absolute top-10 right-10 bg-white text-red-500 p-2 rounded-full shadow-lg"><X className="w-4 h-4" /></button></div>}
                              <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="Digite sua mensagem..." className="w-full h-64 p-10 text-slate-700 text-base leading-relaxed outline-none resize-none" />
                           </div>
                        </div>

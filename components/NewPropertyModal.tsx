@@ -661,7 +661,14 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                     {gallery.map((img, idx) => (
                       <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 group bg-slate-100">
-                        <img src={img} alt={`Foto ${idx}`} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        <img 
+                          src={img} 
+                          alt={`Foto ${idx}`} 
+                          className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800';
+                          }}
+                        />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center space-y-2">
                            <button 
                              type="button" 
@@ -715,7 +722,7 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                        <div className="aspect-video rounded-2xl overflow-hidden border border-white/5 bg-black/20">
-                          <img src={gallery[aiEditIndex]} className="w-full h-full object-contain" />
+                          <img src={gallery[aiEditIndex]} className="w-full h-full object-contain" onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800'; }} />
                        </div>
                        <div className="space-y-4">
                           <p className="text-[10px] text-slate-400 font-medium leading-relaxed">

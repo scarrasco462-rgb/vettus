@@ -4,6 +4,41 @@ import { Peer } from 'peerjs';
 import { Broker, ALL_PERMISSIONS } from '../types.ts';
 import { VettusLogoFull } from './Layout.tsx';
 
+class SafeBroadcastChannel {
+  private channel: BroadcastChannel | null = null;
+  constructor(name: string) {
+    try {
+      this.channel = new BroadcastChannel(name);
+    } catch (e) {
+      console.warn(`[SafeBroadcastChannel]: BroadcastChannel initialization failed for "${name}". Running in fallback mode.`, e);
+    }
+  }
+  get onmessage() {
+    return this.channel ? this.channel.onmessage : null;
+  }
+  set onmessage(val: ((this: BroadcastChannel, ev: MessageEvent<any>) => any) | null) {
+    if (this.channel) {
+      this.channel.onmessage = val;
+    }
+  }
+  postMessage(message: any) {
+    if (this.channel) {
+      try {
+        this.channel.postMessage(message);
+      } catch (e) {
+        console.warn('[SafeBroadcastChannel] postMessage failed:', e);
+      }
+    }
+  }
+  close() {
+    if (this.channel) {
+      try {
+        this.channel.close();
+      } catch (e) {}
+    }
+  }
+}
+
 interface AuthProps {
   onLogin: (user: Broker) => void;
   existingBrokers: Broker[];
@@ -89,7 +124,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, existingBrokers, onUpdateIn
 
     // 2. CHECK VIA BROADCAST CHANNEL (Outra aba no mesmo PC)
     setStatusMsg('Consultando sessões locais ativas...');
-    const authChannel = new BroadcastChannel('vettus_internal_sync_auth');
+    const authChannel = new SafeBroadcastChannel('vettus_internal_sync_auth');
     let authResponded = false;
 
     const authTimeout = setTimeout(() => {

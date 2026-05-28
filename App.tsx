@@ -38,6 +38,41 @@ import { MOCK_BROKERS } from './constants.tsx';
 
 const STORAGE_KEY_PREFIX = 'vettus_v3_core_';
 
+class SafeBroadcastChannel {
+  private channel: BroadcastChannel | null = null;
+  constructor(name: string) {
+    try {
+      this.channel = new BroadcastChannel(name);
+    } catch (e) {
+      console.warn(`[SafeBroadcastChannel]: BroadcastChannel initialization failed for "${name}". Running in fallback mode.`, e);
+    }
+  }
+  get onmessage() {
+    return this.channel ? this.channel.onmessage : null;
+  }
+  set onmessage(val: ((this: BroadcastChannel, ev: MessageEvent<any>) => any) | null) {
+    if (this.channel) {
+      this.channel.onmessage = val;
+    }
+  }
+  postMessage(message: any) {
+    if (this.channel) {
+      try {
+        this.channel.postMessage(message);
+      } catch (e) {
+        console.warn('[SafeBroadcastChannel] postMessage failed:', e);
+      }
+    }
+  }
+  close() {
+    if (this.channel) {
+      try {
+        this.channel.close();
+      } catch (e) {}
+    }
+  }
+}
+
 const loadLocal = <T,>(key: string, def: T): T => {
   try {
     const val = localStorage.getItem(STORAGE_KEY_PREFIX + key);
@@ -199,6 +234,33 @@ const App: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
     setActivities(prev => [newActivity, ...prev]);
+  }, [currentUser]);
+
+  // Auditoria Automática de Login e Notificação em Tempo Real da Equipe (Auto-sync)
+  useEffect(() => {
+    if (currentUser) {
+      const alreadyLoggedKey = `vettus_logged_session_${currentUser.id}_${loginTimeRef.current}`;
+      const alreadyLogged = sessionStorage.getItem(alreadyLoggedKey);
+      if (!alreadyLogged) {
+        sessionStorage.setItem(alreadyLoggedKey, 'true');
+        
+        const now = new Date();
+        const newActivity: Activity = {
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: currentUser.id,
+          brokerName: currentUser.name,
+          type: 'System' as any,
+          clientName: 'SISTEMA',
+          description: `Dispositivo online: Sessão iniciada no notebook por ${currentUser.name}`,
+          date: now.toLocaleDateString('pt-BR'),
+          time: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          updatedAt: now.toISOString()
+        };
+        
+        setActivities(prev => [newActivity, ...prev]);
+        console.log(`[Kernel Logger]: Atividade de login de ${currentUser.name} registrada com sucesso.`);
+      }
+    }
   }, [currentUser]);
 
   const handleLogout = () => {
@@ -486,6 +548,25 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
+  // Utilitário de requisição HTTP resiliente com retry inteligente para conexões oscilantes
+  const fetchWithRetry = useCallback(async (url: string, options: RequestInit = {}, retries = 4, delay = 500): Promise<Response> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(url, options);
+        if (response.ok) return response;
+        if (response.status >= 500) {
+          throw new Error(`Erro do servidor central (Código: ${response.status})`);
+        }
+        return response; // erros de cliente (por exemplo, 4xx) retornam sem retry por padrão
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        console.warn(`[Canal de Comunicação] Instabilidade detectada na tentativa ${i + 1}/${retries} para ${url}. Tentando nova conexão em ${delay * (i + 1)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+      }
+    }
+    throw new Error(`Conexão perdida permanentemente com o link ${url} após ${retries} tentativas.`);
+  }, []);
+
   // Sincronização central via API HTTP (Full-Stack)
   const isSyncingRef = useRef(false);
 
@@ -496,7 +577,7 @@ const App: React.FC = () => {
     try {
       if (localChanges) {
         // Envia alterações locais para o servidor central em tempo real
-        const res = await fetch('/api/data', {
+        const res = await fetchWithRetry('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(localChanges)
@@ -512,7 +593,7 @@ const App: React.FC = () => {
       } else {
         // Busca periódica do servidor central com reconciliação bidirecional inteligente (Push-Pull)
         isSyncingRef.current = true;
-        const res = await fetch('/api/data');
+        const res = await fetchWithRetry('/api/data');
         if (res.ok) {
           const payload = await res.json();
           if (payload && typeof payload === 'object' && Object.keys(payload).length > 0) {
@@ -558,7 +639,7 @@ const App: React.FC = () => {
             if (hasLocalOnlyChanges) {
               console.log('Kernel Sync: Detectadas alterações locais não sincronizadas:', Object.keys(localOnlyChanges));
               // Push automático para o servidor central antes de mesclar de volta
-              const pushRes = await fetch('/api/data', {
+              const pushRes = await fetchWithRetry('/api/data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(localOnlyChanges)
@@ -594,7 +675,7 @@ const App: React.FC = () => {
               rentals: loadLocal('rentals', []),
               expenses: loadLocal('expenses', [])
             };
-            await fetch('/api/data', {
+            await fetchWithRetry('/api/data', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(localState)
@@ -608,7 +689,7 @@ const App: React.FC = () => {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [currentUser, mergeData]);
+  }, [currentUser, mergeData, fetchWithRetry]);
 
   const forceFullSync = useCallback(async () => {
     if (!currentUser) return;
@@ -630,7 +711,7 @@ const App: React.FC = () => {
         expenses: stateRef.current.expenses
       };
       
-      const res = await fetch('/api/data', {
+      const res = await fetchWithRetry('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fullState)
@@ -649,7 +730,7 @@ const App: React.FC = () => {
       console.warn('Erro na sincronização integral:', e);
       setSyncStatus('disconnected');
     }
-  }, [currentUser, mergeData]);
+  }, [currentUser, mergeData, fetchWithRetry]);
 
   // Polling de sincronização periódica super rápida de 2s e reconciliação integral de 15s
   useEffect(() => {
@@ -739,31 +820,32 @@ const App: React.FC = () => {
           setSyncStatus('disconnected');
         }
         
-        // Tenta reconectar a cada 3 segundos de forma super agressiva
+        // Tenta reconectar a cada 1.5 segundos de forma super agressiva em conexões oscilantes
         if (active) {
           if (reconnectTimeout) clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connectSSE, 3000);
+          reconnectTimeout = setTimeout(connectSSE, 1500);
         }
       };
     };
 
     connectSSE();
 
-    // Monitor Ativo: se a conexão SSE ficar sem mensagens ou pings por mais de 25 segundos,
-    // significa que a internet oscilou e a conexão ficou "fantasma/congelada". Forçamos a reconexão imediata.
+    // Monitor Ativo Ultra-Agressivo: se a conexão SSE ficar sem mensagens ou pings por mais de 8 segundos,
+    // (o que é mais do que duas vezes o ping-rate de 4s do servidor), significa que a internet caiu ou oscilou.
+    // Forçamos a reconexão imediatamente de forma transparente para o usuário.
     keepAliveInterval = setInterval(() => {
       if (active) {
         const secondsSinceLastMsg = (Date.now() - lastSeenSseMsg) / 1000;
-        if (secondsSinceLastMsg > 25) {
-          console.warn(`⚡ [SSE Live Sync Monitor]: Sem resposta há ${secondsSinceLastMsg.toFixed(0)}s. Reconectando canal de forma resiliente...`);
-          // Força sincronização REST via HTTP para descarregar qualquer dado acumulado durante a queda
+        if (secondsSinceLastMsg > 8) {
+          console.warn(`⚡ [SSE Live Sync Monitor]: Sem resposta há ${secondsSinceLastMsg.toFixed(1)}s na rede instável. Reconectando canal de forma resiliente...`);
+          // Força sincronização REST via HTTP para descarregar ou capturar qualquer dado acumulado durante a queda
           syncWithServer();
           forceFullSync();
-          // Reconecta o canal SSE
+          // Força a reinstanciação do canal SSE
           connectSSE();
         }
       }
-    }, 5000);
+    }, 2000);
 
     return () => {
       active = false;
@@ -776,7 +858,7 @@ const App: React.FC = () => {
 
   // Comunicação instantânea entre abas (mesmo dispositivo)
   useEffect(() => {
-    const channel = new BroadcastChannel('vettus_internal_sync');
+    const channel = new SafeBroadcastChannel('vettus_internal_sync');
     channel.onmessage = (event) => {
       if (event.data.type === 'DATA_UPDATE' && event.data.senderAppId !== myAppId.current) {
         mergeData(event.data.payload, event.data.messageId);
@@ -792,8 +874,16 @@ const App: React.FC = () => {
     const uid = identity.id;
     const nameStr = identity.name?.toLowerCase().trim() || '';
 
-    if (filtered.clients) filtered.clients = filtered.clients.filter((c: any) => c.brokerId === uid || (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr));
-    if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
+    if (filtered.clients) {
+      filtered.clients = filtered.clients.filter((c: any) => 
+        c.brokerId === uid || 
+        c.brokerId === 'unassigned' ||
+        (c.assignedAgent && c.assignedAgent.toLowerCase().trim() === nameStr)
+      );
+    }
+    // Compartilhamento integral e livre do catálogo de imóveis ativo da agência para permitir vendas cruzadas
+    if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => !p.deleted);
+    
     if (filtered.activities) {
       filtered.activities = filtered.activities.filter((a: any) => {
         if (a.brokerId === uid) return true;
@@ -804,7 +894,15 @@ const App: React.FC = () => {
     if (filtered.reminders) filtered.reminders = filtered.reminders.filter((r: any) => r.brokerId === uid);
     if (filtered.commissions) filtered.commissions = filtered.commissions.filter((c: any) => c.brokerId === uid);
     if (filtered.expenses) filtered.expenses = filtered.expenses.filter((e: any) => e.brokerId === uid);
-    if (filtered.brokers) filtered.brokers = filtered.brokers.filter((b: any) => b.id === uid || b.role === 'Admin');
+    
+    // Compartilha os dados da equipe omitindo senhas para segurança
+    if (filtered.brokers) {
+      filtered.brokers = filtered.brokers.map((b: any) => {
+        if (b.id === uid || b.role === 'Admin') return b;
+        const { password, pendingPassword, ...safeBroker } = b;
+        return safeBroker;
+      });
+    }
 
     return filtered;
   };
@@ -968,7 +1066,7 @@ const App: React.FC = () => {
       // Sincroniza abas locais instantaneamente
       const messageId = `${myAppId.current}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
       try {
-        const channel = new BroadcastChannel('vettus_internal_sync');
+        const channel = new SafeBroadcastChannel('vettus_internal_sync');
         channel.postMessage({ 
           type: 'DATA_UPDATE', 
           payload: changedCollections,
@@ -1011,7 +1109,7 @@ const App: React.FC = () => {
 
   // Resposta automática para solicitações de login de outras abas (mesmo PC)
   useEffect(() => {
-    const authChannel = new BroadcastChannel('vettus_internal_sync_auth');
+    const authChannel = new SafeBroadcastChannel('vettus_internal_sync_auth');
     authChannel.onmessage = (e) => {
       if (e.data.type === 'AUTH_REQUEST' && currentUser && (currentUser.role === 'Admin' || isSergioEmail(currentUser.email))) {
         const { email, password } = e.data;

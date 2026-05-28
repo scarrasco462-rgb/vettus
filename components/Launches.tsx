@@ -216,7 +216,7 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
                         </span>
                      </div>
                      {project.imageUrl ? (
-                        <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800'; }} />
                      ) : (
                         <Building2 className="w-16 h-16 text-[#d4a853]/40" />
                      )}
@@ -439,7 +439,7 @@ export const LaunchesView: React.FC<LaunchesViewProps> = ({ launches, clients, b
                        <div className="flex items-center space-x-4">
                           <div className="w-24 h-24 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                              {formData.imageUrl ? (
-                                <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800'; }} />
                              ) : (
                                 <UploadCloud className="w-8 h-8 text-slate-300" />
                              )}

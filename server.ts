@@ -524,7 +524,7 @@ function filterPayloadForPeerServer(payload: any, identity: { id: string, name: 
 
   if (filtered.clients) {
     filtered.clients = filtered.clients.filter((c: any) => {
-      if (c.brokerId === uid) return true;
+      if (c.brokerId === uid || c.brokerId === 'unassigned') return true;
       if (!c.assignedAgent) return false;
       const agentClean = c.assignedAgent.toLowerCase().trim();
       if (agentClean === nameStr) return true;
@@ -540,7 +540,9 @@ function filterPayloadForPeerServer(payload: any, identity: { id: string, name: 
       return false;
     });
   }
-  if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => p.brokerId === uid);
+  // Compartilhamento integral e livre do catálogo de imóveis ativo da agência para permitir vendas cruzadas
+  if (filtered.properties) filtered.properties = filtered.properties.filter((p: any) => !p.deleted);
+  
   if (filtered.activities) {
     filtered.activities = filtered.activities.filter((a: any) => {
       if (a.brokerId === uid) return true;
@@ -550,7 +552,15 @@ function filterPayloadForPeerServer(payload: any, identity: { id: string, name: 
   if (filtered.reminders) filtered.reminders = filtered.reminders.filter((r: any) => r.brokerId === uid);
   if (filtered.commissions) filtered.commissions = filtered.commissions.filter((c: any) => c.brokerId === uid);
   if (filtered.expenses) filtered.expenses = filtered.expenses.filter((e: any) => e.brokerId === uid);
-  if (filtered.brokers) filtered.brokers = filtered.brokers.filter((b: any) => b.id === uid || b.role === 'Admin');
+  
+  // Compartilhha lista de equipe omitindo senhas para que possam interagir e encaminhar leads
+  if (filtered.brokers) {
+    filtered.brokers = filtered.brokers.map((b: any) => {
+      if (b.id === uid || b.role === 'Admin') return b;
+      const { password, pendingPassword, ...safeBroker } = b;
+      return safeBroker;
+    });
+  }
 
   return filtered;
 }
@@ -613,7 +623,7 @@ app.get('/api/live-sync', (req, res) => {
 
   console.log(`[SSE Live Sync] Novo corretor ou administrador conectado (Total ativos: ${sseClients.length})`);
 
-  // Ping a cada 10 segundos para manter conexões Cloud Run ativas e prevenir timeout
+  // Ping a cada 4 segundos para manter conexões Cloud Run ativas e prevenir timeout em conexões instáveis
   const pingInterval = setInterval(() => {
     try {
       // 1. Envia o tick de comentário padrão para o proxy/nginx
@@ -621,7 +631,7 @@ app.get('/api/live-sync', (req, res) => {
       // 2. Envia um evento explícito JSON PING para que o cliente monitorize a atividade real da rede
       res.write(`data: ${JSON.stringify({ type: 'PING' })}\n\n`);
     } catch (_) {}
-  }, 10000);
+  }, 4000);
 
   req.on('close', () => {
     clearInterval(pingInterval);
@@ -699,6 +709,14 @@ app.post('/api/data/force-push', (req, res) => {
 });
 
 // Outras utilidades - Health Check
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
+app.get('/manifest.json', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'manifest.json'));
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });

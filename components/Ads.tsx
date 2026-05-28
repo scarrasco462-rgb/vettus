@@ -112,7 +112,7 @@ export const AdsView: React.FC<AdsViewProps> = ({ properties, currentUser }) => 
 
           {selectedProperty && (
             <div className="bg-[#0a1120] rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5">
-               <img src={selectedProperty.imageUrl} className="w-full h-40 object-cover opacity-60" />
+               <img src={selectedProperty.imageUrl || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800'} onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800'; }} className="w-full h-40 object-cover opacity-60" />
                <div className="p-6">
                   <p className="text-[9px] font-black text-[#d4a853] uppercase tracking-widest mb-1">{selectedProperty.type}</p>
                   <h4 className="text-white font-bold text-sm truncate">{selectedProperty.title}</h4>

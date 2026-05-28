@@ -94,7 +94,14 @@ export const PropertyView: React.FC<PropertyViewProps> = ({
               className={`bg-white rounded-[1.5rem] lg:rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 group hover:shadow-xl transition-all duration-500 flex flex-col relative ${authorizedEdit ? 'cursor-pointer' : ''}`}
             >
               <div className="relative h-48 md:h-56 lg:h-64 overflow-hidden shrink-0">
-                <img src={property.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={property.title} />
+                <img 
+                  src={property.imageUrl || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800'} 
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800';
+                  }}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+                  alt={property.title} 
+                />
                 
                 {authorizedEdit && (
                   <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
