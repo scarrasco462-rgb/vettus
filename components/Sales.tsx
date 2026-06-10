@@ -26,9 +26,12 @@ const getMonthName = (dateString: string) => {
 export const SalesView: React.FC<SalesViewProps> = ({ sales, brokers, onUpdateSale, currentUser }) => {
   const [selectedSale, setSelectedSale] = useState<Commission | null>(null);
   
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isEffectivePaid = (c: any) => c.status === 'Paid' || (c.commissionReceiptDate && c.commissionReceiptDate <= todayStr);
+  
   const totalVolume = sales.reduce((acc, curr) => acc + (curr.isGanho ? (curr.salePrice || 0) : 0), 0);
   const totalCommissions = sales.reduce((acc, curr) => acc + (curr.isGanho ? curr.amount : 0), 0);
-  const totalPaidCommissions = sales.filter(c => c.isGanho && c.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalPaidCommissions = sales.filter(c => c.isGanho && isEffectivePaid(c)).reduce((acc, curr) => acc + curr.amount, 0);
 
   const getBrokerName = (id: string) => {
     return brokers.find(b => b.id === id)?.name || 'Corretor Externo';
@@ -148,8 +151,8 @@ export const SalesView: React.FC<SalesViewProps> = ({ sales, brokers, onUpdateSa
                         <td className="px-6 md:px-8 py-5 md:py-6 text-right">
                            <div className="flex flex-col items-end shrink-0">
                               <span className="text-xs md:text-sm font-black text-slate-900">{formatCurrency(sale.amount)}</span>
-                              <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${sale.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'}`}>
-                                 {sale.status === 'Paid' ? 'Liquidado' : 'Pendente'}
+                              <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${isEffectivePaid(sale) ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'}`}>
+                                 {isEffectivePaid(sale) ? 'Liquidado' : 'Pendente'}
                               </span>
                            </div>
                         </td>
