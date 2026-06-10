@@ -158,6 +158,24 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Garante de forma proeminente e reativa que o fluxo de obra do Ricardo Bazone esteja ativo e correto (isGanho: true, status: Paid)
+  useEffect(() => {
+    const rBazone = commissions.find(c => c.id === 'eoxnxa7hf');
+    if (rBazone && (rBazone.status !== 'Paid' || rBazone.isGanho !== true)) {
+      setCommissions(prev => prev.map(c => {
+        if (c.id === 'eoxnxa7hf') {
+          return {
+            ...c,
+            status: 'Paid',
+            isGanho: true,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return c;
+      }));
+    }
+  }, [commissions]);
+
   // Sincronização e Auditoria de Sessão
   useEffect(() => {
     stateRef.current = { 

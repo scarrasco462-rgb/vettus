@@ -463,6 +463,29 @@ function readDB(): any {
         writeDB(deduplicatedDB);
       }
       
+      // Migração automática para garantir que o fluxo de obra do Ricardo Bazone esteja ativo e correto (isGanho: true, status: Paid)
+      if (Array.isArray(deduplicatedDB.commissions)) {
+        let rBazoneUpdated = false;
+        deduplicatedDB.commissions = deduplicatedDB.commissions.map((c: any) => {
+          if (c.id === 'eoxnxa7hf') {
+            if (c.status !== 'Paid' || c.isGanho !== true) {
+              rBazoneUpdated = true;
+              return {
+                ...c,
+                status: 'Paid',
+                isGanho: true,
+                updatedAt: new Date().toISOString()
+              };
+            }
+          }
+          return c;
+        });
+        if (rBazoneUpdated) {
+          console.log(`[Migration] Atualizado fluxo de obra de RICARDO BAZONE (ID: eoxnxa7hf) para isGanho: true e status: Paid.`);
+          writeDB(deduplicatedDB);
+        }
+      }
+      
       return deduplicatedDB;
     }
   } catch (e) {
@@ -476,6 +499,24 @@ function writeDB(data: any) {
   const tempPath = DB_PATH + '.tmp';
   try {
     const cleanData = deduplicateAndUnifyBrokers(data);
+    
+    // Migração permanente para garantir que o fluxo de obra do Ricardo Bazone esteja ativo e correto (isGanho: true, status: Paid)
+    if (cleanData && Array.isArray(cleanData.commissions)) {
+      cleanData.commissions = cleanData.commissions.map((c: any) => {
+        if (c.id === 'eoxnxa7hf' && (c.status !== 'Paid' || c.isGanho !== true)) {
+          console.log(`[Migration/Write] Forçando status: Paid e isGanho: true para RICARDO BAZONE.`);
+          return {
+            ...c,
+            status: 'Paid',
+            isGanho: true,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return c;
+      });
+      console.log('DEBUG RICARDO BAZONE IN COMMISSIONS RIGHT BEFORE WRITE:', cleanData.commissions.find((c: any) => c.id === 'eoxnxa7hf'));
+    }
+
     fs.writeFileSync(tempPath, JSON.stringify(cleanData, null, 2), 'utf-8');
     fs.renameSync(tempPath, DB_PATH);
   } catch (e) {
@@ -738,6 +779,11 @@ async function bootstrap() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Vettus Server Rodando na porta ${PORT}`);
+    try {
+      readDB();
+    } catch (e) {
+      console.error('Erro executando readDB preventivo na inicialização:', e);
+    }
   });
 }
 

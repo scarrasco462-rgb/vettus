@@ -155,10 +155,19 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
   const getBrokerName = (id: string) => brokers.find(b => b.id === id)?.name || 'Externo';
 
   const paymentData = useMemo(() => {
-    return commissions.filter(c => {
+    const filtered = commissions.filter(c => {
       const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.propertyTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
+    });
+
+    return [...filtered].sort((a, b) => {
+      const dateA = a.commissionReceiptDate;
+      const dateB = b.commissionReceiptDate;
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateA.localeCompare(dateB);
     });
   }, [commissions, searchTerm]);
 
