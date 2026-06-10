@@ -725,8 +725,8 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
                     return (
                       <React.Fragment key={sale.id}>
-                        <tr className={`hover:bg-slate-50 transition-all ${isExpanded ? 'bg-[#d4a853]/5' : idx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'}`}>
-                          <td className={`px-4 py-3 md:px-5 md:py-3.5 transition-all ${isReceived ? 'bg-emerald-50/60 border-l-4 border-emerald-500/50 shadow-[inset_1px_0_0_rgba(16,185,129,0.1)]' : ''}`}>
+                        <tr className={`hover:bg-amber-50/45 transition-all ${isReceived ? 'bg-amber-50/50' : isExpanded ? 'bg-[#d4a853]/5' : idx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'}`}>
+                          <td className={`px-4 py-3 md:px-5 md:py-3.5 transition-all ${isReceived ? 'bg-amber-100/10 border-l-4 border-amber-500/80 shadow-[inset_1px_0_0_rgba(245,158,11,0.15)] font-semibold' : ''}`}>
                              <div className="flex items-center space-x-2">
                                 <button 
                                   onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)} 
