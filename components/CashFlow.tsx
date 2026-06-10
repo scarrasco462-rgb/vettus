@@ -30,10 +30,7 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({ commissions, forecas
     });
   }, [commissions, forecasts]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isEffectivePaid = (c: any) => c.status === 'Paid' || (c.commissionReceiptDate && c.commissionReceiptDate <= todayStr);
-
-  const totalRealizado = commissions.filter(c => c.isGanho && isEffectivePaid(c)).reduce((acc, c) => acc + c.amount, 0);
+  const totalRealizado = commissions.filter(c => c.isGanho && c.status === 'Paid').reduce((acc, c) => acc + c.amount, 0);
   const totalPrevisto = forecasts.filter(f => {
     const sale = commissions.find(c => c.id === f.saleId);
     return (!sale || sale.isGanho) && f.status !== 'Recebido';

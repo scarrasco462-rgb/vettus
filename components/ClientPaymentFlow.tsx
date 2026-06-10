@@ -63,7 +63,6 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
   preselectedClientId, preselectedTab, onClearPreselection
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'spreadsheet' | 'entry'>('spreadsheet');
-  const todayStr = new Date().toISOString().split('T')[0];
 
   const getCommissionRulesForProject = (propertyTitle: string) => {
     // 1. Encontrar o empreendimento (Propriedade ou Lançamento)
@@ -155,19 +154,10 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
   const getBrokerName = (id: string) => brokers.find(b => b.id === id)?.name || 'Externo';
 
   const paymentData = useMemo(() => {
-    const filtered = commissions.filter(c => {
+    return commissions.filter(c => {
       const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.propertyTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
-    });
-
-    return [...filtered].sort((a, b) => {
-      const dateA = a.commissionReceiptDate;
-      const dateB = b.commissionReceiptDate;
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      return dateA.localeCompare(dateB);
     });
   }, [commissions, searchTerm]);
 
@@ -320,16 +310,8 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     onUpdateSale({ ...sale, structuredProposal: newProposal, updatedAt: new Date().toISOString() });
   };
 
-  const isSergioEmail = (email?: string) => {
-    if (!email) return false;
-    const e = email.toLowerCase().trim();
-    return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
-  };
-
-  const isAdmin = currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email);
-
   const handleDeleteEntry = (id: string) => {
-    if (!isAdmin) {
+    if (currentUser?.role !== 'Admin') {
       alert("Apenas Administradores podem excluir fluxos.");
       return;
     }
@@ -607,7 +589,6 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       brokerAmount: salePriceNum * rules.brokerPercent,
       agencyAmount: salePriceNum * rules.agencyPercent,
       status: 'Pending',
-      isGanho: true,
       date: new Date().toISOString().split('T')[0],
       triggerDate: formEntry.triggerDate,
       commissionReceiptDate: formEntry.commissionReceiptDate,
@@ -740,12 +721,10 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                     const duringVal = (prop?.signalValue || 0) + (prop?.downPaymentValue || 0) + (prop?.monthlyInstallments?.reduce((s,m) => s+m.value, 0) || 0) + (prop?.balloons?.reduce((s,b) => s+b.value, 0) || 0);
                     const postVal = total - duringVal;
 
-                    const isReceived = sale.status === 'Paid' || (sale.commissionReceiptDate && sale.commissionReceiptDate <= todayStr);
-
                     return (
                       <React.Fragment key={sale.id}>
-                        <tr className={`transition-all ${isReceived ? 'bg-emerald-100/55 hover:bg-emerald-100/75' : `hover:bg-slate-100/50 ${isExpanded ? 'bg-[#d4a853]/5' : idx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'}`}`}>
-                          <td className={`px-4 py-3 md:px-5 md:py-3.5 transition-all ${isReceived ? 'bg-emerald-100/45 border-l-4 border-emerald-500 shadow-[inset_1px_0_0_rgba(16,185,129,0.25)] font-semibold' : ''}`}>
+                        <tr className={`hover:bg-slate-50 transition-all ${isExpanded ? 'bg-[#d4a853]/5' : idx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'}`}>
+                          <td className="px-4 py-3 md:px-5 md:py-3.5">
                              <div className="flex items-center space-x-2">
                                 <button 
                                   onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)} 
@@ -761,7 +740,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 >
                                    <CheckCircle size={13} />
                                 </button>
-                                {isAdmin && (
+                                {currentUser?.role === 'Admin' && (
                                   <button 
                                     onClick={(e) => {
                                       e.stopPropagation();

@@ -17,11 +17,8 @@ const formatCurrency = (value: number) => {
 };
 
 export const CommissionView: React.FC<CommissionViewProps> = ({ commissions, brokers }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isEffectivePaid = (c: any) => c.status === 'Paid' || (c.commissionReceiptDate && c.commissionReceiptDate <= todayStr);
-
-  const totalPaid = commissions.filter(isEffectivePaid).reduce((acc, curr) => acc + curr.amount, 0);
-  const totalPending = commissions.filter(c => !isEffectivePaid(c)).reduce((acc, curr) => acc + curr.amount, 0);
+  const totalPaid = commissions.filter(c => c.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalPending = commissions.filter(c => c.status === 'Pending').reduce((acc, curr) => acc + curr.amount, 0);
 
   const getBrokerName = (id: string) => {
     return brokers.find(b => b.id === id)?.name || 'Corretor Externo';
@@ -76,21 +73,19 @@ export const CommissionView: React.FC<CommissionViewProps> = ({ commissions, bro
         <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Lançamentos Individuais</h2>
         
         <div className="grid grid-cols-1 gap-4">
-          {commissions.map((item) => {
-            const isPaid = isEffectivePaid(item);
-            return (
-              <div key={item.id} className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-[#d4a853]/20 transition-all group flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                <div className="flex items-center space-x-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${isPaid ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>
-                    <Building2 className="w-7 h-7" />
+          {commissions.map((item) => (
+            <div key={item.id} className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-[#d4a853]/20 transition-all group flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              <div className="flex items-center space-x-6">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${item.status === 'Paid' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>
+                  <Building2 className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-[#d4a853] transition-colors">{item.propertyTitle}</h4>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${item.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {item.status === 'Paid' ? 'Liquidado' : 'Aguardando'}
+                    </span>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h4 className="text-lg font-bold text-slate-900 group-hover:text-[#d4a853] transition-colors">{item.propertyTitle}</h4>
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isPaid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {isPaid ? 'Liquidado' : 'Aguardando'}
-                      </span>
-                    </div>
                   <div className="flex flex-wrap gap-x-6 gap-y-1 mt-1">
                     <div className="flex items-center text-xs text-slate-500">
                       <User className="w-3.5 h-3.5 mr-1.5 text-[#d4a853]" />
@@ -118,8 +113,7 @@ export const CommissionView: React.FC<CommissionViewProps> = ({ commissions, bro
                 </div>
               </div>
             </div>
-          );
-        })}
+          ))}
 
           {commissions.length === 0 && (
             <div className="bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 py-32 text-center">
