@@ -185,20 +185,38 @@ const App: React.FC = () => {
     };
     Object.entries(stateRef.current).forEach(([k, v]) => {
       try {
-        localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(v));
+        let valueToSave = v;
+        // Se for uma coleção muito grande que passe dos limites razoáveis do localStorage (que é de 5MB),
+        // nós salvamos localmente apenas os itens mais recentes/relevantes (ex. últimos 500 clientes, últimos 100 lembretes)
+        // Isso previne QuotaExceededError enquanto o estado em memória (React) e o servidor central (database.json)
+        // retêm a totalidade dos dados (ex: todos os 3119 clientes). Ao abrir o app, eles carregam instantaneamente via sync!
+        if (k === 'clients' && Array.isArray(v) && v.length > 500) {
+          valueToSave = [...v]
+            .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+            .slice(0, 500);
+        } else if (k === 'reminders' && Array.isArray(v) && v.length > 300) {
+          valueToSave = v.slice(0, 300);
+        } else if (k === 'activities' && Array.isArray(v) && v.length > 100) {
+          valueToSave = v.slice(0, 100);
+        } else if (k === 'expenses' && Array.isArray(v) && v.length > 100) {
+          valueToSave = v.slice(0, 100);
+        }
+        localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(valueToSave));
       } catch (e) {
         console.warn(`Kernel Storage: Falha ao salvar ${k}:`, e);
-        if (k === 'activities' || (e instanceof Error && e.name === 'QuotaExceededError')) {
-           const isQuotaError = e instanceof Error && (
-             e.name === 'QuotaExceededError' || 
-             e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-             e.message?.includes('quota')
-           );
-           
-           if (isQuotaError && k === 'activities') {
-              console.warn('Kernel Storage: Limpando logs antigos para liberar espaço...');
-              setActivities(prev => { if (prev.length <= 50) return prev; return prev.slice(0, 50); }) 
-           }
+        const isQuotaError = e instanceof Error && (
+          e.name === 'QuotaExceededError' || 
+          e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          e.message?.includes('quota') ||
+          e.message?.includes('space')
+        );
+        if (isQuotaError) {
+          // Em caso de erro persistente de limite, tenta reduzir ainda mais para manter o app operando
+          try {
+            if (Array.isArray(v)) {
+              localStorage.setItem(STORAGE_KEY_PREFIX + k, JSON.stringify(v.slice(0, 50)));
+            }
+          } catch (_) {}
         }
       }
     });
@@ -1566,7 +1584,7 @@ const App: React.FC = () => {
             tasks: [], 
             activities: isAdmin ? activities : activities.filter(a => a.brokerId === currentUser.id), 
             reminders: reminders.filter(r => r.brokerId === currentUser.id), 
-            commissions: isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id), 
+            commissions: (isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id)).filter(c => !c.deleted), 
             campaigns: isAdmin ? campaigns : campaigns.filter(c => c.brokerId === currentUser.id), 
             systemLogs: [], 
             onlineBrokers: Array.from(activeConnections.current.keys()), 
@@ -1611,7 +1629,7 @@ const App: React.FC = () => {
             );
           })} 
           properties={properties.filter(p => !p.deleted)} 
-          commissions={commissions} 
+          commissions={commissions.filter(c => !c.deleted)} 
           constructionCompanies={constructionCompanies} 
           commissionForecasts={commissionForecasts} 
           currentUser={currentUser} 
@@ -1679,7 +1697,7 @@ const App: React.FC = () => {
 
       {currentView === 'cash_flow' && (
         <CashFlowView 
-          commissions={commissions} 
+          commissions={commissions.filter(c => !c.deleted)} 
           forecasts={commissionForecasts} 
           companies={constructionCompanies} 
           currentUser={currentUser}
@@ -1688,7 +1706,7 @@ const App: React.FC = () => {
 
       {currentView === 'client_payment_flow' && (
         <ClientPaymentFlowView 
-          commissions={commissions} 
+          commissions={commissions.filter(c => !c.deleted)} 
           brokers={brokers}
           clients={clients.filter(c => !c.deleted)}
           properties={properties.filter(p => !p.deleted)}
@@ -1706,7 +1724,7 @@ const App: React.FC = () => {
 
       {currentView === 'sales' && (
         <SalesView 
-          sales={isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id)} 
+          sales={(isAdmin ? commissions : commissions.filter(c => c.brokerId === currentUser.id)).filter(c => !c.deleted)} 
           brokers={brokers} 
           currentUser={currentUser}
           onUpdateSale={s => setCommissions(v => v.map(x => x.id === s.id ? {...s, updatedAt: new Date().toISOString()} : x))}
@@ -1839,7 +1857,7 @@ const App: React.FC = () => {
         <SpreadsheetsView 
           brokers={brokers} 
           clients={clients} 
-          commissions={commissions} 
+          commissions={commissions.filter(c => !c.deleted)} 
           properties={properties} 
           currentUser={currentUser}
           onDeleteClients={ids => setClients(v => v.map(c => ids.includes(c.id) ? { ...c, deleted: true, updatedAt: new Date().toISOString() } : c))}

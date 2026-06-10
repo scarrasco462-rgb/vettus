@@ -320,8 +320,16 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
     onUpdateSale({ ...sale, structuredProposal: newProposal, updatedAt: new Date().toISOString() });
   };
 
+  const isSergioEmail = (email?: string) => {
+    if (!email) return false;
+    const e = email.toLowerCase().trim();
+    return e === 'scarrasco462@gmail.com' || e === 'sergioconsultorimobiliario01@gmail.com';
+  };
+
+  const isAdmin = currentUser?.role === 'Admin' || isSergioEmail(currentUser?.email);
+
   const handleDeleteEntry = (id: string) => {
-    if (currentUser?.role !== 'Admin') {
+    if (!isAdmin) {
       alert("Apenas Administradores podem excluir fluxos.");
       return;
     }
@@ -753,7 +761,7 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                                 >
                                    <CheckCircle size={13} />
                                 </button>
-                                {currentUser?.role === 'Admin' && (
+                                {isAdmin && (
                                   <button 
                                     onClick={(e) => {
                                       e.stopPropagation();
