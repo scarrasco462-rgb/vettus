@@ -444,6 +444,26 @@ const App: React.FC = () => {
     runDeduplication();
   }, [brokers, runDeduplication]);
 
+  // Autoliquidação automática de comissões agendadas que atingiram/passaram a data de recebimento
+  useEffect(() => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      let hasChanges = false;
+      const updated = commissions.map(c => {
+        if (c && c.status === 'Pending' && c.commissionReceiptDate && c.commissionReceiptDate <= todayStr) {
+          hasChanges = true;
+          return { ...c, status: 'Paid' as const, updatedAt: new Date().toISOString() };
+        }
+        return c;
+      });
+      if (hasChanges) {
+        setCommissions(updated);
+      }
+    } catch (e) {
+      console.warn('Auto-liquidação de comissões falhou:', e);
+    }
+  }, [commissions]);
+
   const isInternalUpdateRef = useRef(false);
   const myAppId = useRef(Math.random().toString(36).substr(2, 9));
   const seenMessages = useRef<Set<string>>(new Set());

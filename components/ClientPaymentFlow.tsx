@@ -171,14 +171,17 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
       const total = (prop?.signalValue || 0) + (prop?.downPaymentValue || 0) + mensais + baloes;
       return acc + total;
     }, 0);
-    const commissionPending = wonData.filter(c => c.status === 'Pending').reduce((acc, c) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isEffectivePaid = (c: Commission) => c.status === 'Paid' || (c.commissionReceiptDate && c.commissionReceiptDate <= todayStr);
+
+    const commissionPending = wonData.filter(c => !isEffectivePaid(c)).reduce((acc, c) => {
       const rules = getCommissionRulesForProject(c.propertyTitle || '');
       const amt = (rules.hasCompany && !c.isManualAgency) 
         ? ((c.salePrice || 0) * rules.agencyPercent)
         : (c.agencyAmount !== undefined ? c.agencyAmount : ((c.salePrice || 0) * rules.agencyPercent));
       return acc + amt;
     }, 0);
-    const commissionPaid = wonData.filter(c => c.status === 'Paid').reduce((acc, c) => {
+    const commissionPaid = wonData.filter(c => isEffectivePaid(c)).reduce((acc, c) => {
       const rules = getCommissionRulesForProject(c.propertyTitle || '');
       const amt = (rules.hasCompany && !c.isManualAgency) 
         ? ((c.salePrice || 0) * rules.agencyPercent)
@@ -718,10 +721,12 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
                     const duringVal = (prop?.signalValue || 0) + (prop?.downPaymentValue || 0) + (prop?.monthlyInstallments?.reduce((s,m) => s+m.value, 0) || 0) + (prop?.balloons?.reduce((s,b) => s+b.value, 0) || 0);
                     const postVal = total - duringVal;
 
+                    const isReceived = sale.status === 'Paid' || !!sale.commissionReceiptDate;
+
                     return (
                       <React.Fragment key={sale.id}>
                         <tr className={`hover:bg-slate-50 transition-all ${isExpanded ? 'bg-[#d4a853]/5' : idx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'}`}>
-                          <td className="px-4 py-3 md:px-5 md:py-3.5">
+                          <td className={`px-4 py-3 md:px-5 md:py-3.5 transition-all ${isReceived ? 'bg-emerald-50/60 border-l-4 border-emerald-500/50 shadow-[inset_1px_0_0_rgba(16,185,129,0.1)]' : ''}`}>
                              <div className="flex items-center space-x-2">
                                 <button 
                                   onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)} 
