@@ -201,14 +201,39 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status Comercial</label>
-                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as ClientStatus})} className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none">
-                  <option value={ClientStatus.LEAD}>📩 Lead</option>
-                  <option value={ClientStatus.COLD}>📞 Ligação</option>
-                  <option value={ClientStatus.WARM}>📅 Agendamento</option>
-                  <option value={ClientStatus.PROPOSAL}>📄 Proposta</option>
-                  <option value={ClientStatus.HOT}>🤝 Apresentação</option>
-                  <option value={ClientStatus.WON}>🎉 Ganho</option>
-                </select>
+                <div className="space-y-2">
+                  <select 
+                    value={
+                      [ClientStatus.LEAD, ClientStatus.CARTEIRA, ClientStatus.OUTROS].includes(formData.status) 
+                        ? formData.status 
+                        : 'Customizado'
+                    } 
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === 'Customizado') {
+                        setFormData({...formData, status: '' as any});
+                      } else {
+                        setFormData({...formData, status: val as any});
+                      }
+                    }} 
+                    className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none"
+                  >
+                    <option value={ClientStatus.LEAD}>📩 Lead</option>
+                    <option value={ClientStatus.CARTEIRA}>💼 Carteira Corretor</option>
+                    <option value={ClientStatus.OUTROS}>⚙️ Outros</option>
+                    <option value="Customizado">✍️ Preencher Status Personalizado...</option>
+                  </select>
+                  
+                  {![ClientStatus.LEAD, ClientStatus.CARTEIRA, ClientStatus.OUTROS].includes(formData.status) && (
+                    <input
+                      type="text"
+                      placeholder="Digite o Status Comercial..."
+                      value={formData.status}
+                      onChange={e => setFormData({...formData, status: e.target.value as any})}
+                      className="w-full bg-white border border-[#d4a853] rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none placeholder-slate-400 focus:ring-1 focus:ring-[#d4a853]"
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </section>

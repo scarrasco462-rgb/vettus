@@ -257,7 +257,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
               <button onClick={() => setShowHistoryModal(false)} className="text-white hover:bg-white/10 p-2 rounded-full transition-colors"><X className="w-8 h-8" /></button>
             </div>
             
-            <div className="p-8 overflow-y-auto no-scrollbar bg-slate-50 flex-1 space-y-8">
+            <div className="p-8 overflow-y-auto bg-slate-50 flex-1 space-y-8">
                {/* BLOCO 1: REGISTRO DE ATENDIMENTO REALIZADO */}
                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
                   <div className="flex items-center space-x-2 border-b pb-2">

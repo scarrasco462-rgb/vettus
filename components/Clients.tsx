@@ -1140,6 +1140,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
             >
               <option value="all">Todos os Status</option>
               <option value={ClientStatus.LEAD}>LEAD</option>
+              <option value={ClientStatus.CARTEIRA}>Carteira Corretor</option>
+              <option value={ClientStatus.OUTROS}>Outros</option>
               <option value={ClientStatus.COLD}>Ligação</option>
               <option value={ClientStatus.WARM}>Agendamento</option>
               <option value={ClientStatus.PROPOSAL}>Proposta</option>
@@ -1397,16 +1399,21 @@ export const ClientView: React.FC<ClientViewProps> = ({
                       </div>
                     </td>
                     <td className="px-4 lg:px-8 py-4 lg:py-5">
-                      <div className="relative group/status">
+                      <div className="relative group/status flex flex-col items-center gap-1">
                         <select
-                          value={client.status}
+                          value={
+                            [ClientStatus.LEAD, ClientStatus.CARTEIRA, ClientStatus.OUTROS, ClientStatus.COLD, ClientStatus.WARM, ClientStatus.PROPOSAL, ClientStatus.HOT, ClientStatus.WON].includes(client.status)
+                              ? client.status
+                              : 'Customizado'
+                          }
                           disabled={client.blocked && !isAdmin}
                           onChange={(e) => {
-                            const newStatus = e.target.value as ClientStatus;
+                            const val = e.target.value;
+                            const newStatus = val === 'Customizado' ? '' : val;
                             const now = new Date().toISOString();
                             const updatedClient = {
                               ...client,
-                              status: newStatus,
+                              status: newStatus as ClientStatus,
                               updatedAt: now
                             };
                             onUpdateClient(updatedClient);
@@ -1417,7 +1424,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                               brokerName: currentUser.name,
                               type: 'Meeting',
                               clientName: client.name,
-                              description: `FLUXO ATUALIZADO: Status alterado de ${client.status.toUpperCase()} para ${newStatus.toUpperCase()} via Central de Clientes.`,
+                              description: `FLUXO ATUALIZADO: Status alterado de ${client.status.toUpperCase()} para ${(newStatus || 'CUSTOMIZADO').toUpperCase()} via Central de Clientes.`,
                               date: now.split('T')[0],
                               time: new Date().toLocaleTimeString('pt-BR'),
                               updatedAt: now
@@ -1430,13 +1437,39 @@ export const ClientView: React.FC<ClientViewProps> = ({
                             'bg-slate-50 text-slate-600 border-slate-100'
                           }`}
                         >
-                          {Object.values(ClientStatus).map(status => (
-                            <option key={status} value={status} className="bg-white text-slate-900 font-bold uppercase">{status}</option>
+                          <option value={ClientStatus.LEAD} className="bg-white text-slate-900 font-bold uppercase">Lead</option>
+                          <option value={ClientStatus.CARTEIRA} className="bg-white text-slate-900 font-bold uppercase">Carteira Corretor</option>
+                          <option value={ClientStatus.OUTROS} className="bg-white text-slate-900 font-bold uppercase">Outros</option>
+                          <option value="Customizado" className="bg-white text-[#d4a853] font-bold uppercase">✍️ Personalizado...</option>
+                          
+                          {/* Keep legacy option support if active */}
+                          {[ClientStatus.COLD, ClientStatus.WARM, ClientStatus.PROPOSAL, ClientStatus.HOT, ClientStatus.WON].map(status => (
+                            <option key={status} value={status} className="bg-white text-slate-500 font-bold uppercase">{status}</option>
                           ))}
                         </select>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover/status:opacity-100 transition-opacity">
+                        <div className="absolute right-2 top-2 pointer-events-none opacity-0 group-hover/status:opacity-100 transition-opacity">
                           <ChevronDown className="w-3 h-3 text-current" />
                         </div>
+
+                        {![ClientStatus.LEAD, ClientStatus.CARTEIRA, ClientStatus.OUTROS, ClientStatus.COLD, ClientStatus.WARM, ClientStatus.PROPOSAL, ClientStatus.HOT, ClientStatus.WON].includes(client.status) && (
+                          <div className="mt-1">
+                            <input
+                              type="text"
+                              placeholder="Preencher status..."
+                              value={client.status || ''}
+                              onChange={(e) => {
+                                const newStatus = e.target.value;
+                                const now = new Date().toISOString();
+                                onUpdateClient({
+                                  ...client,
+                                  status: newStatus as any,
+                                  updatedAt: now
+                                });
+                              }}
+                              className="w-[120px] bg-white border border-[#d4a853] rounded-xl text-center px-2 py-1 text-[9px] font-bold text-slate-900 outline-none"
+                            />
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 lg:px-8 py-4 lg:py-5">
@@ -1843,38 +1876,69 @@ export const ClientView: React.FC<ClientViewProps> = ({
                   </div>
                     <div className="flex justify-between items-center relative group/status">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
-                      <select
-                        value={client.status}
-                        onChange={(e) => {
-                          const newStatus = e.target.value as ClientStatus;
-                          const now = new Date().toISOString();
-                          const updatedClient = {
-                            ...client,
-                            status: newStatus,
-                            updatedAt: now
-                          };
-                          onUpdateClient(updatedClient);
+                      <div className="flex flex-col items-end gap-1">
+                        <select
+                          value={
+                            [ClientStatus.LEAD, ClientStatus.CARTEIRA, ClientStatus.OUTROS, ClientStatus.COLD, ClientStatus.WARM, ClientStatus.PROPOSAL, ClientStatus.HOT, ClientStatus.WON].includes(client.status)
+                              ? client.status
+                              : 'Customizado'
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const newStatus = val === 'Customizado' ? '' : val;
+                            const now = new Date().toISOString();
+                            const updatedClient = {
+                              ...client,
+                              status: newStatus as ClientStatus,
+                              updatedAt: now
+                            };
+                            onUpdateClient(updatedClient);
+                            
+                            onAddActivity({
+                              id: Math.random().toString(36).substr(2, 9),
+                              brokerId: currentUser.id,
+                              brokerName: currentUser.name,
+                              type: 'Meeting',
+                              clientName: client.name,
+                              description: `FLUXO ATUALIZADO: Status alterado para ${(newStatus || 'CUSTOMIZADO').toUpperCase()} via Painel de Fluxos.`,
+                              date: now.split('T')[0],
+                              time: new Date().toLocaleTimeString('pt-BR'),
+                              updatedAt: now
+                            });
+                          }}
+                          className={`appearance-none text-[9px] font-black uppercase px-3 py-1 rounded-lg shadow-sm cursor-pointer outline-none transition-all hover:scale-105 ${
+                            client.status === ClientStatus.WON ? 'bg-emerald-500 text-white' : 'bg-[#0f172a] text-[#d4a853]'
+                          }`}
+                        >
+                          <option value={ClientStatus.LEAD} className="bg-white text-slate-900 font-bold uppercase">Lead</option>
+                          <option value={ClientStatus.CARTEIRA} className="bg-white text-slate-900 font-bold uppercase">Carteira Corretor</option>
+                          <option value={ClientStatus.OUTROS} className="bg-white text-slate-900 font-bold uppercase">Outros</option>
+                          <option value="Customizado" className="bg-white text-[#d4a853] font-bold uppercase">✍️ Personalizado...</option>
                           
-                          onAddActivity({
-                            id: Math.random().toString(36).substr(2, 9),
-                            brokerId: currentUser.id,
-                            brokerName: currentUser.name,
-                            type: 'Meeting',
-                            clientName: client.name,
-                            description: `FLUXO ATUALIZADO: Status alterado para ${newStatus.toUpperCase()} via Painel de Fluxos.`,
-                            date: now.split('T')[0],
-                            time: new Date().toLocaleTimeString('pt-BR'),
-                            updatedAt: now
-                          });
-                        }}
-                        className={`appearance-none text-[9px] font-black uppercase px-3 py-1 rounded-lg shadow-sm cursor-pointer outline-none transition-all hover:scale-105 ${
-                          client.status === ClientStatus.WON ? 'bg-emerald-500 text-white' : 'bg-[#0f172a] text-[#d4a853]'
-                        }`}
-                      >
-                        {Object.values(ClientStatus).map(status => (
-                          <option key={status} value={status} className="bg-white text-slate-900 font-bold uppercase">{status}</option>
-                        ))}
-                      </select>
+                          {/* Keep legacy option support if active */}
+                          {[ClientStatus.COLD, ClientStatus.WARM, ClientStatus.PROPOSAL, ClientStatus.HOT, ClientStatus.WON].map(status => (
+                            <option key={status} value={status} className="bg-white text-slate-500 font-bold uppercase">{status}</option>
+                          ))}
+                        </select>
+
+                        {![ClientStatus.LEAD, ClientStatus.CARTEIRA, ClientStatus.OUTROS, ClientStatus.COLD, ClientStatus.WARM, ClientStatus.PROPOSAL, ClientStatus.HOT, ClientStatus.WON].includes(client.status) && (
+                          <input
+                            type="text"
+                            placeholder="Status..."
+                            value={client.status || ''}
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+                              const now = new Date().toISOString();
+                              onUpdateClient({
+                                ...client,
+                                status: newStatus as any,
+                                updatedAt: now
+                              });
+                            }}
+                            className="w-[100px] bg-white border border-[#d4a853] rounded-lg text-center px-1.5 py-0.5 text-[9px] font-bold text-slate-900 outline-none"
+                          />
+                        )}
+                      </div>
                     </div>
                 </div>
                 
@@ -2736,7 +2800,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                  </div>
               </div>
 
-              <div className="p-6 lg:p-10 overflow-y-auto no-scrollbar bg-slate-50 flex-1">
+              <div className="p-6 lg:p-10 overflow-y-auto bg-slate-50 flex-1">
                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
                     {/* COLUNA ESQUERDA: FORMULÁRIOS */}
                     <div className="lg:col-span-5 space-y-6 lg:y-10">
@@ -2825,7 +2889,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                              <span className="text-[9px] font-bold text-slate-400 px-4 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm">Registros Vettus</span>
                           </div>
                           
-                          <div className="relative space-y-6 before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-1 before:bg-slate-200 h-[600px] overflow-y-auto no-scrollbar pr-4">
+                          <div className="relative space-y-6 before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-1 before:bg-slate-200 h-[600px] overflow-y-auto pr-4">
                              {activities.filter(a => a.clientName === selectedClient.name).reverse().map(act => (
                                 <div key={act.id} className="relative flex items-start group">
                                    <div className="flex items-center justify-center w-12 h-12 rounded-2xl border-4 border-slate-50 bg-[#0a1120] text-[#d4a853] shadow-lg z-10 transition-transform hover:scale-110">

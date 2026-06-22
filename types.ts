@@ -36,6 +36,8 @@ export const ALL_PERMISSIONS: AppView[] = [
 
 export enum ClientStatus {
   LEAD = 'Lead',
+  CARTEIRA = 'Carteira Corretor',
+  OUTROS = 'Outros',
   COLD = 'Ligação',
   WARM = 'Agendamento',
   PROPOSAL = 'Proposta',
