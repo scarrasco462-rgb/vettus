@@ -140,7 +140,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-8 bg-slate-50 space-y-6 no-scrollbar flex-1">
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-8 bg-slate-50 space-y-6 flex-1">
           <section className="space-y-4">
             <div className="flex items-center space-x-2 border-b pb-2">
                <User className="w-4 h-4 text-[#d4a853]" />

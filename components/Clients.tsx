@@ -1217,28 +1217,32 @@ export const ClientView: React.FC<ClientViewProps> = ({
           <Users className="w-3.5 h-3.5" />
           <span>Carteira de Clientes</span>
         </button>
-        <button
-          onClick={() => setActiveTab('planilhas')}
-          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'planilhas' 
-            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
-            : 'text-slate-500 hover:bg-white hover:text-slate-900'
-          }`}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          <span>Gestão de Planilhas</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('fluxos')}
-          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'fluxos' 
-            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
-            : 'text-slate-500 hover:bg-white hover:text-slate-900'
-          }`}
-        >
-          <HardHat className="w-3.5 h-3.5" />
-          <span>Fluxos de Obra</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('planilhas')}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'planilhas' 
+              ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+              : 'text-slate-500 hover:bg-white hover:text-slate-900'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Gestão de Planilhas</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('fluxos')}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'fluxos' 
+              ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+              : 'text-slate-500 hover:bg-white hover:text-slate-900'
+            }`}
+          >
+            <HardHat className="w-3.5 h-3.5" />
+            <span>Fluxos de Obra</span>
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('impressao')}
           className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
@@ -1261,22 +1265,24 @@ export const ClientView: React.FC<ClientViewProps> = ({
           <ShieldAlert className="w-3.5 h-3.5" />
           <span>Bloqueados</span>
         </button>
-        <button
-          onClick={() => setActiveTab('duplicados')}
-          className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'duplicados' 
-            ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
-            : 'text-slate-500 hover:bg-white hover:text-slate-900'
-          }`}
-        >
-          <Repeat className="w-3.5 h-3.5" />
-          <span>Contatos Duplicados</span>
-          {duplicateGroupsList.length > 0 && (
-            <span className="bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 ml-1 animate-pulse">
-              {duplicateGroupsList.length}
-            </span>
-          )}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('duplicados')}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'duplicados' 
+              ? 'bg-[#0f172a] text-[#d4a853] shadow-lg scale-105' 
+              : 'text-slate-500 hover:bg-white hover:text-slate-900'
+            }`}
+          >
+            <Repeat className="w-3.5 h-3.5" />
+            <span>Contatos Duplicados</span>
+            {duplicateGroupsList.length > 0 && (
+              <span className="bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 ml-1 animate-pulse">
+                {duplicateGroupsList.length}
+              </span>
+            )}
+          </button>
+        )}
         {isAdmin && (
           <button
             onClick={() => setActiveTab('transferencia')}
@@ -1530,7 +1536,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       )}
 
-      {activeTab === 'planilhas' && (
+      {activeTab === 'planilhas' && isAdmin && (
         <div className="space-y-6">
           {/* Nova Seção: Leads Bloqueados ou Excluídos */}
           <div className="bg-[#0f172a] rounded-[2.5rem] p-8 border border-[#d4a853]/20 relative overflow-hidden mb-8">
@@ -1800,7 +1806,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       )}
 
-      {activeTab === 'fluxos' && (
+      {activeTab === 'fluxos' && isAdmin && (
         <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden">
           <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
             <div>
@@ -2103,7 +2109,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </div>
       )}
 
-      {activeTab === 'duplicados' && (
+      {activeTab === 'duplicados' && isAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-300">
           {/* Coluna Esquerda: Lista de Grupos de Duplicados */}
           <div className="lg:col-span-4 space-y-4">

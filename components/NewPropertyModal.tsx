@@ -433,7 +433,7 @@ export const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
           </div>
         </div>
 
-        <div className="overflow-y-auto p-8 bg-slate-50 flex-1 no-scrollbar pt-12">
+        <div className="overflow-y-auto p-8 bg-slate-50 flex-1 pt-12">
           
           {currentStep === 1 && (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">

@@ -104,6 +104,28 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [selectedInstallmentIndices, setSelectedInstallmentIndices] = useState<number[]>([]);
   const [batchValue, setBatchValue] = useState('0,00');
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'commissionReceiptDate' | 'clientName' | 'propertyTitle' | 'salePrice' | 'triggerDate' | null;
+    direction: 'asc' | 'desc';
+  }>({
+    key: 'commissionReceiptDate',
+    direction: 'asc'
+  });
+
+  const handleSort = (key: 'commissionReceiptDate' | 'clientName' | 'propertyTitle' | 'salePrice' | 'triggerDate') => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        return {
+          key,
+          direction: prev.direction === 'asc' ? 'desc' : 'asc'
+        };
+      }
+      return {
+        key,
+        direction: 'asc'
+      };
+    });
+  };
 
   // Reset selection when changing expanded sale
   useEffect(() => {
@@ -153,13 +175,84 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
   const getBrokerName = (id: string) => brokers.find(b => b.id === id)?.name || 'Externo';
 
+  const parseDateStringToTimestamp = (dateStr: string): number => {
+    if (!dateStr) return 0;
+    const trimmed = dateStr.trim();
+    if (!trimmed) return 0;
+    
+    // Try pattern DD/MM/YYYY
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          return new Date(year, month, day, 12, 0, 0).getTime();
+        }
+      }
+    }
+    
+    // Try YYYY-MM-DD
+    if (trimmed.includes('-')) {
+      const parts = trimmed.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          return new Date(year, month, day, 12, 0, 0).getTime();
+        }
+      }
+    }
+
+    const parsed = new Date(trimmed).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const paymentData = useMemo(() => {
-    return commissions.filter(c => {
+    const filtered = commissions.filter(c => {
       const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (c.propertyTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
     });
-  }, [commissions, searchTerm]);
+
+    if (sortConfig.key) {
+      return [...filtered].sort((a, b) => {
+        const valA = a[sortConfig.key!];
+        const valB = b[sortConfig.key!];
+
+        if (sortConfig.key === 'commissionReceiptDate' || sortConfig.key === 'triggerDate') {
+          const dateStrA = (valA as string || '').trim();
+          const dateStrB = (valB as string || '').trim();
+          
+          if (!dateStrA && !dateStrB) return 0;
+          if (!dateStrA) return 1; // Put empty dates last
+          if (!dateStrB) return -1;
+          
+          const timeA = parseDateStringToTimestamp(dateStrA);
+          const timeB = parseDateStringToTimestamp(dateStrB);
+          
+          if (timeA === timeB) return 0;
+          return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
+        }
+
+        if (sortConfig.key === 'salePrice') {
+          const numA = (valA as number) || 0;
+          const numB = (valB as number) || 0;
+          return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+        }
+
+        const strA = (valA as string || '').toString().toLowerCase();
+        const strB = (valB as string || '').toString().toLowerCase();
+        return sortConfig.direction === 'asc' 
+          ? strA.localeCompare(strB, 'pt-BR') 
+          : strB.localeCompare(strA, 'pt-BR');
+      });
+    }
+
+    return filtered;
+  }, [commissions, searchTerm, sortConfig]);
 
   const stats = useMemo(() => {
     const wonData = paymentData.filter(c => c.isGanho);
@@ -700,17 +793,77 @@ export const ClientPaymentFlowView: React.FC<ClientPaymentFlowProps> = ({
 
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
-                <thead className="bg-[#050810] text-white">
+                <thead className="bg-[#050810] text-white select-none">
                   <tr>
-                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-[#d4a853] min-w-[200px]">Contrato / Corretor</th>
-                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider min-w-[150px]">Empreendimento</th>
-                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-right min-w-[120px]">VGV Total</th>
+                    <th 
+                      onClick={() => handleSort('clientName')}
+                      className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-[#d4a853] min-w-[200px] cursor-pointer hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center space-x-1 justify-between">
+                        <span>Contrato / Corretor</span>
+                        {sortConfig.key === 'clientName' ? (
+                          sortConfig.direction === 'asc' ? <ChevronUp size={11} className="inline text-[#d4a853]" /> : <ChevronDown size={11} className="inline text-[#d4a853]" />
+                        ) : (
+                          <ArrowDownWideNarrow size={11} className="inline text-slate-400 opacity-40" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('propertyTitle')}
+                      className="px-4 py-4 text-[9px] font-black uppercase tracking-wider min-w-[150px] cursor-pointer hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center space-x-1 justify-between">
+                        <span>Empreendimento</span>
+                        {sortConfig.key === 'propertyTitle' ? (
+                          sortConfig.direction === 'asc' ? <ChevronUp size={11} className="inline text-[#d4a853]" /> : <ChevronDown size={11} className="inline text-[#d4a853]" />
+                        ) : (
+                          <ArrowDownWideNarrow size={11} className="inline text-slate-400 opacity-40" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('salePrice')}
+                      className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-right min-w-[120px] cursor-pointer hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center justify-end space-x-1">
+                        <span>VGV Total</span>
+                        {sortConfig.key === 'salePrice' ? (
+                          sortConfig.direction === 'asc' ? <ChevronUp size={11} className="inline text-[#d4a853]" /> : <ChevronDown size={11} className="inline text-[#d4a853]" />
+                        ) : (
+                          <ArrowDownWideNarrow size={11} className="inline text-slate-400 opacity-40" />
+                        )}
+                      </div>
+                    </th>
                     <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center bg-white/5 min-w-[120px]">Durante Obra</th>
                     <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center bg-white/10 text-emerald-400 min-w-[120px]">Pós Obra</th>
                     <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[120px]">Comissão Imob</th>
                     <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[120px]">Comissão Corretor</th>
-                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[100px]">Data Gatilho</th>
-                    <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[100px]">Receb. Comissão</th>
+                    <th 
+                      onClick={() => handleSort('triggerDate')}
+                      className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[100px] cursor-pointer hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Data Gatilho</span>
+                        {sortConfig.key === 'triggerDate' ? (
+                          sortConfig.direction === 'asc' ? <ChevronUp size={11} className="inline text-[#d4a853]" /> : <ChevronDown size={11} className="inline text-[#d4a853]" />
+                        ) : (
+                          <ArrowDownWideNarrow size={11} className="inline text-slate-400 opacity-40" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('commissionReceiptDate')}
+                      className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-center min-w-[100px] cursor-pointer hover:bg-white/10 transition-colors text-[#d4a853] bg-white/5"
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Receb. Comissão</span>
+                        {sortConfig.key === 'commissionReceiptDate' ? (
+                          sortConfig.direction === 'asc' ? <ChevronUp size={11} className="inline text-[#d4a853]" /> : <ChevronDown size={11} className="inline text-[#d4a853]" />
+                        ) : (
+                          <ArrowDownWideNarrow size={11} className="inline text-slate-400 opacity-40" />
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
